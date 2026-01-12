@@ -1,13 +1,13 @@
-import { useEffect } from "react";
+import { Routes, Route } from "react-router-dom";
+import ListAccount from "./page/Admin/ListAccount";
+import ListProduct from "./page/Admin/ListProduct";
+
 
 function App() {
-  useEffect(() => {
-    fetch("/api/test")
-      .then(res => res.json())
-      .then(data => console.log(data));
-  }, []);
-
-  return <h1>Frontend OK</h1>;
-}
-
-export default App;
+  return (
+    <Routes>
+      <Route path="/admin/accounts" element={<ListAccount />} />
+      <Route path="/admin/products" element={<ListProduct />} />
+    </Routes>
+  );
+}export default App;

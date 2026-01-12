@@ -2,24 +2,26 @@ const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
 
-const testRoute = require("./routes/test.route");
-const authRoute = require("./routes/auth.route");
-
 const { connectDB } = require("./config/db");
-const userRoute = require("./routes/user.route");
+const accountRoute = require("./routes/AccountRouter");
+const productRoute = require("./routes/ProductRouter");
 
 const app = express();
 
+// Middlewares
 app.use(cors());
 app.use(express.json());
 
-app.use("/api", testRoute);
-app.use("/api/auth", authRoute);
+// Routes
+app.use("/api/accounts", accountRoute);
+app.use("/api/products", productRoute);
 
-connectDB();
-app.use("/api/users", userRoute);
-
+// Start server AFTER DB connected
 const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => {
-  console.log(`Backend running at http://localhost:${PORT}`);
-});
+
+(async () => {
+  await connectDB();
+  app.listen(PORT, () => {
+    console.log(`🚀 Backend running at http://localhost:${PORT}`);
+  });
+})();

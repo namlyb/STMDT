@@ -1,22 +1,28 @@
-const sql = require("mssql");
+const mysql = require("mysql2/promise");
 
-const config = {
-  user: "sa",
-  password: "123456",
-  server: "localhost",
-  database: "duan1",
-  options: {
-    trustServerCertificate: true
-  }
-};
+const pool = mysql.createPool({
+  host: process.env.DB_HOST || "localhost",
+  user: process.env.DB_USER || "root",
+  password: process.env.DB_PASSWORD || "",
+  database: process.env.DB_NAME || "stmdt",
+  port: process.env.DB_PORT || 3306,
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0,
+
+  dateStrings: true,
+  timezone: "+07:00" 
+});
 
 const connectDB = async () => {
   try {
-    await sql.connect(config);
-    console.log("SQL Server connected");
+    const connection = await pool.getConnection();
+    console.log("✅ MySQL connected to STMDT");
+    connection.release();
   } catch (err) {
-    console.error(err);
+    console.error("❌ MySQL connection failed:", err);
+    process.exit(1);
   }
 };
 
-module.exports = { sql, connectDB };
+module.exports = { pool, connectDB };
