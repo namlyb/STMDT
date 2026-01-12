@@ -6,6 +6,7 @@ const Product = {
       SELECT
     p.ProductId,
     p.ProductName,
+    p.Description,
     p.Price,
     p.Image,
     p.Status,

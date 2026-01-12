@@ -73,8 +73,8 @@ function ListProduct() {
 
     return products.filter(p => {
       const matchSearch = p.ProductName
-        ?.toLowerCase().trim()
-        .includes(keyword);
+        ?.toLowerCase()
+        .includes(keyword) || p.StallName?.toLowerCase().includes(keyword);
 
       const matchCategory = category
         ? p.CategoryName === category
@@ -106,7 +106,7 @@ function ListProduct() {
       {/* 🔎 FILTER */}
       <div style={{ marginBottom: 15, display: "flex", gap: 10 }}>
         <input
-          placeholder="Search product name..."
+          placeholder="Search name"
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
@@ -141,6 +141,7 @@ function ListProduct() {
         <thead>
           <tr>
             <th>Tên sản phẩm</th>
+            <th>Mô tả</th>
             <th>Danh mục</th>
             <th>Gian hàng</th>
             <th>Giá</th>
@@ -160,6 +161,7 @@ function ListProduct() {
             pagedData.map(p => (
               <tr key={p.ProductId}>
                 <td>{p.ProductName}</td>
+                <td>{p.Description}</td>
                 <td>{p.CategoryName}</td>
                 <td>{p.StallName}</td>
                 <td>{formatPrice(p.Price)}</td>
