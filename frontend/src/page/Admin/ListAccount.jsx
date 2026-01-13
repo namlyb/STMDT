@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { API_URL } from "../../config";
+import AdminLayout from "../../components/Admin/Sidebar.jsx";
 
 export default function ListAccount() {
   const navigate = useNavigate();
@@ -90,7 +91,7 @@ export default function ListAccount() {
   if (loading) return <p className="text-center mt-6">Đang tải dữ liệu...</p>;
 
   return (
-    <div className="p-6">
+    <AdminLayout>
       <h2 className="text-2xl font-bold mb-6">Danh sách tài khoản</h2>
 
       {/* Filter */}
@@ -230,6 +231,6 @@ export default function ListAccount() {
           </button>
         </div>
       )}
-    </div>
+    </AdminLayout>
   );
 }
