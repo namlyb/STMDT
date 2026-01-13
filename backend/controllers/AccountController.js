@@ -1,5 +1,6 @@
 const Account = require("../models/account");
 const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
 
 const AccountController = {
 
@@ -70,19 +71,43 @@ const AccountController = {
         return res.status(401).json({ message: "Tài khoản không tồn tại" });
       }
 
+      if (!account.Password) {
+        return res.status(500).json({ message: "Mật khẩu chưa được lưu hợp lệ" });
+      }
+
       // So sánh password hash
       const match = await bcrypt.compare(password, account.Password);
       if (!match) {
         return res.status(401).json({ message: "Sai mật khẩu" });
       }
 
+      // ======== TẠO TOKEN ========
+      if (!process.env.JWT_SECRET) {
+        return res.status(500).json({ message: "JWT_SECRET chưa được cấu hình" });
+      }
+
+      const token = jwt.sign(
+        { AccountId: account.AccountId, RoleId: account.RoleId },
+        process.env.JWT_SECRET,
+        { expiresIn: "1h" }
+      );
+
+      // ======== GỬI COOKIE ========
+      res.cookie("token", token, {
+        //httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        maxAge: 3600 * 1000 // 1h
+      });
+
       // Trả về thông tin account + role
       res.status(200).json({
+        message: "Đăng nhập thành công",
+        token, // gửi tken cho fe
         account: {
           AccountId: account.AccountId,
           Username: account.Username,
-          RoleId: account.RoleId,
-          RoleName: account.RoleName,
+          RoleId: account.RoleId.toString(),
         },
       });
     } catch (err) {
@@ -90,6 +115,7 @@ const AccountController = {
       res.status(500).json({ message: "Đăng nhập thất bại" });
     }
   },
+
   // ================= UPDATE ACCOUNT =================
   updateAccount: async (req, res) => {
     try {
@@ -108,7 +134,6 @@ const AccountController = {
       // Nếu có Password mới thì hash
       let hashedPassword = account.Password;
       if (Password) {
-        const bcrypt = require("bcrypt");
         hashedPassword = await bcrypt.hash(Password, 10);
       }
 
@@ -127,6 +152,7 @@ const AccountController = {
     }
   },
 
+  // ================= GET ACCOUNT BY ID =================
   getAccountById: async (req, res) => {
     try {
       const { id } = req.params;
@@ -137,7 +163,26 @@ const AccountController = {
       console.error(err);
       res.status(500).json({ message: "Lỗi server" });
     }
-  }
+  },
+
+  // ================= GET CURRENT USER =================
+  getCurrentUser: async (req, res) => {
+    try {
+      if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+      const account = await Account.getById(req.user.AccountId);
+      if (!account) return res.status(404).json({ message: "Tài khoản không tồn tại" });
+      res.json(account);
+    } catch (err) {
+      console.error("getCurrentUser error:", err);
+      res.status(500).json({ message: "Lỗi server" });
+    }
+  },
+
+  // ================= LOGOUT =================
+  logout: (req, res) => {
+    res.clearCookie("token", { httpOnly: true, sameSite: "strict" });
+    res.json({ message: "Đăng xuất thành công" });
+  },
 
 };
 

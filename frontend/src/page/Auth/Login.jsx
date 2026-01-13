@@ -14,18 +14,21 @@ export default function Login() {
 
     try {
       const res = await axios.post("/accounts/login", { username, password });
-      const { account } = res.data;
+      const { account, token } = res.data;
+
+      // Lưu token vào sessionStorage
+    sessionStorage.setItem("token", token);
 
       // Chuyển hướng theo role
-      switch (account.RoleName) {
-        case "Admin":
-          navigate("/admin/dashboard");
+      switch (account.RoleId) {
+        case '1':
+          navigate("/admin/accounts");
           break;
-        case "Seller":
+        case '2':
+          navigate("/seller/dashboard/buyer/home");
+          break;
+        case '3':
           navigate("/seller/dashboard");
-          break;
-        case "Buyer":
-          navigate("/buyer/home");
           break;
         default:
           navigate("/");

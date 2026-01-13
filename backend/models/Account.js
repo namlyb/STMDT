@@ -16,10 +16,9 @@ const Account = {
 
   getByUsername: async (username) => {
     const [rows] = await pool.query(`
-      SELECT a.*, r.RoleName
-      FROM Accounts a
-      LEFT JOIN Roles r ON a.RoleId = r.RoleId
-      WHERE a.Username = ?
+      SELECT AccountId, Username, Password, RoleId
+      FROM Accounts
+      WHERE Username = ?
     `, [username]);
     return rows[0];
   },
@@ -46,10 +45,10 @@ const Account = {
 
 
   update: async (id, data) => {
-    const { Username, Name, Phone, Password, roleId } = data;
+    const { Username, Name, Phone, Password, RoleId } = data;
     await pool.query(
       `UPDATE Accounts SET Username = ?, Name = ?, Phone = ?, Password = ?, RoleId = ? WHERE AccountId = ?`,
-      [Username, Name, Phone, Password, roleId, id]
+      [Username, Name, Phone, Password, RoleId, id]
     );
   },
 

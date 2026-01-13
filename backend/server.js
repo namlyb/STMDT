@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+const cookieParser = require("cookie-parser");
 require("dotenv").config();
 
 const { connectDB } = require("./config/db");
@@ -13,6 +14,8 @@ const app = express();
 // Middlewares
 app.use(cors());
 app.use(express.json());
+app.use(cookieParser());
+
 
 // Routes
 app.use("/api/accounts", accountRoute);

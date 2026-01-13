@@ -51,7 +51,7 @@ export default function Header() {
           {/* ACTION */}
           <div className="flex gap-3">
             <button className="bg-white text-orange-500 px-4 py-1 rounded hover:bg-gray-100"
-            onClick={() => navigate("/auth/login")}>
+            onClick={() => navigate("/login")}>
               Đăng nhập
             </button>
             <button className="border border-white px-4 py-1 rounded hover:bg-orange-600">

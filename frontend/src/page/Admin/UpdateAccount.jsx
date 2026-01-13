@@ -18,43 +18,49 @@ export default function UpdateAccount() {
     RoleId: "",
   });
 
-  // Load account + roles
   useEffect(() => {
-  const fetchData = async () => {
-    try {
-      const [rolesRes, accRes] = await Promise.all([
-        fetch(`${API_URL}/roles`),
-        fetch(`${API_URL}/accounts/${id}`)
-      ]);
-      const rolesData = await rolesRes.json();
-      const acc = await accRes.json();
+    const fetchData = async () => {
+      try {
+        // 1. Lấy danh sách role
+        const rolesRes = await fetch(`${API_URL}/roles`);
+        if (!rolesRes.ok) throw new Error("Không thể lấy danh sách roles");
+        const rolesData = await rolesRes.json();
 
-      setRoles(rolesData);
-      setAccount(acc);
-      setForm({
-        Username: acc.Username,
-        Name: acc.Name || "",
-        Phone: acc.Phone || "",
-        Password: "",
-        RoleId: acc.RoleId?.toString() || "",
-      });
-      setLoading(false);
-    } catch (err) {
-      console.error(err);
-      setLoading(false);
-    }
-  };
-  fetchData();
-}, [id]);
+        // 2. Lấy thông tin account
+        const accRes = await fetch(`${API_URL}/accounts/${id}`);
+        if (!accRes.ok) throw new Error("Không tìm thấy tài khoản");
+        const acc = await accRes.json();
 
+        setRoles(rolesData);
+        setAccount(acc);
 
-  const handleChange = e => setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
+        // 3. Set form với dữ liệu account
+        setForm({
+          Username: acc.Username || "",
+          Name: acc.Name || "",
+          Phone: acc.Phone || "",
+          Password: "", // để trống nếu không đổi
+          RoleId: acc.RoleId?.toString() || "", // convert RoleId sang string
+        });
 
-  const handleSubmit = async e => {
+        setLoading(false);
+      } catch (err) {
+        console.error(err);
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [id]);
+
+  const handleChange = (e) =>
+    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       const body = { ...form };
-      if (!body.Password) delete body.Password;
+      if (!body.Password) delete body.Password; // không update nếu password trống
 
       const res = await fetch(`${API_URL}/accounts/${id}`, {
         method: "PUT",
@@ -62,12 +68,16 @@ export default function UpdateAccount() {
         body: JSON.stringify(body),
       });
 
-      if (!res.ok) throw new Error("Update failed");
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || "Cập nhật thất bại");
+      }
+
       alert("Cập nhật thành công!");
       navigate("/admin/accounts");
     } catch (err) {
       console.error(err);
-      alert("Cập nhật thất bại");
+      alert(err.message || "Cập nhật thất bại");
     }
   };
 
@@ -133,7 +143,7 @@ export default function UpdateAccount() {
             className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             required
           >
-            {roles.map(role => (
+            {roles.map((role) => (
               <option key={role.RoleId} value={role.RoleId.toString()}>
                 {role.RoleName}
               </option>
@@ -142,10 +152,17 @@ export default function UpdateAccount() {
         </div>
 
         <div className="flex justify-between gap-4 mt-4">
-          <button type="submit" className="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">
+          <button
+            type="submit"
+            className="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
+          >
             Lưu
           </button>
-          <button type="button" onClick={() => navigate("/admin/accounts")} className="flex-1 bg-gray-300 hover:bg-gray-400 px-4 py-2 rounded">
+          <button
+            type="button"
+            onClick={() => navigate("/admin/accounts")}
+            className="flex-1 bg-gray-300 hover:bg-gray-400 px-4 py-2 rounded"
+          >
             Hủy
           </button>
         </div>
