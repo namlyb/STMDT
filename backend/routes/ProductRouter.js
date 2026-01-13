@@ -1,9 +1,18 @@
 const express = require("express");
-const { getProducts, updateActive } = require("../controllers/ProductController");
+const ProductController  = require("../controllers/ProductController");
 
 const router = express.Router();
 
-router.get("/", getProducts);
-router.put("/:id/active", updateActive);
+// ADMIN
+router.get("/", ProductController.getAllProducts);
+router.patch("/:id/active", ProductController.updateProductActive);
+
+// GUEST
+router.get("/random", ProductController.getRandomProducts);
+router.get("/search", ProductController.searchProducts);
+
+router.get("/category/:id", ProductController.getProductsByCategory);
+router.get("/:id", ProductController.getProductDetail);
+
 
 module.exports = router;

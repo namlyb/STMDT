@@ -1,62 +1,58 @@
 const { pool } = require("../config/db");
 
-module.exports = {
+const Account = {
   getAll: async () => {
-    const [rows] = await pool.execute(`
-      SELECT 
-        a.AccountId, a.Avt, a.Username, a.Name, a.Phone, a.IdentityNumber,
-        a.DateOfBirth, a.Gender, a.IsActive, r.RoleName
+    const [rows] = await pool.query(`
+      SELECT a.*, r.RoleName
       FROM Accounts a
-      JOIN Roles r ON a.RoleId = r.RoleId
-      ORDER BY a.AccountId DESC;
+      LEFT JOIN Roles r ON a.RoleId = r.RoleId
     `);
     return rows;
   },
 
-  findByUsername: async (username) => {
-    const [rows] = await pool.execute(
-      "SELECT * FROM Accounts WHERE Username = ?",
-      [username]
+  updateActive: async (id, isActive) => {
+    await pool.query(`UPDATE Accounts SET IsActive = ? WHERE AccountId = ?`, [isActive, id]);
+  },
+
+  getByUsername: async (username) => {
+    const [rows] = await pool.query(`
+      SELECT a.*, r.RoleName
+      FROM Accounts a
+      LEFT JOIN Roles r ON a.RoleId = r.RoleId
+      WHERE a.Username = ?
+    `, [username]);
+    return rows[0];
+  },
+
+  create: async ({ username, password, roleId }) => {
+    const [result] = await pool.query(`
+      INSERT INTO Accounts (Username, Password, RoleId)
+      VALUES (?, ?, ?)
+    `, [username, password, roleId]);
+
+    return { AccountId: result.insertId, username, roleId };
+  },
+
+  getById: async (id) => {
+    const [rows] = await pool.query(
+      `SELECT a.*, r.RoleName 
+     FROM Accounts a 
+     LEFT JOIN Roles r ON a.RoleId = r.RoleId 
+     WHERE a.AccountId = ?`,
+      [id]
     );
     return rows[0];
   },
 
-  create: async (data) => {
-    const {
-      username,
-      password,
-      name,
-      phone,
-      identityNumber,
-      dateOfBirth,
-      gender,
-      roleId
-    } = data;
 
-    await pool.execute(
-      `
-      INSERT INTO Accounts
-      (Username, Password, Name, Phone, IdentityNumber, DateOfBirth, Gender, RoleId)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `,
-      [
-        username,
-        password,
-        name,
-        phone,
-        identityNumber,
-        dateOfBirth,
-        gender,
-        roleId
-      ]
+  update: async (id, data) => {
+    const { Username, Name, Phone, Password, roleId } = data;
+    await pool.query(
+      `UPDATE Accounts SET Username = ?, Name = ?, Phone = ?, Password = ?, RoleId = ? WHERE AccountId = ?`,
+      [Username, Name, Phone, Password, roleId, id]
     );
   },
-  updateActive: async (id, isActive) => {
-    await pool.execute(
-      "UPDATE Accounts SET IsActive = ? WHERE AccountId = ?",
-      [isActive, id]
-    );
-  }
-
 
 };
+
+module.exports = Account;

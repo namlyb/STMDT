@@ -1,15 +1,10 @@
-const { sql } = require("../config/db");
+const { pool } = require("../config/db");
 
-module.exports = {
+const Role = {
   getAll: async () => {
-    const result = await sql.query(`SELECT * FROM Roles`);
-    return result.recordset;
-  },
-
-  create: async (roleName) => {
-    await sql.query`
-      INSERT INTO Roles (RoleName)
-      VALUES (${roleName})
-    `;
+    const [rows] = await pool.query(`SELECT * FROM Roles`);
+    return rows;
   }
 };
+
+module.exports = Role;
