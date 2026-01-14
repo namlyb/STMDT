@@ -6,6 +6,7 @@ const Cart = {
       SELECT 
         c.CartId,
         c.Quantity,
+
         p.ProductId,
         p.ProductName,
         p.Price,
@@ -14,6 +15,7 @@ const Cart = {
       JOIN Products p ON c.ProductId = p.ProductId
       WHERE c.AccountId = ? AND c.Status = 1
     `;
+
     const [rows] = await pool.query(sql, [accountId]);
     return rows;
   }

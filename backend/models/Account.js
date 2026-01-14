@@ -16,7 +16,7 @@ const Account = {
 
   getByUsername: async (username) => {
     const [rows] = await pool.query(`
-      SELECT AccountId, Username, Password, RoleId, Avt
+      SELECT AccountId, Username, Password, RoleId, Avt AS Avatar
       FROM Accounts
       WHERE Username = ?
     `, [username]);

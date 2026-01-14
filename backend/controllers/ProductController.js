@@ -19,7 +19,12 @@ const ProductController = {
     try {
       const limit = req.query.limit || 16;
       const products = await Product.getRandom(limit);
-      res.status(200).json(products);
+      const result = products.map(p => ({
+      ...p,
+      Image: `${req.protocol}://${req.get("host")}/uploads/ProductImage/${p.Image}`
+    }));
+
+    res.status(200).json(result);
     } catch (error) {
       console.error("Get random products error:", error);
       res.status(500).json({
@@ -96,7 +101,12 @@ const ProductController = {
         keyword
       });
 
-      res.json(products);
+      const result = products.map(p => ({
+      ...p,
+      Image: `${req.protocol}://${req.get("host")}/uploads/ProductImage/${p.Image}`
+    }));
+
+    res.json(result);
     } catch (err) {
       console.error("Search error:", err);
       res.status(500).json({ message: "Lỗi tìm kiếm sản phẩm" });

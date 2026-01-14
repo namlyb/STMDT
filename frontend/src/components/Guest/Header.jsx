@@ -22,9 +22,8 @@ export default function Header() {
     }
   }, []);
 
-  const avatarUrl = account?.Avatar
-      ? `${AVATAR_BASE}/${account.Avatar}`
-      : `${AVATAR_BASE}/avtDf.png`;
+  const avatarUrl = account?.Avatar || `${API_URL}/uploads/AccountAvatar/avtDf.png`;
+
 
   const handleLogout = () => {
     sessionStorage.removeItem("token");
@@ -89,11 +88,11 @@ export default function Header() {
           ) : (
             <div className="flex items-center gap-3">
               <div
-    className="relative cursor-pointer"
-    onClick={() => navigate("/cart")}
-  >
-    <ShoppingCart size={22} />
-  </div>
+                className="relative cursor-pointer"
+                onClick={() => navigate("/cart")}
+              >
+                <ShoppingCart size={22} />
+              </div>
               <img
                 src={avatarUrl}
                 alt="avatar"

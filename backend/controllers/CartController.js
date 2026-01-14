@@ -5,7 +5,13 @@ const CartController = {
     try {
       const accountId = req.user.AccountId;
       const cartItems = await Cart.getByAccountId(accountId);
-      res.json(cartItems);
+
+      const result = cartItems.map(item => ({
+        ...item,
+        Image: `${req.protocol}://${req.get("host")}/uploads/ProductImage/${item.Image}`
+      }));
+
+      res.json(result);
     } catch (err) {
       console.error("Get cart error:", err);
       res.status(500).json({ message: "Lỗi lấy giỏ hàng" });

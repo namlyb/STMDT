@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import axios from "../../components/lib/axios";
-import Header from "../../components/Guest/header";
+import Header from "../../components/Guest/Header";
 import Footer from "../../components/Guest/footer";
 
 export default function Search() {

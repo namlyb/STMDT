@@ -18,7 +18,11 @@ router.get("/me", verifyToken, async (req, res) => {
     const account = await Account.getById(req.user.AccountId);
     if (!account) return res.status(404).json({ message: "Tài khoản không tồn tại" });
 
-    res.json(account);
+    account.Avatar = account.Avt
+    ? `${req.protocol}://${req.get("host")}/uploads/AccountAvatar/${account.Avt}`
+    : null;
+
+  res.json(account);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Lỗi server" });

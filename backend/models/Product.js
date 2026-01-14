@@ -34,7 +34,7 @@ const Product = {
         Price,
         Image
       FROM Products
-      WHERE IsActive = 1
+      WHERE IsActive = 1 and Status = 1
       ORDER BY RAND()
       LIMIT ?
     `;

@@ -116,6 +116,10 @@ const AccountController = {
         maxAge: 3600 * 1000 // 1h
       });
 
+      const avatarUrl = account.Avatar
+  ? `${req.protocol}://${req.get("host")}/uploads/AccountAvatar/${account.Avatar}`
+  : null;
+
       // Trả về thông tin account + role
       res.status(200).json({
         message: "Đăng nhập thành công",
@@ -124,7 +128,7 @@ const AccountController = {
           AccountId: account.AccountId,
           Username: account.Username,
           RoleId: account.RoleId.toString(),
-          Avatar: account.Avatar || null
+          Avatar: avatarUrl
         },
       });
     } catch (err) {

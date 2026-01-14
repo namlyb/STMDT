@@ -31,6 +31,17 @@ app.use(
   express.static(path.join(__dirname, "uploads"))
 );
 
+// Product images
+app.use(
+  "/uploads/ProductImage",
+  express.static(path.join(__dirname, "uploads/ProductImage"))
+);
+
+// Category images
+app.use(
+  "/uploads/CategoryImage",
+  express.static(path.join(__dirname, "uploads/CategoryImage"))
+);
 // Start server AFTER DB connected
 const PORT = process.env.PORT || 8080;
 
