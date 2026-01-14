@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search } from "lucide-react";
 import { API_URL } from "../../config";
+import { ShoppingCart } from "lucide-react";
 
 export default function Header() {
   const [keyword, setKeyword] = useState("");
@@ -87,6 +88,12 @@ export default function Header() {
             </div>
           ) : (
             <div className="flex items-center gap-3">
+              <div
+    className="relative cursor-pointer"
+    onClick={() => navigate("/cart")}
+  >
+    <ShoppingCart size={22} />
+  </div>
               <img
                 src={avatarUrl}
                 alt="avatar"

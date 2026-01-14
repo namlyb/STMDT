@@ -6,6 +6,7 @@ import Search from "./page/Guest/Search";
 import Login from "./page/Auth/Login";
 import Register from "./page/Auth/Register";
 import UpdateAccount from "./page/Admin/UpdateAccount";
+import Cart from "./page/Buyer/Cart";
 
 function App() {
   return (
@@ -25,7 +26,7 @@ function App() {
         {/*<Route path="/seller/dashboard" element={<SellerDashboard />} />}*/}
 
         {/* Buyer */}
-        {/*<Route path="/buyer/home" element={<BuyerHome />} />*/}
+        <Route path="/cart" element={<Cart />} />
 
         
         

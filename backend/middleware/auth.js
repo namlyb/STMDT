@@ -1,7 +1,18 @@
 const jwt = require("jsonwebtoken");
 
 function verifyToken(req, res, next) {
-  const token = req.cookies.token; // lấy từ cookie
+  let token = null;
+
+  // 1️⃣ Ưu tiên Authorization header
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    token = authHeader.split(" ")[1];
+  }
+
+  // 2️⃣ Fallback cookie (nếu có)
+  if (!token && req.cookies?.token) {
+    token = req.cookies.token;
+  }
 
   if (!token) return res.status(401).json({ message: "Chưa đăng nhập" });
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import Header from "../../components/Guest/header";
+import Header from "../../components/Guest/Header";
 import Footer from "../../components/Guest/footer";
 import axios from "../../components/lib/axios";
 

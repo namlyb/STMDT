@@ -33,29 +33,6 @@ const AccountController = {
   },
 
   // ================= REGISTER =================
-  register: async (req, res) => {
-    try {
-      const { username, password, roleId } = req.body;
-
-      if (!username || !password || !roleId) {
-        return res.status(400).json({ message: "Thiếu thông tin bắt buộc" });
-      }
-
-      // Hash mật khẩu trước khi lưu
-      const hashedPassword = await bcrypt.hash(password, 10); // saltRounds = 10
-
-      const newUser = await Account.create({
-        username,
-        password: hashedPassword,
-        roleId
-      });
-
-      res.status(201).json({ message: "Đăng ký thành công", user: newUser });
-    } catch (err) {
-      console.error("Register error:", err);
-      res.status(500).json({ message: "Đăng ký thất bại" });
-    }
-  },
 
   // ================= REGISTER =================
   register: async (req, res) => {

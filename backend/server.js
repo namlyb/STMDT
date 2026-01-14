@@ -9,6 +9,7 @@ const accountRoute = require("./routes/AccountRouter");
 const productRoute = require("./routes/ProductRouter");
 const roleRouter = require("./routes/RoleRouter");
 const categoryRouter = require("./routes/CategoryRouter");
+const cartRouter = require("./routes/CartRouter");
 
 const app = express();
 
@@ -23,6 +24,7 @@ app.use("/api/accounts", accountRoute);
 app.use("/api/products", productRoute);
 app.use("/api/categories", categoryRouter);
 app.use("/api/roles", roleRouter);
+app.use("/api/carts", cartRouter);
 
 app.use(
   "/uploads",
