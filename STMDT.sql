@@ -188,4 +188,13 @@ CREATE TABLE OrderStatusHistory (
     CreatedAt DATE NOT NULL,
     FOREIGN KEY (OrderDetailId) REFERENCES OrderDetails(OrderDetailId)
 );
-
+CREATE TABLE Carts (
+    CartId INT AUTO_INCREMENT PRIMARY KEY,
+    ProductId INT NOT NULL,
+    AccountId INT NOT NULL,
+    Quantity INT NOT NULL CHECK (Quantity > 0),
+    Status TINYINT(1) NOT NULL DEFAULT 1,
+    UNIQUE (ProductId, AccountId),
+    FOREIGN KEY (ProductId) REFERENCES Products(ProductId),
+    FOREIGN KEY (AccountId) REFERENCES Accounts(AccountId)
+);
