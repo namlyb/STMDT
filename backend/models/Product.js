@@ -4,22 +4,29 @@ const Product = {
   getAll: async () => {
     const sql = `
       SELECT 
-        ProductId,
-        ProductName,
-        Price,
-        Image,
-        Description,
-        Status,
-        IsActive,
-        StallId
-      FROM Products
-      ORDER BY ProductId DESC
+        p.ProductId,
+        p.ProductName,
+        p.Price,
+        p.Description,
+        p.Image,
+        p.Status,
+        p.IsActive,
+        s.StallId,
+        s.StallName AS StallName,
+        c.CategoryId,
+        c.CategoryName
+      FROM Products p
+      JOIN Stalls s ON p.StallId = s.StallId
+      LEFT JOIN ProductCategory pc ON p.ProductId = pc.ProductId
+      LEFT JOIN Categories c ON pc.CategoryId = c.CategoryId
+      ORDER BY p.ProductId DESC
     `;
     const [rows] = await pool.query(sql);
     return rows;
   },
 
-  getRandom: async (limit = 18) => {
+
+  getRandom: async (limit = 16) => {
     const sql = `
       SELECT 
         ProductId,
@@ -69,6 +76,7 @@ const Product = {
     `;
     await pool.query(sql, [isActive, id]);
   },
+
   search: async ({ categoryId, keyword }) => {
   let sql = `
     SELECT DISTINCT p.ProductId, p.ProductName, p.Price, p.Image

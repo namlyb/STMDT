@@ -17,7 +17,7 @@ const ProductController = {
   /* ================= RANDOM PRODUCTS ================= */
   getRandomProducts: async (req, res) => {
     try {
-      const limit = req.query.limit || 18;
+      const limit = req.query.limit || 16;
       const products = await Product.getRandom(limit);
       res.status(200).json(products);
     } catch (error) {

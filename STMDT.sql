@@ -34,7 +34,7 @@ CREATE TABLE Chats (
 );
 CREATE TABLE Stalls (
     StallId INT AUTO_INCREMENT PRIMARY KEY,
-    Description TEXT NOT NULL,
+    StallName TEXT NOT NULL,
     AccountId INT UNIQUE NOT NULL,
     FOREIGN KEY (AccountId) REFERENCES Accounts(AccountId)
 );

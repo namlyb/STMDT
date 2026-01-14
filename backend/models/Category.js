@@ -5,16 +5,9 @@ const Category = {
    * Lấy toàn bộ danh mục
    */
   getAll: async () => {
-    const sql = `
-      SELECT 
-        CategoryId,
-        CategoryName,
-        CategoryImage
-      FROM Categories
-      ORDER BY CategoryId ASC
-    `;
-
-    const [rows] = await pool.query(sql);
+    const [rows] = await pool.query(
+      "SELECT CategoryId, CategoryName, CategoryImage FROM Categories"
+    );
     return rows;
   }
 };

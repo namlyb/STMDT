@@ -9,6 +9,7 @@ router.put("/:id/active", AccountController.updateActive);
 router.put("/:id", AccountController.updateAccount);
 router.get("/:id", AccountController.getAccountById); 
 router.post("/login", AccountController.login);
+router.post("/register", AccountController.register);
 
 // route protected
 router.get("/me", verifyToken, async (req, res) => {

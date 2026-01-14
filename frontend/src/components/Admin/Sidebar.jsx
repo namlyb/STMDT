@@ -20,12 +20,12 @@ const AdminLayout = ({ children }) => {
 
   // Menu items
   const menuItems = [
-    { name: "Dashboard", icon: <FiHome /> },
-    { name: "Accounts", icon: <FiUsers /> },
-    { name: "Products", icon: <FiBox /> },
-    { name: "Orders", icon: <FiShoppingCart /> },
-    { name: "Categories", icon: <FiLayers /> },
-    { name: "Promotions", icon: <FiTag /> },
+    { name: "Dashboard", url: "#", icon: <FiHome /> },
+    { name: "Accounts", url: "/admin/accounts", icon: <FiUsers /> },
+    { name: "Products", url: "/admin/products", icon: <FiBox /> },
+    { name: "Orders", url: "#", icon: <FiShoppingCart /> },
+    { name: "Categories", url: "#", icon: <FiLayers /> },
+    { name: "Promotions", url: "#", icon: <FiTag /> },
   ];
 
   // Logout: xóa sessionStorage và chuyển hướng về Home
@@ -62,6 +62,7 @@ const AdminLayout = ({ children }) => {
             {menuItems.map((item) => (
               <li
                 key={item.name}
+                onClick={() => navigate(item.url)}
                 className="flex items-center gap-3 px-4 py-2 hover:bg-orange-500 rounded cursor-pointer transition-colors"
                 title={sidebarOpen ? "" : item.name}
               >

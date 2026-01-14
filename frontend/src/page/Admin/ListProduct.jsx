@@ -1,8 +1,10 @@
 import { useEffect, useState, useMemo } from "react";
 import { API_URL } from "../../config";
+import AdminLayout from "../../components/Admin/Sidebar.jsx";
 
 function ListProduct() {
   const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // 🔎 filter + search
@@ -12,26 +14,39 @@ function ListProduct() {
 
   // 📄 pagination
   const [page, setPage] = useState(1);
-  const pageSize = 5;
+  const pageSize = 10;
 
   useEffect(() => {
-    fetch(`${API_URL}/products`)
+    fetch(`${API_URL}/api/products`)
       .then(res => res.json())
       .then(data => {
-        setProducts(data);
+        if (Array.isArray(data)) {
+          setProducts(data);
+        } else {
+          console.error("Products API error:", data);
+          setProducts([]); // ✅ fallback
+        }
         setLoading(false);
       })
       .catch(err => {
         console.error(err);
+        setProducts([]); // ✅ fallback
         setLoading(false);
       });
+
+    fetch(`${API_URL}/api/categories`)
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) setCategories(data);
+      });
   }, []);
+
 
   // 🔥 Toggle Active
   const toggleActive = async (productId, currentStatus) => {
     try {
       const res = await fetch(
-        `${API_URL}/products/${productId}/active`,
+        `${API_URL}/api/products/${productId}/active`,
         {
           method: "PUT",
           headers: {
@@ -69,12 +84,14 @@ function ListProduct() {
 
   // 🔍 FILTER + SEARCH
   const filteredProducts = useMemo(() => {
+    if (!Array.isArray(products)) return [];
+
     const keyword = search.toLowerCase().trim();
 
     return products.filter(p => {
-      const matchSearch = p.ProductName
-        ?.toLowerCase()
-        .includes(keyword) || p.StallName?.toLowerCase().includes(keyword);
+      const matchSearch =
+        p.ProductName?.toLowerCase().includes(keyword) ||
+        p.StallName?.toLowerCase().includes(keyword);
 
       const matchCategory = category
         ? p.CategoryName === category
@@ -83,12 +100,12 @@ function ListProduct() {
       const matchStatus =
         status === ""
           ? true
-          : Number(p.IsActive) === Number(status);
-
+          : Number(p.Status) === Number(status);
 
       return matchSearch && matchCategory && matchStatus;
     });
   }, [products, search, category, status]);
+
 
   // 📄 PAGINATION
   const totalPages = Math.ceil(filteredProducts.length / pageSize);
@@ -100,130 +117,200 @@ function ListProduct() {
   if (loading) return <p>Đang tải dữ liệu...</p>;
 
   return (
-    <div style={{ padding: 20 }}>
-      <h2>Danh sách sản phẩm</h2>
+    <AdminLayout>
+      <div className="bg-white rounded-xl shadow p-6">
 
-      {/* 🔎 FILTER */}
-      <div style={{ marginBottom: 15, display: "flex", gap: 10 }}>
-        <input
-          placeholder="Search name"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
+        {/* HEADER */}
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold text-orange-600">
+            📦 Quản lý sản phẩm
+          </h2>
+        </div>
 
-        <select
-          value={category}
-          onChange={e => setCategory(e.target.value)}
-        >
-          <option value="">All Categories</option>
-          {[...new Set(products.map(p => p.CategoryName))].map(c => (
-            <option key={c} value={c}>{c}</option>
-          ))}
-        </select>
+        {/* FILTER */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <input
+            className="border rounded px-3 py-2 focus:ring-2 focus:ring-orange-400 outline-none"
+            placeholder="🔍 Tìm tên sản phẩm / gian hàng"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
 
-        <select
-          value={status}
-          onChange={e => setStatus(e.target.value)}
-        >
-          <option value="">Choice Status</option>
-          <option value="1">Active</option>
-          <option value="0">Un-active</option>
-        </select>
-
-      </div>
-
-      <table
-        border="1"
-        cellPadding="8"
-        cellSpacing="0"
-        style={{ width: "100%", borderCollapse: "collapse" }}
-      >
-        <thead>
-          <tr>
-            <th>Tên sản phẩm</th>
-            <th>Mô tả</th>
-            <th>Danh mục</th>
-            <th>Gian hàng</th>
-            <th>Giá</th>
-            <th>Trạng thái</th>
-            <th>Hành động</th>
-          </tr>
-        </thead>
-
-        <tbody>
-          {pagedData.length === 0 ? (
-            <tr>
-              <td colSpan="8" align="center">
-                Không có dữ liệu
-              </td>
-            </tr>
-          ) : (
-            pagedData.map(p => (
-              <tr key={p.ProductId}>
-                <td>{p.ProductName}</td>
-                <td>{p.Description}</td>
-                <td>{p.CategoryName}</td>
-                <td>{p.StallName}</td>
-                <td>{formatPrice(p.Price)}</td>
-                <td>{p.Status ? "✔ Đang bán" : "✖ Ngừng bán"}</td>
-                <td><button
-                  onClick={() => toggleActive(p.ProductId, p.IsActive)}
-                  style={{
-                    padding: "5px 10px",
-                    cursor: "pointer",
-                    backgroundColor: p.IsActive ? "#4caf50" : "#f44336",
-                    color: "#fff",
-                    border: "none",
-                    borderRadius: 4
-                  }}
-                >
-                  {p.IsActive ? "Cấm" : "Huỷ Cấm"}
-                </button></td>
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
-      {/* 📄 PAGINATION */}
-      <div
-        style={{
-          marginTop: 20,
-          display: "flex",
-          gap: 5,
-          alignItems: "center"
-        }}
-      >
-        {/* ◀ PREV */}
-        <button
-          onClick={() => setPage(p => Math.max(1, p - 1))}
-          disabled={page === 1}
-        >
-          ◀ Prev
-        </button>
-
-        {/* PAGE NUMBERS */}
-        {Array.from({ length: totalPages }, (_, i) => (
-          <button
-            key={i}
-            onClick={() => setPage(i + 1)}
-            style={{
-              background: page === i + 1 ? "#1976d2" : "#eee",
-              color: page === i + 1 ? "#fff" : "#000"
-            }}
+          <select
+            className="border rounded px-3 py-2 focus:ring-2 focus:ring-orange-400"
+            value={category}
+            onChange={e => setCategory(e.target.value)}
           >
-            {i + 1}
-          </button>
-        ))}
+            <option value="">📂 Tất cả danh mục</option>
+            {categories.map(c => (
+              <option key={c.CategoryId} value={c.CategoryName}>
+                {c.CategoryName}
+              </option>
+            ))}
+          </select>
 
-        {/* NEXT ▶ */}
-        <button
-          onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-          disabled={page === totalPages || totalPages === 0}
-        >
-          Next ▶
-        </button>
+
+          <select
+            className="border rounded px-3 py-2 focus:ring-2 focus:ring-orange-400"
+            value={status}
+            onChange={e => setStatus(e.target.value)}
+          >
+            <option value="">📌 Tất cả trạng thái</option>
+            <option value="1">✔ Đang bán</option>
+            <option value="0">✖ Ngừng bán</option>
+          </select>
+
+
+          <div className="flex items-center text-sm text-gray-500">
+            Tổng: <span className="ml-1 font-semibold text-orange-500">
+              {filteredProducts.length}
+            </span> sản phẩm
+          </div>
+        </div>
+
+        {/* TABLE */}
+        <div className="overflow-x-auto rounded-lg border">
+          <table className="w-full text-sm">
+            <thead className="bg-orange-500 text-white">
+              <tr>
+                <th className="px-4 py-3 text-center">Sản phẩm</th>
+                <th className="px-4 py-3 text-center">Danh mục</th>
+                <th className="px-4 py-3 text-center">Gian hàng</th>
+                <th className="px-4 py-3 text-center">Giá</th>
+                <th className="px-4 py-3 text-center">Trạng thái</th>
+                <th className="px-4 py-3 text-center">Hành động</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {pagedData.length === 0 ? (
+                <tr>
+                  <td colSpan="6" className="text-center py-8 text-gray-400">
+                    Không có dữ liệu
+                  </td>
+                </tr>
+              ) : (
+                pagedData.map(p => (
+                  <tr
+                    key={p.ProductId}
+                    className="border-b hover:bg-orange-50 transition"
+                  >
+                    <td className="px-4 py-3">
+                      <div className="font-semibold">{p.ProductName}</div>
+                      <div className="text-xs text-gray-500 line-clamp-2">
+                        {p.Description}
+                      </div>
+                    </td>
+
+                    <td className="px-4 py-3">
+                      <div className="grid grid-cols-4">
+                        <div></div> {/* col 1 trống */}
+                        <div className="col-span-3 font-medium text-gray-700">
+                          {p.CategoryName}
+                        </div>
+                      </div>
+                    </td>
+
+                    <td className="px-4 py-3 text-center">{p.StallName}</td>
+
+                    <td className="px-4 py-3">
+                      <div className="grid grid-cols-4">
+                        <div className="col-span-3 text-right font-semibold text-orange-600">
+                          {formatPrice(p.Price)}
+                        </div>
+                        <div></div> {/* col 4 trống */}
+                      </div>
+                    </td>
+
+
+                    <td className="px-4 py-3 text-center">
+                      {p.Status ? (
+                        <span className="px-2 py-1 text-xs rounded bg-green-100 text-green-700 text-center">
+                          ✔ Đang bán
+                        </span>
+                      ) : (
+                        <span className="px-2 py-1 text-xs rounded bg-red-100 text-red-600 text-center">
+                          ✖ Ngừng bán
+                        </span>
+                      )}
+                    </td>
+
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={() => toggleActive(p.ProductId, p.IsActive)}
+                        className={`px-3 py-1 text-xs rounded text-white transition ${p.IsActive
+                          ? "bg-green-600 hover:bg-red-600"
+                          : "bg-red-500 hover:bg-green-600"
+                          }`}
+                      >
+                        {p.IsActive ? "Cấm bán" : "Bỏ cấm"}
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* PAGINATION */}
+        <div className="flex items-center justify-between mt-6">
+
+          {/* PREV */}
+          <button
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            disabled={page === 1}
+            className={`
+      flex items-center gap-2 px-4 py-2 rounded-full border
+      transition-all duration-200
+      ${page === 1
+                ? "bg-orange-100 text-orange-300 border-orange-200 cursor-not-allowed"
+                : "bg-white text-orange-500 border-orange-300 hover:bg-orange-300 hover:text-white shadow-sm"}
+    `}
+          >
+            <span className="text-lg">←</span>
+            <span className="text-sm font-medium">Trước</span>
+          </button>
+
+          {/* PAGE NUMBER */}
+          <div className="flex items-center gap-2">
+            {Array.from({ length: totalPages }, (_, i) => (
+              <button
+                key={i}
+                onClick={() => setPage(i + 1)}
+                className={`
+          w-9 h-9 rounded-full text-sm font-semibold
+          transition-all duration-200
+          ${page === i + 1
+                    ? "bg-orange-300 text-white shadow"
+                    : "bg-orange-50 text-orange-500 hover:bg-orange-200"}
+        `}
+              >
+                {i + 1}
+              </button>
+            ))}
+          </div>
+
+          {/* NEXT */}
+          <button
+            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages || totalPages === 0}
+            className={`
+      flex items-center gap-2 px-4 py-2 rounded-full border
+      transition-all duration-200
+      ${page === totalPages || totalPages === 0
+                ? "bg-orange-100 text-orange-300 border-orange-200 cursor-not-allowed"
+                : "bg-white text-orange-500 border-orange-300 hover:bg-orange-300 hover:text-white shadow-sm"}
+    `}
+          >
+            <span className="text-sm font-medium">Sau</span>
+            <span className="text-lg">→</span>
+          </button>
+
+        </div>
+
       </div>
-    </div>
+    </AdminLayout>
   );
 }
 

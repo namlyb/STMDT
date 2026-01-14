@@ -16,20 +16,31 @@ const Account = {
 
   getByUsername: async (username) => {
     const [rows] = await pool.query(`
-      SELECT AccountId, Username, Password, RoleId
+      SELECT AccountId, Username, Password, RoleId, Avt
       FROM Accounts
       WHERE Username = ?
     `, [username]);
     return rows[0];
-  },
+  }, // login used
 
-  create: async ({ username, password, roleId }) => {
+  create: async ({ username, password, name, phone, identityNumber, dateOfBirth, gender, roleId = 2 }) => {
     const [result] = await pool.query(`
-      INSERT INTO Accounts (Username, Password, RoleId)
-      VALUES (?, ?, ?)
-    `, [username, password, roleId]);
+      INSERT INTO Accounts 
+      (Username, Password, Name, Phone, IdentityNumber, DateOfBirth, Gender, IsActive, RoleId)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [username, password, name, phone, identityNumber, dateOfBirth, gender, 1, roleId]);
 
-    return { AccountId: result.insertId, username, roleId };
+    return {
+      AccountId: result.insertId,
+      username,
+      name,
+      phone,
+      identityNumber,
+      dateOfBirth,
+      gender,
+      isActive: 1,
+      roleId
+    };
   },
 
   getById: async (id) => {

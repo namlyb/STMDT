@@ -4,6 +4,7 @@ import ListProduct from "./page/Admin/ListProduct";
 import Home from "./page/Guest/home";
 import Search from "./page/Guest/Search";
 import Login from "./page/Auth/Login";
+import Register from "./page/Auth/Register";
 import UpdateAccount from "./page/Admin/UpdateAccount";
 
 function App() {
@@ -12,6 +13,7 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/search" element={<Search />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
 
         {/* Admin */}
         {/*<Route path="/admin/dashboard" element={<AdminDashboard />} />*/}

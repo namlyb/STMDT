@@ -57,6 +57,45 @@ const AccountController = {
     }
   },
 
+  // ================= REGISTER =================
+  register: async (req, res) => {
+    try {
+      const { username, password, name, phone, identityNumber, dateOfBirth, gender, isActive } = req.body;
+
+      const roleId = 2;
+
+      if (!username || !password || !name || !phone || !identityNumber || !dateOfBirth || !gender) {
+        return res.status(400).json({ message: "Thiếu thông tin bắt buộc" });
+      }
+
+      // Kiểm tra username đã tồn tại chưa
+      const existing = await Account.getByUsername(username);
+      if (existing) {
+        return res.status(400).json({ message: "Username đã tồn tại" });
+      }
+
+      // Hash password
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      const newUser = await Account.create({
+        username,
+        password: hashedPassword,
+        name,
+        phone,
+        identityNumber,
+        dateOfBirth,
+        gender,
+        isActive,
+        roleId
+      });
+
+      res.status(201).json({ message: "Đăng ký thành công", user: newUser });
+    } catch (err) {
+      console.error("Register error:", err);
+      res.status(500).json({ message: "Đăng ký thất bại" });
+    }
+  },
+
   // ================= LOGIN =================
   login: async (req, res) => {
     try {
@@ -103,11 +142,12 @@ const AccountController = {
       // Trả về thông tin account + role
       res.status(200).json({
         message: "Đăng nhập thành công",
-        token, // gửi tken cho fe
+        token, // gửi token cho fe
         account: {
           AccountId: account.AccountId,
           Username: account.Username,
           RoleId: account.RoleId.toString(),
+          Avatar: account.Avatar || null
         },
       });
     } catch (err) {

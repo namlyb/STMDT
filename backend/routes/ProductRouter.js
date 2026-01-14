@@ -5,7 +5,7 @@ const router = express.Router();
 
 // ADMIN
 router.get("/", ProductController.getAllProducts);
-router.patch("/:id/active", ProductController.updateProductActive);
+router.put("/:id/active", ProductController.updateProductActive);
 
 // GUEST
 router.get("/random", ProductController.getRandomProducts);

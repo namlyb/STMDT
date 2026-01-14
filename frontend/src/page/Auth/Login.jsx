@@ -18,14 +18,14 @@ export default function Login() {
 
       // Lưu token vào sessionStorage
     sessionStorage.setItem("token", token);
-
+      sessionStorage.setItem("account", JSON.stringify(account));
       // Chuyển hướng theo role
       switch (account.RoleId) {
         case '1':
           navigate("/admin/accounts");
           break;
         case '2':
-          navigate("/buyer/home");
+          navigate("/");
           break;
         case '3':
           navigate("/seller/dashboard");

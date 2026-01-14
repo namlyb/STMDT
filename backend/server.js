@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 require("dotenv").config();
+const path = require("path");
 
 const { connectDB } = require("./config/db");
 const accountRoute = require("./routes/AccountRouter");
@@ -22,6 +23,11 @@ app.use("/api/accounts", accountRoute);
 app.use("/api/products", productRoute);
 app.use("/api/categories", categoryRouter);
 app.use("/api/roles", roleRouter);
+
+app.use(
+  "/uploads",
+  express.static(path.join(__dirname, "uploads"))
+);
 
 // Start server AFTER DB connected
 const PORT = process.env.PORT || 8080;
