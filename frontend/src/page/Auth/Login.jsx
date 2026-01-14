@@ -61,7 +61,7 @@ export default function Login() {
         />
         <button
           type="submit"
-          className="w-full bg-orange-500 text-white py-2 rounded hover:bg-orange-600"
+          className="w-full bg-orange-500 text-white py-2 rounded hover:bg-orange-600 cursor-pointer"
         >
           Đăng nhập
         </button>

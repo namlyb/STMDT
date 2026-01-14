@@ -70,7 +70,7 @@ export default function Home() {
                             {products.map(product => (
                                 <div
                                     key={product.ProductId}
-                                    className="bg-white p-3 rounded shadow hover:shadow-lg transition"
+                                    className="bg-white p-3 rounded shadow hover:shadow-lg transition cursor-pointer"
                                 >
                                     <img
                                         src={product.Image}

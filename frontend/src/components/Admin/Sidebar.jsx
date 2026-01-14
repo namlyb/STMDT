@@ -46,7 +46,7 @@ const AdminLayout = ({ children }) => {
       >
         {/* Logo / Brand */}
         <div className="flex items-center justify-between p-4">
-          {sidebarOpen && <h1 className="font-bold text-lg">Admin</h1>}
+          {sidebarOpen && <h1 className="font-bold text-2xl cursor-pointer" onClick={() => navigate("/")}>Shakee</h1>}
           <button
             onClick={toggleSidebar}
             className="text-white cursor-pointer"

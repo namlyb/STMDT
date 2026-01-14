@@ -38,6 +38,25 @@ export default function Header() {
     navigate(`/search?keyword=${encodeURIComponent(keyword)}`);
   };
 
+  const handleProfileClick = () => {
+    if (!account) return;
+
+    switch (account.RoleId) {
+      case "1":
+        navigate("/admin/accounts");
+        break;
+      case "2":
+        navigate("/buyer/profile");
+        break;
+      case "3":
+        navigate("/seller/profile");
+        break;
+      default:
+        navigate("/");
+    }
+  };
+
+
   return (
     <header className="bg-orange-500 text-white">
       <div className="max-w-[1200px] mx-auto px-4">
@@ -48,7 +67,7 @@ export default function Header() {
             className="text-2xl font-bold cursor-pointer"
             onClick={() => navigate("/")}
           >
-            ShopeeFake
+            Shakee
           </div>
 
           {/* SEARCH */}
@@ -62,7 +81,7 @@ export default function Header() {
               />
               <button
                 type="submit"
-                className="absolute right-1 top-1/2 -translate-y-1/2 bg-orange-500 text-white p-2 rounded"
+                className="absolute right-1 top-1/2 -translate-y-1/2 bg-orange-500 text-white p-2 rounded cursor-pointer"
               >
                 <Search size={18} />
               </button>
@@ -73,13 +92,13 @@ export default function Header() {
           {!isLoggedIn ? (
             <div className="flex gap-3">
               <button
-                className="bg-white text-orange-500 px-4 py-1 rounded"
+                className="bg-white text-orange-500 px-4 py-1 rounded cursor-pointer"
                 onClick={() => navigate("/login")}
               >
                 Đăng nhập
               </button>
               <button
-                className="border border-white px-4 py-1 rounded"
+                className="border border-white px-4 py-1 rounded cursor-pointer"
                 onClick={() => navigate("/register")}
               >
                 Đăng ký
@@ -93,16 +112,21 @@ export default function Header() {
               >
                 <ShoppingCart size={22} />
               </div>
-              <img
-                src={avatarUrl}
-                alt="avatar"
-                className="w-8 h-8 rounded-full object-cover border"
-              />
+              <div
+                className="flex items-center gap-2 cursor-pointer hover:opacity-90"
+                onClick={handleProfileClick}
+              >
+                <img
+                  src={avatarUrl}
+                  alt="avatar"
+                  className="w-8 h-8 rounded-full object-cover border"
+                />
+                <span className="text-sm">{account?.Username}</span>
+              </div>
 
-              <span className="text-sm">{account?.Username}</span>
               <button
                 onClick={handleLogout}
-                className="text-sm text-white underline"
+                className="text-sm text-white underline cursor-pointer"
               >
                 Logout
               </button>

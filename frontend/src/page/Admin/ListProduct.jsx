@@ -137,7 +137,7 @@ function ListProduct() {
           />
 
           <select
-            className="border rounded px-3 py-2 focus:ring-2 focus:ring-orange-400"
+            className="border rounded px-3 py-2 focus:ring-2 focus:ring-orange-400 cursor-pointer"
             value={category}
             onChange={e => setCategory(e.target.value)}
           >
@@ -151,7 +151,7 @@ function ListProduct() {
 
 
           <select
-            className="border rounded px-3 py-2 focus:ring-2 focus:ring-orange-400"
+            className="border rounded px-3 py-2 focus:ring-2 focus:ring-orange-400 cursor-pointer"
             value={status}
             onChange={e => setStatus(e.target.value)}
           >
@@ -238,7 +238,7 @@ function ListProduct() {
                     <td className="px-4 py-3">
                       <button
                         onClick={() => toggleActive(p.ProductId, p.IsActive)}
-                        className={`px-3 py-1 text-xs rounded text-white transition ${p.IsActive
+                        className={`px-3 py-1 text-xs rounded text-white transition cursor-pointer ${p.IsActive
                           ? "bg-green-600 hover:bg-red-600"
                           : "bg-red-500 hover:bg-green-600"
                           }`}
@@ -265,7 +265,7 @@ function ListProduct() {
       transition-all duration-200
       ${page === 1
                 ? "bg-orange-100 text-orange-300 border-orange-200 cursor-not-allowed"
-                : "bg-white text-orange-500 border-orange-300 hover:bg-orange-300 hover:text-white shadow-sm"}
+                : "bg-white text-orange-500 border-orange-300 hover:bg-orange-300 hover:text-white shadow-sm cursor-pointer"}
     `}
           >
             <span className="text-lg">←</span>
@@ -283,7 +283,7 @@ function ListProduct() {
           transition-all duration-200
           ${page === i + 1
                     ? "bg-orange-300 text-white shadow"
-                    : "bg-orange-50 text-orange-500 hover:bg-orange-200"}
+                    : "bg-orange-50 text-orange-500 hover:bg-orange-200 cursor-pointer"}
         `}
               >
                 {i + 1}
@@ -300,7 +300,7 @@ function ListProduct() {
       transition-all duration-200
       ${page === totalPages || totalPages === 0
                 ? "bg-orange-100 text-orange-300 border-orange-200 cursor-not-allowed"
-                : "bg-white text-orange-500 border-orange-300 hover:bg-orange-300 hover:text-white shadow-sm"}
+                : "bg-white text-orange-500 border-orange-300 hover:bg-orange-300 hover:text-white shadow-sm  cursor-pointer"}
     `}
           >
             <span className="text-sm font-medium">Sau</span>

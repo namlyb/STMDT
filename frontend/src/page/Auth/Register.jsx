@@ -116,7 +116,7 @@ export default function Register() {
 
         <div className="flex gap-4 justify-center">
           <label className="flex items-center gap-1">
-            <input
+            <input className="cursor-pointer"
               type="radio"
               name="gender"
               value="m"
@@ -126,7 +126,7 @@ export default function Register() {
             Male
           </label>
           <label className="flex items-center gap-1">
-            <input
+            <input className="cursor-pointer"
               type="radio"
               name="gender"
               value="f"
@@ -139,7 +139,7 @@ export default function Register() {
 
         <button
           type="submit"
-          className="w-full bg-orange-500 text-white py-3 rounded hover:bg-orange-400 transition-colors"
+          className="w-full bg-orange-500 text-white py-3 rounded hover:bg-orange-400 transition-colors cursor-pointer"
         >
           Đăng ký
         </button>
