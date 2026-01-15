@@ -26,9 +26,10 @@ app.use("/api/categories", categoryRouter);
 app.use("/api/roles", roleRouter);
 app.use("/api/carts", cartRouter);
 
+// Avatar images
 app.use(
-  "/uploads",
-  express.static(path.join(__dirname, "uploads"))
+  "/uploads/AccountAvatar",
+  express.static(path.join(__dirname, "uploads/AccountAvatar"))
 );
 
 // Product images

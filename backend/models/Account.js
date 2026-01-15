@@ -63,6 +63,23 @@ const Account = {
     );
   },
 
+  updateProfile: async (id, data) => {
+  const { Name, Phone, IdentityNumber, DateOfBirth, Gender } = data;
+  await pool.query(
+    `UPDATE Accounts 
+     SET Name=?, Phone=?, IdentityNumber=?, DateOfBirth=?, Gender=?
+     WHERE AccountId=?`,
+    [Name, Phone, IdentityNumber, DateOfBirth, Gender, id]
+  );
+},
+
+updateAvatar: async (id, filename) => {
+  await pool.query(
+    `UPDATE Accounts SET Avt=? WHERE AccountId=?`,
+    [filename, id]
+  );
+},
+
 };
 
 module.exports = Account;

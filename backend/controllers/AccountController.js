@@ -205,6 +205,33 @@ const AccountController = {
     res.json({ message: "Đăng xuất thành công" });
   },
 
+  // UPDATE PROFILE (buyer, NO AVATAR)
+updateProfile: async (req, res) => {
+  const { id } = req.params;
+  const { Name, Phone, IdentityNumber, DateOfBirth, Gender } = req.body;
+
+  await Account.updateProfile(id, {
+    Name,
+    Phone,
+    IdentityNumber,
+    DateOfBirth,
+    Gender,
+  });
+
+  res.json({ message: "Updated profile" });
+},
+
+// UPDATE AVATAR(buyer)
+updateAvatar: async (req, res) => {
+  const { id } = req.params;
+  if (!req.file) return res.status(400).json({ message: "No file" });
+
+  await Account.updateAvatar(id, req.file.filename);
+
+  res.json({ message: "Avatar updated" });
+},
+
+
 };
 
 module.exports = AccountController;

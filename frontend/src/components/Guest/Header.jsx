@@ -46,7 +46,7 @@ export default function Header() {
         navigate("/admin/accounts");
         break;
       case "2":
-        navigate("/buyer/profile");
+        navigate("/profile");
         break;
       case "3":
         navigate("/seller/profile");

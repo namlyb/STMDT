@@ -8,6 +8,7 @@ import Register from "./page/Auth/Register";
 import UpdateAccount from "./page/Admin/UpdateAccount";
 import Cart from "./page/Buyer/Cart";
 import ProductDetail from "./page/Buyer/ProductDetail";
+import Profile from "./page/Buyer/Profile";
 
 function App() {
   return (
@@ -27,6 +28,7 @@ function App() {
         {/*<Route path="/seller/dashboard" element={<SellerDashboard />} />}*/}
 
         {/* Buyer */}
+        <Route path="/profile" element={<Profile />} />
         <Route path="/cart" element={<Cart />} />
         <Route path="/product/:id" element={<ProductDetail />} />
 

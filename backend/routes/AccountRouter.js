@@ -3,11 +3,9 @@ const router = express.Router();
 const AccountController = require("../controllers/AccountController");
 const { verifyToken, verifyRole } = require("../middleware/auth");
 const Account = require("../models/account");
+const uploadAvatar = require("../middleware/uploadAvatar");
 
 router.get("/", AccountController.getUsers);
-router.put("/:id/active", AccountController.updateActive);
-router.put("/:id", AccountController.updateAccount);
-router.get("/:id", AccountController.getAccountById); 
 router.post("/login", AccountController.login);
 router.post("/register", AccountController.register);
 
@@ -29,4 +27,9 @@ router.get("/me", verifyToken, async (req, res) => {
   }
 });
 
+router.put("/:id/active", AccountController.updateActive);
+router.put("/:id", AccountController.updateAccount);
+router.get("/:id", AccountController.getAccountById); 
+router.put("/:id/profile", verifyToken, AccountController.updateProfile);
+router.put("/:id/avatar", verifyToken, uploadAvatar.single("avatar"), AccountController.updateAvatar);
 module.exports = router;
