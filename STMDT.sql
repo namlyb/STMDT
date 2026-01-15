@@ -73,10 +73,11 @@ CREATE TABLE PromotionProduct (
     FOREIGN KEY (ProductId) REFERENCES Products(ProductId),
     FOREIGN KEY (PromotionId) REFERENCES Promotions(PromotionId)
 );
-CREATE TABLE Adress (
-    AdressId INT AUTO_INCREMENT PRIMARY KEY,
+CREATE TABLE Address (
+    AddressId INT AUTO_INCREMENT PRIMARY KEY,
     AccountId INT NOT NULL,
     Content TEXT NOT NULL,
+    Status TINYINT(1) NOT NULL DEFAULT 1,
     FOREIGN KEY (AccountId) REFERENCES Accounts(AccountId)
 );
 CREATE TABLE Messages (
@@ -115,12 +116,12 @@ CREATE TABLE Orders (
     AccountId INT NOT NULL,
     ShipmentId INT NOT NULL,
     FeeId INT NOT NULL,
-    AdressId INT NOT NULL,
+    AddressId INT NOT NULL,
     OrderDate DATE NOT NULL,
     FOREIGN KEY (AccountId) REFERENCES Accounts(AccountId),
     FOREIGN KEY (ShipmentId) REFERENCES Shipments(ShipmentId),
     FOREIGN KEY (FeeId) REFERENCES PlatformFees(FeeId),
-    FOREIGN KEY (AdressId) REFERENCES Adress(AdressId)
+    FOREIGN KEY (AddressId) REFERENCES Address(AddressId)
 );
 CREATE TABLE PaymentMethods (
     MethodId INT AUTO_INCREMENT PRIMARY KEY,
@@ -194,7 +195,9 @@ CREATE TABLE Carts (
     AccountId INT NOT NULL,
     Quantity INT NOT NULL CHECK (Quantity > 0),
     Status TINYINT(1) NOT NULL DEFAULT 1,
+    UpdatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE (ProductId, AccountId),
     FOREIGN KEY (ProductId) REFERENCES Products(ProductId),
     FOREIGN KEY (AccountId) REFERENCES Accounts(AccountId)
 );
+

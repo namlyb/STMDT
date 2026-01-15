@@ -16,6 +16,23 @@ export default function Cart() {
     0
   );
 
+  const handleDelete = async (cartId) => {
+  if (!window.confirm("Bạn có chắc muốn xóa sản phẩm này khỏi giỏ hàng?")) return;
+
+  try {
+    await axios.delete(`/carts/${cartId}`, {
+      headers: { Authorization: `Bearer ${sessionStorage.getItem("token")}` },
+    });
+
+    // Xóa local state luôn để UI cập nhật
+    setItems(prev => prev.filter(item => item.CartId !== cartId));
+  } catch (err) {
+    console.error(err);
+    alert("Xóa sản phẩm thất bại");
+  }
+};
+
+
   return (
     <>
       <Header />
@@ -30,27 +47,57 @@ export default function Cart() {
             {items.map(item => (
               <div
                 key={item.CartId}
-                className="flex items-center gap-4 border-b py-3"
+                className="grid grid-cols-12 gap-4 items-center border-b py-4"
               >
-                <img
-                  src={item.Image}
-                  alt=""
-                  className="w-20 h-20 object-cover rounded"
-                />
+                {/* ===== COL 1–4: IMAGE + NAME + PRICE ===== */}
+                <div className="col-span-4 flex items-start gap-3 min-w-0">
+                  <img
+                    src={item.Image}
+                    alt=""
+                    className="w-20 h-20 object-cover rounded shrink-0"
+                  />
 
-                <div className="flex-1">
-                  <p className="font-semibold">{item.ProductName}</p>
-                  <p className="text-red-500">
-                    {Number(item.Price).toLocaleString()} ₫
+                  <div className="min-w-0">
+                    {/* ProductName: tối đa 2 dòng, nếu vượt hiển thị ... */}
+                    <p className="font-semibold text-sm line-clamp-2 break-words">
+                      {item.ProductName}
+                    </p>
+
+                    {/* Price */}
+                    <p className="text-red-500 font-medium truncate">
+                      {Number(item.Price).toLocaleString()} ₫
+                    </p>
+                  </div>
+                </div>
+
+
+
+                {/* ===== COL 5–7: DESCRIPTION ===== */}
+                <div className="col-span-3 min-w-0">
+                  <p className="text-gray-600 text-sm line-clamp-4 break-words">
+                    {item.Description || "Không có mô tả"}
                   </p>
                 </div>
 
-                <div className="w-20 text-center">
+                {/* ===== COL 8–9: QUANTITY ===== */}
+                <div className="col-span-2 text-center">
                   x{item.Quantity}
                 </div>
 
-                <div className="w-32 text-right font-bold">
+                {/* ===== COL 10–11: TOTAL PRICE ===== */}
+                <div className="col-span-2 text-right font-bold text-red-500">
                   {(item.Price * item.Quantity).toLocaleString()} ₫
+                </div>
+
+                {/* ===== COL 12: DELETE ===== */}
+                <div className="col-span-1 text-right">
+                  <button
+                    className="text-gray-400 hover:text-red-500 transition cursor-pointer"
+                    onClick={() => handleDelete(item.CartId)}
+                    title="Xóa sản phẩm"
+                  >
+                    ✕
+                  </button>
                 </div>
               </div>
             ))}

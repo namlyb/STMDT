@@ -128,7 +128,7 @@ export default function Header() {
                 onClick={handleLogout}
                 className="text-sm text-white underline cursor-pointer"
               >
-                Logout
+                Đăng xuất
               </button>
             </div>
           )}

@@ -25,7 +25,7 @@ export default function Login() {
           navigate("/admin/accounts");
           break;
         case '2':
-          navigate("/profile");
+          navigate("/");
           break;
         case '3':
           navigate("/seller/dashboard");

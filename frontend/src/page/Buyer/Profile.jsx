@@ -283,7 +283,7 @@ export default function Profile() {
                 onClick={handleAvatarSubmit}
                 className="bg-orange-500 text-white px-6 py-2 rounded"
               >
-                Lưu avatar
+                Lưu ảnh
               </button>
             </div>
           </div>

@@ -1,6 +1,7 @@
 const Product = require("../models/Product");
 const Stall = require("../models/Stall");
 const Feedback = require("../models/Feedback");
+const OrderDetail = require("../models/OrderDetail");
 
 const ProductController = {
   /* ================= GET ALL PRODUCTS ================= */
@@ -109,12 +110,14 @@ const ProductController = {
       const stall = await Stall.getByProductId(id);
       const feedbacks = await Feedback.getByProductId(id);
       const avgScore = await Feedback.getAvgScoreByProductId(id);
+const totalOrders = await OrderDetail.countByProductId(id);
 
       res.status(200).json({
         product,
         stall,
         feedbacks,
-        avgScore
+        avgScore,
+        totalOrders
       });
 
     } catch (error) {

@@ -6,7 +6,7 @@ const Cart = {
       SELECT 
         c.CartId,
         c.Quantity,
-
+        p.Description,
         p.ProductId,
         p.ProductName,
         p.Price,
@@ -18,7 +18,26 @@ const Cart = {
 
     const [rows] = await pool.query(sql, [accountId]);
     return rows;
+  },
+
+  addToCart: async (accountId, productId, quantity) => {
+  const sql = `
+    INSERT INTO Carts (AccountId, ProductId, Quantity, Status)
+    VALUES (?, ?, ?, 1)
+    ON DUPLICATE KEY UPDATE
+      Quantity = VALUES(Quantity),
+      Status = 1
+  `;
+  const [rows] = await pool.query(sql, [accountId, productId, quantity]);
+  return rows;
+},
+
+  removeCartItem: async (cartId) => {
+    const sql = `UPDATE Carts SET Status = 0 WHERE CartId = ?`;
+    const [rows] = await pool.query(sql, [cartId]);
+    return rows;
   }
+
 };
 
 module.exports = Cart;

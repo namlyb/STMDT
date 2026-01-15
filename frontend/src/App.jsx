@@ -9,6 +9,8 @@ import UpdateAccount from "./page/Admin/UpdateAccount";
 import Cart from "./page/Buyer/Cart";
 import ProductDetail from "./page/Buyer/ProductDetail";
 import Profile from "./page/Buyer/Profile";
+import Address from "./page/Buyer/Address";
+import AddAddress from "./page/Buyer/AddNewAddress";
 
 function App() {
   return (
@@ -31,6 +33,8 @@ function App() {
         <Route path="/profile" element={<Profile />} />
         <Route path="/cart" element={<Cart />} />
         <Route path="/product/:id" element={<ProductDetail />} />
+        <Route path="/address" element={<Address />} />
+        <Route path="/address/add" element={<AddAddress />} />
 
         
         
