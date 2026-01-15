@@ -77,11 +77,22 @@ const Product = {
     await pool.query(sql, [isActive, id]);
   },
 
-  search: async ({ categoryId, keyword }) => {
+  // models/Product.js
+search: async ({ categoryId, keyword }) => {
   let sql = `
-    SELECT DISTINCT p.ProductId, p.ProductName, p.Price, p.Image
+    SELECT 
+      p.ProductId, 
+      p.ProductName, 
+      p.Price, 
+      p.Image,
+      IFNULL(od.totalOrders, 0) AS countOrders
     FROM Products p
     LEFT JOIN ProductCategory pc ON p.ProductId = pc.ProductId
+    LEFT JOIN (
+      SELECT ProductId, COUNT(OrderDetailId) AS totalOrders
+      FROM OrderDetails
+      GROUP BY ProductId
+    ) od ON p.ProductId = od.ProductId
     WHERE p.IsActive = 1
   `;
   const params = [];
@@ -90,7 +101,6 @@ const Product = {
     sql += " AND pc.CategoryId = ?";
     params.push(categoryId);
   }
-
   if (keyword) {
     sql += " AND p.ProductName LIKE ?";
     params.push(`%${keyword}%`);
@@ -99,6 +109,7 @@ const Product = {
   const [rows] = await pool.query(sql, params);
   return rows;
 }
+
 
 };
 
