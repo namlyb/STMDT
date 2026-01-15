@@ -70,6 +70,7 @@ export default function Home() {
                             {products.map(product => (
                                 <div
                                     key={product.ProductId}
+                                    onClick={() => navigate(`/product/${product.ProductId}`)}
                                     className="bg-white p-3 rounded shadow hover:shadow-lg transition cursor-pointer"
                                 >
                                     <img

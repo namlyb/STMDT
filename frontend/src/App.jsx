@@ -7,6 +7,7 @@ import Login from "./page/Auth/Login";
 import Register from "./page/Auth/Register";
 import UpdateAccount from "./page/Admin/UpdateAccount";
 import Cart from "./page/Buyer/Cart";
+import ProductDetail from "./page/Buyer/ProductDetail";
 
 function App() {
   return (
@@ -27,6 +28,7 @@ function App() {
 
         {/* Buyer */}
         <Route path="/cart" element={<Cart />} />
+        <Route path="/product/:id" element={<ProductDetail />} />
 
         
         

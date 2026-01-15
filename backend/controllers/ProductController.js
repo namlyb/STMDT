@@ -1,4 +1,6 @@
 const Product = require("../models/Product");
+const Stall = require("../models/Stall");
+const Feedback = require("../models/Feedback");
 
 const ProductController = {
   /* ================= GET ALL PRODUCTS ================= */
@@ -47,26 +49,7 @@ const ProductController = {
     }
   },
 
-  /* ================= PRODUCT DETAIL ================= */
-  getProductDetail: async (req, res) => {
-    try {
-      const { id } = req.params;
-      const product = await Product.getById(id);
-
-      if (!product) {
-        return res.status(404).json({
-          message: "Không tìm thấy sản phẩm"
-        });
-      }
-
-      res.status(200).json(product);
-    } catch (error) {
-      console.error("Get product detail error:", error);
-      res.status(500).json({
-        message: "Lỗi khi lấy chi tiết sản phẩm"
-      });
-    }
-  },
+  
 
   /* ================= UPDATE ACTIVE ================= */
   updateProductActive: async (req, res) => {
@@ -110,6 +93,35 @@ const ProductController = {
     } catch (err) {
       console.error("Search error:", err);
       res.status(500).json({ message: "Lỗi tìm kiếm sản phẩm" });
+    }
+  },
+  getProductDetail: async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      const product = await Product.getById(id);
+      if (!product) {
+        return res.status(404).json({
+          message: "Không tìm thấy sản phẩm"
+        });
+      }
+
+      const stall = await Stall.getByProductId(id);
+      const feedbacks = await Feedback.getByProductId(id);
+      const avgScore = await Feedback.getAvgScoreByProductId(id);
+
+      res.status(200).json({
+        product,
+        stall,
+        feedbacks,
+        avgScore
+      });
+
+    } catch (error) {
+      console.error("🔥 Get product detail error:", error);
+      res.status(500).json({
+        message: "Lỗi khi lấy chi tiết sản phẩm"
+      });
     }
   }
 };

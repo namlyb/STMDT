@@ -1,1 +1,8 @@
 @import "tailwindcss";
+
+/* Thêm vào index.css */
+.image-sharp {
+    image-rendering: auto;        /* Scale mượt */
+    -webkit-optimize-contrast: auto; /* Chrome, Safari */
+    image-rendering: -webkit-optimize-contrast; /* fallback */
+}
