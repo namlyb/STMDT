@@ -114,14 +114,16 @@ CREATE TABLE PlatformFees (
 CREATE TABLE Orders (
     OrderId INT AUTO_INCREMENT PRIMARY KEY,
     AccountId INT NOT NULL,
-    ShipmentId INT NOT NULL,
+    ShipmentId INT,
     FeeId INT NOT NULL,
     AddressId INT NOT NULL,
     OrderDate DATE NOT NULL,
+    StallId INT NOT NULL,
     FOREIGN KEY (AccountId) REFERENCES Accounts(AccountId),
     FOREIGN KEY (ShipmentId) REFERENCES Shipments(ShipmentId),
     FOREIGN KEY (FeeId) REFERENCES PlatformFees(FeeId),
-    FOREIGN KEY (AddressId) REFERENCES Address(AddressId)
+    FOREIGN KEY (AddressId) REFERENCES Address(AddressId),
+    FOREIGN KEY (StallId) REFERENCES Stalls(StallId);
 );
 CREATE TABLE PaymentMethods (
     MethodId INT AUTO_INCREMENT PRIMARY KEY,
@@ -196,6 +198,8 @@ CREATE TABLE Carts (
     Quantity INT NOT NULL CHECK (Quantity > 0),
     Status TINYINT(1) NOT NULL DEFAULT 1,
     UpdatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UnitPrice INT NOT NULL,
+    IsSelected TINYINT(1) DEFAULT 1,
     UNIQUE (ProductId, AccountId),
     FOREIGN KEY (ProductId) REFERENCES Products(ProductId),
     FOREIGN KEY (AccountId) REFERENCES Accounts(AccountId)
