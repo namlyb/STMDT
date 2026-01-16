@@ -3,11 +3,13 @@ import { useNavigate } from "react-router-dom";
 import Header from "../../components/Guest/Header";
 import Footer from "../../components/Guest/footer";
 import axios from "../../components/lib/axios";
+import { API_URL } from "../../config";
 
 export default function Home() {
     const navigate = useNavigate();
     const [categories, setCategories] = useState([]);
     const [products, setProducts] = useState([]);
+    const [ad, setAd] = useState(null);
 
     useEffect(() => {
         axios.get("/categories")
@@ -22,6 +24,10 @@ export default function Home() {
                 console.log("Random products:", res.data);
                 setProducts(res.data);
             })
+            .catch(console.error);
+
+        axios.get("/ads/style/1")
+            .then(res => setAd(res.data))
             .catch(console.error);
     }, []);
 
@@ -90,8 +96,20 @@ export default function Home() {
                     </section>
 
                     {/* RIGHT SIDEBAR */}
-                    <aside className="col-span-2 bg-white p-4 rounded shadow">
-                        <h3 className="font-bold">Quảng cáo</h3>
+                    <aside className="col-span-2">
+                        <div className="bg-white rounded shadow sticky top-24 overflow-hidden">
+                            {ad ? (
+                                <img
+                                    src={ad.AdsImage}
+                                    alt="Quảng cáo"
+                                    className="w-full h-full object-cover"
+                                />
+                            ) : (
+                                <p className="p-4 text-sm text-gray-400 text-center">
+                                    Chưa có quảng cáo
+                                </p>
+                            )}
+                        </div>
                     </aside>
 
                 </div>

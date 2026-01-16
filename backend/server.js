@@ -11,6 +11,7 @@ const roleRouter = require("./routes/RoleRouter");
 const categoryRouter = require("./routes/CategoryRouter");
 const cartRouter = require("./routes/CartRouter");
 const addressRouter = require("./routes/AddressRouter");
+const adsRoute = require("./routes/AdsRouter");
 
 const app = express();
 
@@ -27,6 +28,7 @@ app.use("/api/categories", categoryRouter);
 app.use("/api/roles", roleRouter);
 app.use("/api/carts", cartRouter);
 app.use("/api/addresses", addressRouter);
+app.use("/api/ads", adsRoute);
 
 // Avatar images
 app.use(
@@ -45,6 +47,13 @@ app.use(
   "/uploads/CategoryImage",
   express.static(path.join(__dirname, "uploads/CategoryImage"))
 );
+
+// Ads images
+app.use(
+  "/uploads/AdsImage",
+  express.static(path.join(__dirname, "uploads/AdsImage"))
+);
+
 // Start server AFTER DB connected
 const PORT = process.env.PORT || 8080;
 

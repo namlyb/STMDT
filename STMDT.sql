@@ -204,4 +204,13 @@ CREATE TABLE Carts (
     FOREIGN KEY (ProductId) REFERENCES Products(ProductId),
     FOREIGN KEY (AccountId) REFERENCES Accounts(AccountId)
 );
-
+CREATE TABLE StyleAds (
+    StyleID INT AUTO_INCREMENT PRIMARY KEY,
+    StyleName VARCHAR(100) NOT NULL
+);
+create table Ads(
+AdsId INT AUTO_INCREMENT PRIMARY KEY,
+AdsImage TEXT NOT NULL,
+StyleID INT,
+FOREIGN KEY (StyleID) REFERENCES StyleAds(StyleID)
+);
