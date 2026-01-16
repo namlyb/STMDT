@@ -127,6 +127,7 @@ const AccountController = {
         account: {
           AccountId: account.AccountId,
           Username: account.Username,
+          Name: account.Name,
           RoleId: account.RoleId.toString(),
           Avatar: avatarUrl
         },

@@ -121,7 +121,7 @@ export default function Header() {
                   alt="avatar"
                   className="w-8 h-8 rounded-full object-cover border"
                 />
-                <span className="text-sm">{account?.Username}</span>
+                <span className="text-sm">{account?.Name}</span>
               </div>
 
               <button

@@ -35,6 +35,33 @@ const CartController = {
   }
 },
 
+updateQuantity: async (req, res) => {
+  try {
+    const { cartId, quantity } = req.body;
+
+    if (!Number.isInteger(quantity) || quantity < 1) {
+      return res.status(400).json({ message: "Số lượng không hợp lệ" });
+    }
+
+    await Cart.updateQuantity(cartId, quantity);
+    res.json({ message: "Cập nhật số lượng thành công" });
+  } catch (err) {
+    res.status(500).json({ message: "Lỗi cập nhật số lượng" });
+  }
+},
+
+// CartController.js
+toggleSelect: async (req, res) => {
+  try {
+    const { cartId, isSelected } = req.body;
+    await Cart.toggleSelect(cartId, isSelected);
+    res.json({ message: "OK" });
+  } catch (err) {
+    res.status(500).json({ message: "Lỗi select cart" });
+  }
+},
+
+
   // Xóa sản phẩm khỏi giỏ (soft delete)
   removeCartItem: async (req, res) => {
     try {
