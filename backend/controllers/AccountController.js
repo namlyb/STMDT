@@ -1,4 +1,4 @@
-const Account = require("../models/account");
+const Account = require("../models/Account");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 

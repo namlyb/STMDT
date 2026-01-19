@@ -22,13 +22,15 @@ CREATE TABLE Accounts (
     Gender ENUM('m','f'),
     IsActive TINYINT(1) NOT NULL DEFAULT 1,
     RoleId INT,
+    CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (RoleId) REFERENCES Roles(RoleId)
 );
 CREATE TABLE Chats (
     ChatId INT AUTO_INCREMENT PRIMARY KEY,
     BuyerId INT NOT NULL,
     SellerId INT NOT NULL,
-    CreateAt DATE NOT NULL,
+    CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (BuyerId) REFERENCES Accounts(AccountId),
     FOREIGN KEY (SellerId) REFERENCES Accounts(AccountId)
 );
@@ -47,6 +49,8 @@ CREATE TABLE Products (
     Image TEXT NOT NULL,
     Status TINYINT(1) NOT NULL DEFAULT 1,
     IsActive TINYINT(1) NOT NULL DEFAULT 1,
+    CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (StallId) REFERENCES Stalls(StallId)
 );
 CREATE TABLE ProductCategory (
@@ -64,7 +68,7 @@ CREATE TABLE Promotions (
     Quantity INT,
     StartTime TIME NOT NULL,
     EndTime TIME NOT NULL,
-    Status TINYINT(1) DEFAULT 1 not null
+    Status TINYINT(1) DEFAULT 1 not null,
 );
 CREATE TABLE PromotionProduct (
     ProductId INT NOT NULL,
@@ -85,7 +89,7 @@ CREATE TABLE Messages (
     ChatId INT NOT NULL,
     SenderId INT NOT NULL,
     Content TEXT NOT NULL,
-    SentAt DATETIME NOT NULL,
+    SentAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     IsRead TINYINT(1) DEFAULT 0,
     FOREIGN KEY (ChatId) REFERENCES Chats(ChatId),
     FOREIGN KEY (SenderId) REFERENCES Accounts(AccountId)
@@ -94,7 +98,7 @@ CREATE TABLE Shippers (
     ShipperId INT AUTO_INCREMENT PRIMARY KEY,
     CompanyName VARCHAR(255) NOT NULL,
     Phone VARCHAR(12) NOT NULL,
-    Status TINYINT(1) DEFAULT 1
+    Status TINYINT(1) DEFAULT 1,
 );
 CREATE TABLE Shipments (
     ShipmentId INT AUTO_INCREMENT PRIMARY KEY,
@@ -103,13 +107,14 @@ CREATE TABLE Shipments (
     ShippingFee INT NOT NULL,
     CreatedAt DATE NOT NULL,
     Status TINYINT(1) DEFAULT 1,
+    CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (ShipperId) REFERENCES Shippers(ShipperId)
 );
 CREATE TABLE PlatformFees (
     FeeId INT AUTO_INCREMENT PRIMARY KEY,
     PercentValue INT NOT NULL,
     ConditionText TEXT NOT NULL,
-    CreatedAt DATE NOT NULL
+    CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE TABLE Orders (
     OrderId INT AUTO_INCREMENT PRIMARY KEY,
@@ -119,6 +124,8 @@ CREATE TABLE Orders (
     AddressId INT NOT NULL,
     OrderDate DATE NOT NULL,
     StallId INT NOT NULL,
+    CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (AccountId) REFERENCES Accounts(AccountId),
     FOREIGN KEY (ShipmentId) REFERENCES Shipments(ShipmentId),
     FOREIGN KEY (FeeId) REFERENCES PlatformFees(FeeId),
@@ -129,7 +136,7 @@ CREATE TABLE PaymentMethods (
     MethodId INT AUTO_INCREMENT PRIMARY KEY,
     MethodName VARCHAR(100) NOT NULL,
     Description TEXT,
-    Status TINYINT(1) DEFAULT 1
+    Status TINYINT(1) DEFAULT 1,
 );
 CREATE TABLE Vouchers (
     VoucherId INT AUTO_INCREMENT PRIMARY KEY,
@@ -158,7 +165,7 @@ CREATE TABLE OrderDetails (
     UsageId INT,
     UnitPrice INT NOT NULL,
     Quantity INT NOT NULL,
-    CreatedAt DATE NOT NULL,
+    CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (OrderId) REFERENCES Orders(OrderId),
     FOREIGN KEY (ProductId) REFERENCES Products(ProductId),
     FOREIGN KEY (MethodId) REFERENCES PaymentMethods(MethodId),
@@ -171,7 +178,7 @@ CREATE TABLE Feedbacks (
     Score INT CHECK (Score BETWEEN 1 AND 5),
     Content TEXT NOT NULL,
     Image TEXT,
-    CreatedAt DATE NOT NULL,
+    CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (AccountId) REFERENCES Accounts(AccountId),
     FOREIGN KEY (OrderDetailId) REFERENCES OrderDetails(OrderDetailId)
 );
@@ -188,7 +195,7 @@ CREATE TABLE OrderStatusHistory (
     HistoryId INT AUTO_INCREMENT PRIMARY KEY,
     OrderDetailId INT NOT NULL,
     Status VARCHAR(100) NOT NULL,
-    CreatedAt DATE NOT NULL,
+    CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (OrderDetailId) REFERENCES OrderDetails(OrderDetailId)
 );
 CREATE TABLE Carts (

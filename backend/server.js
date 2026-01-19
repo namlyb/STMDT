@@ -29,6 +29,9 @@ app.use("/api/roles", roleRouter);
 app.use("/api/carts", cartRouter);
 app.use("/api/addresses", addressRouter);
 app.use("/api/ads", adsRoute);
+app.use("/api/chats", require("./routes/ChatRouter"));
+app.use("/api/messages", require("./routes/MessageRouter"));
+
 
 // Avatar images
 app.use(
