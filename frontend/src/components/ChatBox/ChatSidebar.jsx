@@ -12,7 +12,7 @@ export default function ChatSidebar({ chats, selectedChat, onSelect }) {
           }`}
         >
           <img
-            src={chat.Avt}
+            src={chat.Avt || "/default-avatar.png"}
             className="w-9 h-9 rounded-full"
           />
 
