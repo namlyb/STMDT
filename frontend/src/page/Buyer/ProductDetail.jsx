@@ -4,6 +4,7 @@ import Header from "../../components/Guest/Header";
 import axios from "../../components/lib/axios";
 import { API_URL } from "../../config";
 import BuyerChat from "./BuyerChat";
+import ChatBubble from "../../components/ChatBox/ChatBubble";
 
 export default function ProductDetail() {
   const { id } = useParams();
@@ -13,7 +14,7 @@ export default function ProductDetail() {
 
   const [data, setData] = useState(null);
   const [quantity, setQuantity] = useState(1);
-  const [showChat, setShowChat] = useState(false);
+  const [showChat, setShowChat] = useState(false); // state kiểm soát popup ProductDetail
 
   const PRODUCT_IMAGE_BASE = `${API_URL}/uploads/ProductImage`;
   const AVATAR_BASE = `${API_URL}/uploads/AccountAvatar`;
@@ -47,13 +48,12 @@ export default function ProductDetail() {
     setQuantity(Math.max(1, Number(value)));
   };
 
+  /* ================= CHAT PERMISSION ================= */
   const canChat = () => {
     if (!currentAccountId) return false;
     if (!stall?.AccountId) return false;
-
     return currentAccountId !== stall.AccountId;
   };
-
 
   /* ================= CART ================= */
   const addToCart = async () => {
@@ -77,8 +77,14 @@ export default function ProductDetail() {
         {/* PRODUCT */}
         <div className="bg-white p-4 rounded shadow grid grid-cols-2 gap-4">
           <div className="relative w-full h-72 overflow-hidden rounded bg-gray-100">
-            <img src={productImage} className="absolute inset-0 w-full h-full object-cover blur-xl scale-110" />
-            <img src={productImage} className="relative z-10 mx-auto h-full object-contain" />
+            <img
+              src={productImage}
+              className="absolute inset-0 w-full h-full object-cover blur-xl scale-110"
+            />
+            <img
+              src={productImage}
+              className="relative z-10 mx-auto h-full object-contain"
+            />
           </div>
 
           <div className="space-y-3">
@@ -91,13 +97,21 @@ export default function ProductDetail() {
 
             <div className="flex items-center">
               <button onClick={decrease} className="px-3 border cursor-pointer">−</button>
-              <input value={quantity} onChange={onChangeQuantity} className="w-12 text-center border" />
+              <input
+                value={quantity}
+                onChange={onChangeQuantity}
+                className="w-12 text-center border"
+              />
               <button onClick={increase} className="px-3 border cursor-pointer">+</button>
             </div>
 
             <div className="flex gap-3">
-              <button className="px-6 py-2 bg-orange-500 text-white rounded cursor-pointer">Mua ngay</button>
-              <button onClick={addToCart} className="px-6 py-2 border rounded cursor-pointer">Thêm vào giỏ</button>
+              <button className="px-6 py-2 bg-orange-500 text-white rounded cursor-pointer">
+                Mua ngay
+              </button>
+              <button onClick={addToCart} className="px-6 py-2 border rounded cursor-pointer">
+                Thêm vào giỏ
+              </button>
             </div>
           </div>
         </div>
@@ -115,26 +129,41 @@ export default function ProductDetail() {
           <div className="flex gap-2">
             {canChat() && (
               <button
-                onClick={() => setShowChat(true)}
+                onClick={() => setShowChat(true)} // bật popup ProductDetail
                 className="px-4 py-2 bg-orange-500 text-white rounded cursor-pointer"
               >
                 Chat
               </button>
             )}
 
-            <button onClick={() => navigate(`/stall/${stall.StallId}`)} className="px-4 py-2 bg-orange-500 text-white rounded cursor-pointer">
+            <button
+              onClick={() => navigate(`/stall/${stall.StallId}`)}
+              className="px-4 py-2 bg-orange-500 text-white rounded cursor-pointer"
+            >
               Xem shop
             </button>
           </div>
         </div>
       </main>
 
-      {/* CHAT POPUP */}
-      {showChat && (
-        <BuyerChat
-          sellerId={stall.AccountId}
-          onClose={() => setShowChat(false)}
-        />
+      {/* CHAT BUBBLE + POPUP */}
+      {canChat() && (
+        <>
+          {/* Bubble sẽ ẩn khi popup ProductDetail mở */}
+          <ChatBubble
+            sellerId={stall?.AccountId}
+            visible={!showChat}
+            onOpen={() => setShowChat(true)}
+          />
+
+          {/* Popup chat */}
+          {showChat && (
+            <BuyerChat
+              sellerId={stall?.AccountId}
+              onClose={() => setShowChat(false)}
+            />
+          )}
+        </>
       )}
     </>
   );

@@ -37,7 +37,31 @@ const MessageController = {
       console.error(err);
       res.status(500).json({ message: "Gửi thất bại" });
     }
+  },
+
+  // POST /api/messages/read
+markRead: async (req, res) => {
+  try {
+    const { chatId, readerId } = req.body;
+
+    if (!chatId || !readerId) {
+      return res.status(400).json({ message: "Thiếu dữ liệu" });
+    }
+
+    await Message.markAsRead({
+      chatId,
+      readerId,
+      openedAt: new Date()
+    });
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Update IsRead thất bại" });
   }
+}
+
+
 };
 
 module.exports = MessageController;

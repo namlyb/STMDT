@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import axios from "../../components/lib/axios";
 import Header from "../../components/Guest/Header";
 import { useNavigate } from "react-router-dom";
+import ChatBubble from "../../components/ChatBox/ChatBubble";
+import canChat from "../../utils/canChat";
 
 export default function Cart() {
   const [items, setItems] = useState([]);
@@ -241,6 +243,7 @@ export default function Cart() {
           </button>
         </div>
       )}
+      {canChat() && <ChatBubble sellerId={null} />}
     </div>
   );
 }

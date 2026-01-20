@@ -39,32 +39,40 @@ const Chat = {
 
   // Danh sách chat của buyer sắp xếp theo tin nhắn mới nhất
   getByBuyer: async (buyerId) => {
-    const [rows] = await pool.query(`
-      SELECT 
-        c.ChatId,
-        a.AccountId AS SellerId,
-        s.StallName AS SellerName,
-        a.Avt,
-        m.LastMessage,
-        m.LastSentAt
-      FROM Chats c
-      JOIN Accounts a ON c.SellerId = a.AccountId
-      JOIN Stalls s ON s.AccountId = a.AccountId
-      LEFT JOIN (
-        SELECT ChatId, Content AS LastMessage, SentAt AS LastSentAt
+  const [rows] = await pool.query(`
+    SELECT 
+      c.ChatId,
+      a.AccountId AS SellerId,
+      s.StallName AS SellerName,
+      a.Avt,
+      m.LastMessage,
+      m.LastSentAt,
+      IFNULL(u.UnreadCount, 0) AS UnreadCount
+    FROM Chats c
+    JOIN Accounts a ON c.SellerId = a.AccountId
+    JOIN Stalls s ON s.AccountId = a.AccountId
+    LEFT JOIN (
+      SELECT ChatId, Content AS LastMessage, SentAt AS LastSentAt
+      FROM Messages
+      WHERE (ChatId, SentAt) IN (
+        SELECT ChatId, MAX(SentAt)
         FROM Messages
-        WHERE (ChatId, SentAt) IN (
-          SELECT ChatId, MAX(SentAt)
-          FROM Messages
-          GROUP BY ChatId
-        )
-      ) m ON c.ChatId = m.ChatId
-      WHERE c.BuyerId = ?
-      ORDER BY m.LastSentAt DESC
-    `, [buyerId]);
+        GROUP BY ChatId
+      )
+    ) m ON c.ChatId = m.ChatId
+    LEFT JOIN (
+      SELECT ChatId, COUNT(*) AS UnreadCount
+      FROM Messages
+      WHERE IsRead = 0 AND SenderId <> ?
+      GROUP BY ChatId
+    ) u ON u.ChatId = c.ChatId
+    WHERE c.BuyerId = ?
+    ORDER BY m.LastSentAt DESC
+  `, [buyerId, buyerId]);
 
-    return rows;
-  },
+  return rows;
+},
+
 
   getBySeller: async (sellerId) => {
   const [rows] = await pool.query(`

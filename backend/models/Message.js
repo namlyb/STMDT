@@ -24,7 +24,20 @@ const Message = {
       SenderId: senderId,
       Content: content
     };
-  }
+  },
+
+  markAsRead: async ({ chatId, readerId, openedAt }) => {
+  await pool.query(
+    `UPDATE Messages
+     SET IsRead = 1
+     WHERE ChatId = ?
+       AND SenderId <> ?
+       AND IsRead = 0
+       AND SentAt <= ?`,
+    [chatId, readerId, openedAt]
+  );
+},
+
 };
 
 module.exports = Message;

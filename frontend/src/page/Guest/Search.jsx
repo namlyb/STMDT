@@ -3,6 +3,8 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import axios from "../../components/lib/axios";
 import Header from "../../components/Guest/Header";
 import Footer from "../../components/Guest/footer";
+import ChatBubble from "../../components/ChatBox/ChatBubble";
+import canChat from "../../utils/canChat";
 
 export default function Search() {
   const [searchParams] = useSearchParams();
@@ -91,6 +93,7 @@ const sortedProducts = useMemo(() => {
         </div>
       </main>
       <Footer />
+      {canChat() && <ChatBubble sellerId={null} />}
     </>
   );
 }

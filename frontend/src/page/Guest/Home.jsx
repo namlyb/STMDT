@@ -3,119 +3,136 @@ import { useNavigate } from "react-router-dom";
 import Header from "../../components/Guest/Header";
 import Footer from "../../components/Guest/footer";
 import axios from "../../components/lib/axios";
-import { API_URL } from "../../config";
+import ChatBubble from "../../components/ChatBox/ChatBubble";
+import canChat from "../../utils/canChat";
 
 export default function Home() {
-    const navigate = useNavigate();
-    const [categories, setCategories] = useState([]);
-    const [products, setProducts] = useState([]);
-    const [ad, setAd] = useState(null);
+  const navigate = useNavigate();
 
-    useEffect(() => {
-        axios.get("/categories")
-            .then(res => {
-                console.log("Categories:", res.data);
-                setCategories(res.data);
-            })
-            .catch(console.error);
+  const [categories, setCategories] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [ad, setAd] = useState(null);
 
-        axios.get("/products/random")
-            .then(res => {
-                console.log("Random products:", res.data);
-                setProducts(res.data);
-            })
-            .catch(console.error);
+  /* ================= LOAD DATA ================= */
+  useEffect(() => {
+    axios.get("/categories")
+      .then(res => setCategories(res.data))
+      .catch(console.error);
 
-        axios.get("/ads/style/1")
-            .then(res => setAd(res.data))
-            .catch(console.error);
-    }, []);
+    axios.get("/products/random")
+      .then(res => setProducts(res.data))
+      .catch(console.error);
 
-    return (
-        <>
-            <Header />
+    axios.get("/ads/style/1")
+      .then(res => setAd(res.data))
+      .catch(console.error);
+  }, []);
 
-            <main className="bg-gray-50 py-6">
-                <div className="grid grid-cols-12 max-w-7xl mx-auto px-4 gap-4">
+  return (
+    <>
+      {/* ================= HEADER ================= */}
+      <Header />
 
-                    {/* LEFT SIDEBAR */}
-                    <aside className="col-span-2">
-                        <div className="bg-white p-2 rounded shadow
-                  max-h-[calc(100vh-120px)]
-                  overflow-y-auto
-                  sticky top-24">
-                            <h3 className="font-bold mb-2">Danh mục</h3>
+      {/* ================= MAIN ================= */}
+      <main className="bg-gray-50 py-6">
+        <div className="grid grid-cols-12 max-w-7xl mx-auto px-4 gap-4">
 
-                            <ul className="space-y-2 text-sm">
-                                {categories.map(cat => (
-                                    <li
-                                        key={cat.CategoryId}
-                                        className="flex items-center gap-2 cursor-pointer hover:text-orange-500"
-                                        onClick={() => navigate(`/search?category=${cat.CategoryId}`)}
-                                    >
-                                        {cat.CategoryImage && (
-                                            <img
-                                                src={cat.CategoryImage}
-                                                alt=""
-                                                className="w-5 h-5 object-cover"
-                                            />
-                                        )}
-                                        {cat.CategoryName}
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                    </aside>
+          {/* ===== LEFT SIDEBAR ===== */}
+          <aside className="col-span-2">
+            <div
+              className="bg-white p-2 rounded shadow
+                         max-h-[calc(100vh-120px)]
+                         overflow-y-auto
+                         sticky top-24"
+            >
+              <h3 className="font-bold mb-2">Danh mục</h3>
 
+              <ul className="space-y-2 text-sm">
+                {categories.map(cat => (
+                  <li
+                    key={cat.CategoryId}
+                    onClick={() =>
+                      navigate(`/search?category=${cat.CategoryId}`)
+                    }
+                    className="flex items-center gap-2
+                               cursor-pointer
+                               hover:text-orange-500"
+                  >
+                    {cat.CategoryImage && (
+                      <img
+                        src={cat.CategoryImage}
+                        alt=""
+                        className="w-5 h-5 object-cover"
+                      />
+                    )}
+                    {cat.CategoryName}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </aside>
 
-                    {/* MAIN CONTENT */}
-                    <section className="col-span-8">
-                        <h2 className="text-xl font-bold mb-4">Gợi ý hôm nay</h2>
+          {/* ===== MAIN CONTENT ===== */}
+          <section className="col-span-8">
+            <h2 className="text-xl font-bold mb-4">Gợi ý hôm nay</h2>
 
-                        <div className="grid grid-cols-4 gap-4">
-                            {products.map(product => (
-                                <div
-                                    key={product.ProductId}
-                                    onClick={() => navigate(`/product/${product.ProductId}`)}
-                                    className="bg-white p-3 rounded shadow hover:shadow-lg transition cursor-pointer"
-                                >
-                                    <img
-                                        src={product.Image}
-                                        alt=""
-                                        className="h-32 w-full object-cover mb-2"
-                                    />
-                                    <p className="text-sm line-clamp-2">
-                                        {product.ProductName}
-                                    </p>
-                                    <p className="text-red-500 font-bold">
-                                        {Number(product.Price).toLocaleString()} ₫
-                                    </p>
-                                </div>
-                            ))}
-                        </div>
-                    </section>
+            <div className="grid grid-cols-4 gap-4">
+              {products.map(product => (
+                <div
+                  key={product.ProductId}
+                  onClick={() =>
+                    navigate(`/product/${product.ProductId}`)
+                  }
+                  className="bg-white p-3 rounded shadow
+                             hover:shadow-lg transition
+                             cursor-pointer"
+                >
+                  <img
+                    src={product.Image}
+                    alt=""
+                    className="h-32 w-full object-cover mb-2"
+                  />
 
-                    {/* RIGHT SIDEBAR */}
-                    <aside className="col-span-2">
-                        <div className="bg-white rounded shadow sticky top-24 overflow-hidden">
-                            {ad ? (
-                                <img
-                                    src={ad.AdsImage}
-                                    alt="Quảng cáo"
-                                    className="w-full h-full object-cover"
-                                />
-                            ) : (
-                                <p className="p-4 text-sm text-gray-400 text-center">
-                                    Chưa có quảng cáo
-                                </p>
-                            )}
-                        </div>
-                    </aside>
+                  <p className="text-sm line-clamp-2">
+                    {product.ProductName}
+                  </p>
 
+                  <p className="text-red-500 font-bold">
+                    {Number(product.Price).toLocaleString()} ₫
+                  </p>
                 </div>
-            </main>
+              ))}
+            </div>
+          </section>
 
-            <Footer />
-        </>
-    );
+          {/* ===== RIGHT SIDEBAR ===== */}
+          <aside className="col-span-2">
+            <div className="bg-white rounded shadow sticky top-24 overflow-hidden">
+              {ad ? (
+                <img
+                  src={ad.AdsImage}
+                  alt="Quảng cáo"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <p className="p-4 text-sm text-gray-400 text-center">
+                  Chưa có quảng cáo
+                </p>
+              )}
+            </div>
+          </aside>
+
+        </div>
+      </main>
+
+      {/* ================= FOOTER ================= */}
+      <Footer />
+
+      {/* ================= CHAT BUBBLE ================= */}
+      {/* Luôn nổi – không ảnh hưởng layout */}
+      {console.log("canChat =", canChat())}
+      {canChat() && <ChatBubble sellerId={null} />}
+
+    </>
+  );
 }
