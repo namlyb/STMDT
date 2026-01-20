@@ -9,11 +9,11 @@ export default function SellerSidebar() {
   const [stallName, setStallName] = useState("");
 
   const menu = [
-    { label: "Thông tin cá nhân", path: "/seller/profile" },
-    { label: "Sản phẩm", path: "/seller/products" },
-    { label: "Đơn hàng", path: "/seller/orders" },
-    { label: "Khuyến mãi", path: "/seller/promotions" },
-
+    { id: 1, label: "Thông tin cá nhân", path: "/seller/profile" },
+    { id: 2, label: "Sản phẩm", path: "/seller/products" },
+    { id: 3, label: "Tin nhắn", path: "/seller/chat" },
+    { id: 4, label: "Đơn hàng", path: "#" },
+    { id: 5, label: "Khuyến mãi", path: "#" },
   ];
 
   useEffect(() => {
@@ -38,7 +38,7 @@ export default function SellerSidebar() {
 
 
   return (
-    <aside className="w-60 bg-white border rounded-lg shadow-md p-4 flex-shrink-0 self-start">
+    <aside className="w-60 bg-white border rounded-lg shadow-md p-4 flex-shrink-0 sticky top-20 h-fit">
       {/* Thông tin tài khoản */}
       <div className="flex flex-col items-center gap-2 mb-6">
         <img
@@ -51,7 +51,7 @@ export default function SellerSidebar() {
         />
         <p className="font-semibold text-center">{account?.Name}</p>
         <p className="text-sm text-gray-500 text-center">
-          Seller: {stallName || "..."}
+          Gian hàng: {stallName || "..."}
         </p>
       </div>
 
@@ -59,7 +59,7 @@ export default function SellerSidebar() {
       <div className="flex flex-col gap-2">
         {menu.map((item) => (
           <div
-            key={item.path}
+            key={item.id}
             onClick={() => navigate(item.path)}
             className={`cursor-pointer px-4 py-2 rounded 
               ${

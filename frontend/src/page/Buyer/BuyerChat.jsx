@@ -22,7 +22,7 @@ export default function BuyerChat({ sellerId, onClose }) {
         await axios.post("/chats", { buyerId, sellerId });
       }
 
-      const chatRes = await axios.get("/chats", { params: { buyerId } });
+      const chatRes = await axios.get("/chats/buyer", { params: { buyerId } });
       const formatted = chatRes.data.map(c => ({
         ...c,
         Avt: c.Avt ? `${AVATAR}/${c.Avt}` : `${AVATAR}/avtDf.png`

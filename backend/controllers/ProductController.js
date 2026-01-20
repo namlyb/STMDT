@@ -164,6 +164,33 @@ updateProductStatus: async (req, res) => {
   }
 },
 
+updateProduct: async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { ProductName, Price, Description} = req.body;
+    let Image = req.body.Image; // Mặc định lấy từ body
+
+    // Nếu có file ảnh mới, sử dụng tên file mới
+    if (req.file) {
+      Image = req.file.filename;
+    }
+
+    await Product.update(id, {
+      ProductName,
+      Price,
+      Description,
+      Image
+    },
+    { where: { ProductId: req.params.id } }
+  );
+
+    res.json({ message: "Cập nhật sản phẩm thành công" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Lỗi cập nhật sản phẩm" });
+  }
+},
+
 
 };
 

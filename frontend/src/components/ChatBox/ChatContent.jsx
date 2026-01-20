@@ -2,9 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import twemoji from "twemoji";
 
 const MAX_LEN = 500;
-const isWordChar = (c) => /[a-zA-Z0-9À-ỹ]/.test(c);
 
-// Map shortcode -> Unicode emoji
+/* ================= EMOJI ================= */
 const emojiMap = {
   ":)": "😊",
   ":(": "☹️",
@@ -21,50 +20,23 @@ const replaceShortcodes = (text) => {
   return newText;
 };
 
-export default function ChatContent({ chat, buyerId, messages = [], onSendMessage }) {
+/* ================= COMPONENT ================= */
+export default function ChatContent({
+  chat,
+  buyerId,
+  messages = [],
+  onSendMessage,
+}) {
   const [input, setInput] = useState("");
   const scrollRef = useRef(null);
 
-  // ================= SPLIT MESSAGE =================
-  const splitMessageContent = (text) => {
-    const parts = [];
-    let remaining = text;
-    while (remaining.length > MAX_LEN) {
-      let cut = -1;
-      for (let i = MAX_LEN; i >= 0; i--) {
-        const curr = remaining[i];
-        const prev = remaining[i - 1];
-        if (curr === "\n" && prev && !isWordChar(prev)) {
-          cut = i;
-          break;
-        }
-        if (
-          curr === " " &&
-          prev &&
-          !isWordChar(prev) &&
-          remaining[i + 1] &&
-          !isWordChar(remaining[i + 1])
-        ) {
-          cut = i;
-          break;
-        }
-      }
-      if (cut === -1) {
-        parts.push(remaining.slice(0, MAX_LEN));
-        remaining = remaining.slice(MAX_LEN);
-      } else {
-        parts.push(remaining.slice(0, cut));
-        remaining = remaining.slice(cut + 1);
-      }
-    }
-    if (remaining.length > 0) parts.push(remaining);
-    return parts;
-  };
-
-  // ================= TIME =================
+  /* ================= TIME ================= */
   const formatTime = (dateStr) => {
     const d = new Date(dateStr);
-    return d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+    return d.toLocaleTimeString("vi-VN", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   };
 
   const isSameBlock = (a, b) => {
@@ -73,18 +45,21 @@ export default function ChatContent({ chat, buyerId, messages = [], onSendMessag
     return new Date(b.SentAt) - new Date(a.SentAt) <= 2 * 60 * 1000;
   };
 
-  // ================= SEND =================
+  /* ================= SEND ================= */
   const send = async () => {
     if (!input.trim()) return;
     if (onSendMessage) {
-      await onSendMessage(input);
+      await onSendMessage(input.slice(0, MAX_LEN));
       setInput("");
     }
   };
 
-  // ================= SCROLL =================
+  /* ================= SCROLL ================= */
   useEffect(() => {
-    scrollRef.current?.scrollTo(0, scrollRef.current.scrollHeight);
+    scrollRef.current?.scrollTo({
+      top: scrollRef.current.scrollHeight,
+      behavior: "smooth",
+    });
   }, [messages]);
 
   if (!chat)
@@ -94,11 +69,9 @@ export default function ChatContent({ chat, buyerId, messages = [], onSendMessag
       </div>
     );
 
-  // ================= RENDER MESSAGE =================
-  const renderMessagePart = (part) => {
-    const textWithEmoji = replaceShortcodes(part);
-
-    const html = twemoji.parse(textWithEmoji, {
+  /* ================= RENDER MESSAGE ================= */
+  const renderMessage = (text) => {
+    const html = twemoji.parse(replaceShortcodes(text), {
       folder: "svg",
       ext: ".svg",
       className: "twemoji",
@@ -109,16 +82,29 @@ export default function ChatContent({ chat, buyerId, messages = [], onSendMessag
 
   return (
     <div className="flex-1 flex flex-col">
-      <div ref={scrollRef} className="flex-1 p-3 overflow-y-auto bg-gray-50">
+      {/* ===== MESSAGE LIST ===== */}
+      <div
+        ref={scrollRef}
+        className="flex-1 p-3 overflow-y-auto bg-gray-50"
+      >
         {messages.map((m, index) => {
           const prev = messages[index - 1];
           const next = messages[index + 1];
+
           const isMe = m.SenderId === buyerId;
           const samePrev = isSameBlock(prev, m);
           const sameNext = isSameBlock(m, next);
           const showTime = index === 0 || !samePrev;
 
-          const parts = splitMessageContent(m.Content);
+          let radius = "rounded-lg";
+          if (!samePrev && sameNext)
+            radius = isMe
+              ? "rounded-lg rounded-tr-2xl"
+              : "rounded-lg rounded-tl-2xl";
+          else if (samePrev && !sameNext)
+            radius = isMe
+              ? "rounded-lg rounded-br-2xl"
+              : "rounded-lg rounded-bl-2xl";
 
           return (
             <div key={m.MessageId}>
@@ -127,54 +113,43 @@ export default function ChatContent({ chat, buyerId, messages = [], onSendMessag
                   {formatTime(m.SentAt)}
                 </div>
               )}
-              {parts.map((part, i) => {
-                const isFirstPart = i === 0;
-                const isLastPart = i === parts.length - 1;
-                let radius = "rounded-lg";
 
-                if (isFirstPart && isLastPart) {
-                  if (!samePrev && sameNext)
-                    radius = isMe ? "rounded-lg rounded-tr-2xl" : "rounded-lg rounded-tl-2xl";
-                  else if (samePrev && !sameNext)
-                    radius = isMe ? "rounded-lg rounded-br-2xl" : "rounded-lg rounded-bl-2xl";
-                } else if (isFirstPart)
-                  radius = isMe ? "rounded-lg rounded-tr-2xl" : "rounded-lg rounded-tl-2xl";
-                else if (isLastPart)
-                  radius = isMe ? "rounded-lg rounded-br-2xl" : "rounded-lg rounded-bl-2xl";
-
-                return (
-                  <div key={i} className={`flex ${isMe ? "justify-end" : "justify-start"} mb-0.5`}>
-                    <div
-                      style={{
-                        maxWidth: "65%",
-                        padding: "0.5rem 0.75rem",
-                        fontSize: "0.875rem",
-                        lineHeight: "1.25rem",
-                        borderRadius: "0.5rem",
-                        wordBreak: "break-word",
-                        whiteSpace: "pre-wrap",
-                        overflowWrap: "anywhere",
-                        backgroundColor: isMe ? "#f97316" : "#fff",
-                        color: isMe ? "#fff" : "#000",
-                        border: isMe ? "none" : "1px solid #e5e7eb",
-                        fontFamily:
-                          '"Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif',
-                      }}
-                    >
-                      {renderMessagePart(part)}
-                    </div>
-                  </div>
-                );
-              })}
+              <div
+                className={`flex ${
+                  isMe ? "justify-end" : "justify-start"
+                } mb-1`}
+              >
+                <div
+                  className={radius}
+                  style={{
+                    maxWidth: "65%",
+                    padding: "0.5rem 0.75rem",
+                    fontSize: "0.875rem",
+                    lineHeight: "1.25rem",
+                    wordBreak: "break-word",
+                    whiteSpace: "pre-wrap",
+                    overflowWrap: "anywhere",
+                    backgroundColor: isMe ? "#f97316" : "#fff",
+                    color: isMe ? "#fff" : "#000",
+                    border: isMe ? "none" : "1px solid #e5e7eb",
+                    fontFamily:
+                      '"Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif',
+                  }}
+                >
+                  {renderMessage(m.Content)}
+                </div>
+              </div>
             </div>
           );
         })}
       </div>
 
+      {/* ===== INPUT ===== */}
       <div className="px-3 py-3 border-t flex gap-2 bg-white">
         <input
           className="flex-1 h-11 border rounded-full px-4 text-sm focus:outline-none"
           value={input}
+          maxLength={MAX_LEN}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && send()}
           placeholder="Nhập nội dung tin nhắn"

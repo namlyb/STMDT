@@ -9,10 +9,13 @@ import Register from "./page/Auth/Register";
 import UpdateAccount from "./page/Admin/UpdateAccount";
 import Cart from "./page/Buyer/Cart";
 import ProductDetail from "./page/Buyer/ProductDetail";
+import SellerProductDetail from "./page/Seller/ProductDetail";
 import Profile from "./page/Buyer/Profile";
 import SellerProfile from "./page/Seller/Profile";
 import Address from "./page/Buyer/Address";
 import AddAddress from "./page/Buyer/AddNewAddress";
+import SellerChat from "./page/Seller/Chat";
+
 
 function App() {
   return (
@@ -32,7 +35,9 @@ function App() {
         {/*<Route path="/seller/dashboard" element={<SellerDashboard />} />}*/}
         <Route path="/seller/products" element={<ListProductOfSeller />} />
         <Route path="/seller/profile" element={<SellerProfile />} />
-        
+        <Route path="/seller/products/:id" element={<SellerProductDetail />} />
+        <Route path="/seller/chat" element={<SellerChat />} />
+
         {/* Buyer */}
         <Route path="/profile" element={<Profile />} />
         <Route path="/cart" element={<Cart />} />

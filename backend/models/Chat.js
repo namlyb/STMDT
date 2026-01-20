@@ -64,7 +64,33 @@ const Chat = {
     `, [buyerId]);
 
     return rows;
-  }
+  },
+
+  getBySeller: async (sellerId) => {
+  const [rows] = await pool.query(`
+    SELECT 
+      c.ChatId,
+      a.AccountId AS BuyerId,
+      a.Name AS BuyerName,
+      a.Avt AS BuyerAvatar,
+      m.Content AS LastMessage,
+      m.SentAt AS LastSentAt
+    FROM Chats c
+    JOIN Accounts a ON c.BuyerId = a.AccountId
+    LEFT JOIN Messages m
+      ON m.ChatId = c.ChatId
+      AND m.SentAt = (
+        SELECT MAX(SentAt)
+        FROM Messages
+        WHERE ChatId = c.ChatId
+      )
+    WHERE c.SellerId = ?
+    ORDER BY m.SentAt DESC
+  `, [sellerId]);
+
+  return rows;
+}
+
 };
 
 module.exports = Chat;

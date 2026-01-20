@@ -13,7 +13,8 @@ const cartRouter = require("./routes/CartRouter");
 const addressRouter = require("./routes/AddressRouter");
 const adsRoute = require("./routes/AdsRouter");
 const stallRouter = require("./routes/StallRouter");
-
+const chatRouter = require("./routes/ChatRouter");
+const messageRouter = require("./routes/MessageRouter");
 
 const app = express();
 
@@ -21,7 +22,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(cookieParser());
-
+app.use("/uploads", express.static("uploads"));
 
 // Routes
 app.use("/api/accounts", accountRoute);
@@ -32,6 +33,8 @@ app.use("/api/carts", cartRouter);
 app.use("/api/addresses", addressRouter);
 app.use("/api/ads", adsRoute);
 app.use("/api/stalls", stallRouter);
+app.use("/api/chats", chatRouter);
+app.use("/api/messages", messageRouter);
 
 
 app.use("/api/chats", require("./routes/ChatRouter"));

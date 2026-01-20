@@ -49,7 +49,7 @@ export default function Header() {
         navigate("/profile");
         break;
       case "3":
-        navigate("/seller/profile");
+        navigate("/seller/products");
         break;
       default:
         navigate("/");

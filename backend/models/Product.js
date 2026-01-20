@@ -132,6 +132,20 @@ const Product = {
   await pool.query(sql, [status, id]);
 },
 
+update: async (id, data) => {
+  const sql = `
+    UPDATE Products
+    SET ProductName = ?, Price = ?, Description = ?, Image = ?
+    WHERE ProductId = ?
+  `;
+  await pool.query(sql, [
+    data.ProductName,
+    data.Price,
+    data.Description,
+    data.Image,
+    id
+  ]);
+},
 
 };
 
