@@ -78,8 +78,8 @@ const Product = {
   },
 
   // models/Product.js
-search: async ({ categoryId, keyword }) => {
-  let sql = `
+  search: async ({ categoryId, keyword }) => {
+    let sql = `
     SELECT 
       p.ProductId, 
       p.ProductName, 
@@ -95,20 +95,42 @@ search: async ({ categoryId, keyword }) => {
     ) od ON p.ProductId = od.ProductId
     WHERE p.IsActive = 1
   `;
-  const params = [];
+    const params = [];
 
-  if (categoryId) {
-    sql += " AND pc.CategoryId = ?";
-    params.push(categoryId);
-  }
-  if (keyword) {
-    sql += " AND p.ProductName LIKE ?";
-    params.push(`%${keyword}%`);
-  }
+    if (categoryId) {
+      sql += " AND pc.CategoryId = ?";
+      params.push(categoryId);
+    }
+    if (keyword) {
+      sql += " AND p.ProductName LIKE ?";
+      params.push(`%${keyword}%`);
+    }
 
-  const [rows] = await pool.query(sql, params);
-  return rows;
-}
+    const [rows] = await pool.query(sql, params);
+    return rows;
+  },
+
+  getBySellerId: async (accountId) => {
+    const sql = `
+      SELECT p.ProductId, p.ProductName, p.Price, p.Description, p.Image, p.Status, p.IsActive,
+             s.StallId, s.StallName
+      FROM Products p
+      JOIN Stalls s ON p.StallId = s.StallId
+      WHERE s.AccountId = ?
+      ORDER BY p.ProductId DESC
+    `;
+    const [rows] = await pool.query(sql, [accountId]);
+    return rows;
+  },
+
+  updateStatus: async (id, status) => {
+  const sql = `
+    UPDATE Products
+    SET Status = ?
+    WHERE ProductId = ?
+  `;
+  await pool.query(sql, [status, id]);
+},
 
 
 };

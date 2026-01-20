@@ -12,6 +12,8 @@ const categoryRouter = require("./routes/CategoryRouter");
 const cartRouter = require("./routes/CartRouter");
 const addressRouter = require("./routes/AddressRouter");
 const adsRoute = require("./routes/AdsRouter");
+const stallRouter = require("./routes/StallRouter");
+
 
 const app = express();
 
@@ -29,6 +31,9 @@ app.use("/api/roles", roleRouter);
 app.use("/api/carts", cartRouter);
 app.use("/api/addresses", addressRouter);
 app.use("/api/ads", adsRoute);
+app.use("/api/stalls", stallRouter);
+
+
 app.use("/api/chats", require("./routes/ChatRouter"));
 app.use("/api/messages", require("./routes/MessageRouter"));
 

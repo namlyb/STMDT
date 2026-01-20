@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const AccountController = require("../controllers/AccountController");
 const { verifyToken, verifyRole } = require("../middleware/auth");
-const Account = require("../models/account");
+const Account = require("../models/Account");
 const uploadAvatar = require("../middleware/uploadAvatar");
 
 router.get("/", AccountController.getUsers);

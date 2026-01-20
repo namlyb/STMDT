@@ -13,6 +13,9 @@ router.get("/search", ProductController.searchProducts);
 
 router.get("/category/:id", ProductController.getProductsByCategory);
 router.get("/:id", ProductController.getProductDetail);
+//SELLER
+router.get("/seller/:accountId", ProductController.getProductsBySeller);
+router.put("/:id/status", ProductController.updateProductStatus);
 
 
 module.exports = router;

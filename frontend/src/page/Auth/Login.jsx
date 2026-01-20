@@ -28,7 +28,7 @@ export default function Login() {
           navigate("/");
           break;
         case '3':
-          navigate("/seller/dashboard");
+          navigate("/seller/products");
           break;
         default:
           navigate("/");

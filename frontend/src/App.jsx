@@ -1,6 +1,7 @@
 import { Routes, Route } from "react-router-dom";
 import ListAccount from "./page/Admin/ListAccount";
 import ListProduct from "./page/Admin/ListProduct";
+import ListProductOfSeller from "./page/Seller/ListProduct";
 import Home from "./page/Guest/home";
 import Search from "./page/Guest/Search";
 import Login from "./page/Auth/Login";
@@ -9,6 +10,7 @@ import UpdateAccount from "./page/Admin/UpdateAccount";
 import Cart from "./page/Buyer/Cart";
 import ProductDetail from "./page/Buyer/ProductDetail";
 import Profile from "./page/Buyer/Profile";
+import SellerProfile from "./page/Seller/Profile";
 import Address from "./page/Buyer/Address";
 import AddAddress from "./page/Buyer/AddNewAddress";
 
@@ -28,7 +30,9 @@ function App() {
 
         {/* Seller */}
         {/*<Route path="/seller/dashboard" element={<SellerDashboard />} />}*/}
-
+        <Route path="/seller/products" element={<ListProductOfSeller />} />
+        <Route path="/seller/profile" element={<SellerProfile />} />
+        
         {/* Buyer */}
         <Route path="/profile" element={<Profile />} />
         <Route path="/cart" element={<Cart />} />
