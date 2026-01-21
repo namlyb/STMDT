@@ -15,7 +15,53 @@ export default function ChatContent({ chat, buyerId, messages = [], onSendMessag
   const [input, setInput] = useState("");
   const scrollRef = useRef(null);
 
-  const formatTime = (dateStr) => new Date(dateStr).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+  const formatTime = (dateStr) => {
+  const msgDate = new Date(dateStr);
+  const now = new Date();
+
+  // Lấy ngày-tháng-năm (bỏ giờ phút giây)
+  const msgY = msgDate.getFullYear();
+  const msgM = msgDate.getMonth();
+  const msgD = msgDate.getDate();
+
+  const nowY = now.getFullYear();
+  const nowM = now.getMonth();
+  const nowD = now.getDate();
+
+  // Số ngày chênh lệch (chỉ dựa vào ngày)
+  const msgDateOnly = new Date(msgY, msgM, msgD);
+  const nowDateOnly = new Date(nowY, nowM, nowD);
+  const diffDays = Math.floor(
+    (nowDateOnly - msgDateOnly) / (24 * 60 * 60 * 1000)
+  );
+
+  const hh = msgDate.getHours().toString().padStart(2, "0");
+  const mm = msgDate.getMinutes().toString().padStart(2, "0");
+
+  // 1️⃣ Cùng ngày → HH:mm
+  if (msgY === nowY && msgM === nowM && msgD === nowD) {
+    return `${hh}:${mm}`;
+  }
+
+  // 2️⃣ > 1 ngày và < 7 ngày → T3 lúc HH:mm
+  if (diffDays > 0 && diffDays < 7) {
+    const thu = msgDate.getDay(); // 0 = CN
+    const thuText = thu === 0 ? "CN" : `T${thu + 1}`;
+    return `${thuText} lúc ${hh}:${mm}`;
+  }
+
+  const day = msgD;
+  const month = msgM + 1;
+
+  // 3️⃣ Khác năm → dd THG mm/yyyy lúc HH:mm
+  if (msgY !== nowY) {
+    return `${day} THG ${month}/${msgY} lúc ${hh}:${mm}`;
+  }
+
+  // 4️⃣ ≥ 7 ngày & cùng năm → dd THG mm lúc HH:mm
+  return `${day} THG ${month} lúc ${hh}:${mm}`;
+};
+
 
   const isSameBlock = (a, b) => a && b && a.SenderId === b.SenderId && new Date(b.SentAt) - new Date(a.SentAt) <= 2 * 60 * 1000;
 

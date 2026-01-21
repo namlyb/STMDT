@@ -139,6 +139,26 @@ confirmUpdateStyle: async (req, res) => {
   res.json({ message: "Cập nhật style thành công" });
 },
 
+uploadAdsImage: async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "Chưa chọn ảnh" });
+      }
+
+      const adsId = await Ads.createAdsImage(req.file.filename);
+
+      res.json({
+        message: "Upload quảng cáo thành công",
+        AdsId: adsId,
+        filename: req.file.filename,
+        Status: 0,
+        StyleID: 1,
+      });
+    } catch (err) {
+      res.status(500).json({ message: err.message });
+    }
+  },
+
 };
 
 module.exports = AdsController;

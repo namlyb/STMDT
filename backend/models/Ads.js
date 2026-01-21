@@ -60,6 +60,14 @@ const Ads = {
   );
 },
 
+createAdsImage: async (filename) => {
+    const [result] = await pool.query(
+      `INSERT INTO Ads (AdsImage, StyleID, Status)
+       VALUES (?, 1, 1)`,
+      [filename]
+    );
+    return result.insertId;
+  },
 };
 
 module.exports = Ads;
