@@ -31,6 +31,8 @@ const MessageController = {
       }
 
       const msg = await Message.create({ chatId, senderId, content });
+      const io = req.app.get("io");
+      io.to(`chat_${chatId}`).emit("newMessage", msg);
       res.status(201).json(msg);
 
     } catch (err) {

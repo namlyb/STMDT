@@ -3,11 +3,18 @@ import ChatSidebar from "../../components/ChatBox/ChatSidebar";
 import ChatContent from "../../components/ChatBox/ChatContent";
 import axios from "../../components/lib/axios";
 import { API_URL } from "../../config";
+import { io } from "socket.io-client";
+
+const socket = io(API_URL, {
+  transports: ["websocket"],
+});
+
 
 export default function BuyerChat({ sellerId, onClose }) {
   const account = JSON.parse(sessionStorage.getItem("account"));
   const buyerId = account?.AccountId;
   const AVATAR = `${API_URL}/uploads/AccountAvatar`;
+
 
   const [chats, setChats] = useState([]);
   const [selectedChat, setSelectedChat] = useState(null);
@@ -25,7 +32,7 @@ export default function BuyerChat({ sellerId, onClose }) {
         Avt: c.Avt ? `${AVATAR}/${c.Avt}` : `${AVATAR}/avtDf.png`
       }));
 
-      formatted.sort((a, b) => new Date(b.LastSentAt || 0) - new Date(a.LastSentAt || 0));
+      formatted.sort((a, b) => new Date(b.LastSendAt || 0) - new Date(a.LastSendAt || 0));
       setChats(formatted);
 
       if (sellerId) {
@@ -70,32 +77,79 @@ export default function BuyerChat({ sellerId, onClose }) {
   loadMessages();
 }, [selectedChat]);
 
+useEffect(() => {
+  if (!selectedChat) return;
+
+  socket.emit("joinChat", selectedChat.ChatId);
+
+  const handler = (msg) => {
+    if (msg.ChatId !== selectedChat.ChatId) return;
+
+    setMessagesMap(prev => {
+      const list = prev[msg.ChatId] || [];
+      if (list.some(m => m.MessageId === msg.MessageId)) return prev;
+
+      return {
+        ...prev,
+        [msg.ChatId]: [...list, msg]
+      };
+    });
+
+    setChats(prev =>
+      prev.map(c =>
+        c.ChatId === msg.ChatId
+          ? {
+              ...c,
+              LastMessage: msg.Content,
+              LastSendAt: msg.SendAt,
+              UnreadCount:
+                msg.SenderId !== buyerId
+                  ? (c.UnreadCount || 0) + 1
+                  : c.UnreadCount
+            }
+          : c
+      )
+    );
+  };
+
+  socket.on("newMessage", handler);
+
+  return () => {
+    socket.off("newMessage", handler);
+  };
+}, [selectedChat, buyerId]);
+
 
   const handleSendMessage = async (content) => {
     if (!selectedChat || !content.trim()) return;
     try {
-      const res = await axios.post("/messages", {
-        chatId: selectedChat.ChatId,
-        senderId: buyerId,
-        content
-      });
+      // handleSendMessage
+const res = await axios.post("/messages", {
+  chatId: selectedChat.ChatId,
+  senderId: buyerId,
+  content
+});
 
-      setMessagesMap(prev => ({
-        ...prev,
-        [selectedChat.ChatId]: [...(prev[selectedChat.ChatId] || []), res.data]
-      }));
+const newMsg = res.data; // đã có SendAt chính xác từ DB
 
-      setChats(prev => {
-        const updated = prev.map(c =>
-          c.ChatId === selectedChat.ChatId
-            ? { ...c, LastMessage: content, LastSentAt: new Date().toISOString() }
-            : c
-        );
-        updated.sort((a, b) => new Date(b.LastSentAt || 0) - new Date(a.LastSentAt || 0));
-        return updated;
-      });
+setMessagesMap(prev => ({
+  ...prev,
+  [selectedChat.ChatId]: [...(prev[selectedChat.ChatId] || []), newMsg]
+}));
 
-      setSelectedChat(prev => ({ ...prev, LastMessage: content, LastSentAt: new Date().toISOString() }));
+// Cập nhật sidebar bằng SendAt từ DB
+setChats(prev => {
+  const updated = prev.map(c =>
+    c.ChatId === selectedChat.ChatId
+      ? { ...c, LastMessage: newMsg.Content, LastSendAt: newMsg.SendAt }
+      : c
+  );
+  updated.sort((a, b) => new Date(b.LastSendAt) - new Date(a.LastSendAt));
+  return updated;
+});
+
+setSelectedChat(prev => ({ ...prev, LastMessage: newMsg.Content, LastSendAt: newMsg.SendAt }));
+
 
     } catch {
       alert("Gửi tin nhắn thất bại");

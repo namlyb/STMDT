@@ -5,10 +5,12 @@ import SellerSidebar from "../../components/Seller/Sidebar";
 import { API_URL } from "../../config";
 import twemoji from "twemoji";
 import { FaPaperPlane } from "react-icons/fa";
+import { io } from "socket.io-client";
 
 /* ================= CONFIG ================= */
 const MAX_LEN = 500;
-const TWO_MINUTES = 2 * 60 * 1000;
+const SAME_BLOCK_INTERVAL = 2 * 60 * 1000; // 2 giây
+
 
 /* ================= EMOJI ================= */
 const emojiMap = {
@@ -18,6 +20,8 @@ const emojiMap = {
   ";)": "😉",
   ":P": "😛",
 };
+
+const socket = io(API_URL);
 
 const replaceShortcodes = (text) => {
   let t = text;
@@ -40,21 +44,54 @@ const renderEmoji = (text) => {
 };
 
 /* ================= TIME ================= */
-const formatTime = (dateStr) =>
-  new Date(dateStr).toLocaleTimeString("vi-VN", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+const formatTime = (dateStr) => {
+  const msgDate = new Date(dateStr);
+  const now = new Date();
+
+  const msgY = msgDate.getFullYear();
+  const msgM = msgDate.getMonth();
+  const msgD = msgDate.getDate();
+
+  const nowY = now.getFullYear();
+  const nowM = now.getMonth();
+  const nowD = now.getDate();
+
+  const msgDateOnly = new Date(msgY, msgM, msgD);
+  const nowDateOnly = new Date(nowY, nowM, nowD);
+  const diffDays = Math.floor(
+    (nowDateOnly - msgDateOnly) / (24 * 60 * 60 * 1000)
+  );
+
+  const hh = msgDate.getHours().toString().padStart(2, "0");
+  const mm = msgDate.getMinutes().toString().padStart(2, "0");
+
+  if (msgY === nowY && msgM === nowM && msgD === nowD) {
+    return `${hh}:${mm}`;
+  }
+
+  if (diffDays > 0 && diffDays < 7) {
+    const thu = msgDate.getDay();
+    const thuText = thu === 0 ? "CN" : `T${thu + 1}`;
+    return `${thuText} lúc ${hh}:${mm}`;
+  }
+
+  const day = msgD;
+  const month = msgM + 1;
+
+  if (msgY !== nowY) {
+    return `${day} THG ${month}/${msgY} lúc ${hh}:${mm}`;
+  }
+
+  return `${day} THG ${month} lúc ${hh}:${mm}`;
+};
 
 const isSameBlock = (a, b) => {
   if (!a || !b) return false;
   if (a.SenderId !== b.SenderId) return false;
 
-  return (
-    new Date(b.SentAt).getTime() - new Date(a.SentAt).getTime() <
-    TWO_MINUTES
-  );
+  return new Date(b.SendAt).getTime() - new Date(a.SentAt || a.SendAt).getTime() < SAME_BLOCK_INTERVAL;
 };
+
 
 /* ================= COMPONENT ================= */
 export default function SellerChat() {
@@ -82,10 +119,50 @@ export default function SellerChat() {
   useEffect(() => {
     if (!selectedChat) return;
 
-    axios
-      .get("/messages", { params: { chatId: selectedChat.ChatId } })
-      .then((res) => setMessages(res.data))
-      .catch(console.error);
+    const load = async () => {
+      const res = await axios.get("/messages", {
+        params: { chatId: selectedChat.ChatId },
+      });
+
+      setMessages(res.data);
+
+      await axios.post("/messages/read", {
+        chatId: selectedChat.ChatId,
+        readerId: sellerId,
+      });
+
+      setChats((prev) =>
+        prev.map((c) =>
+          c.ChatId === selectedChat.ChatId
+            ? { ...c, UnreadCount: 0 }
+            : c
+        )
+      );
+    };
+
+    load();
+  }, [selectedChat, sellerId]);
+
+  /* ===== SOCKET ===== */
+  useEffect(() => {
+    if (!selectedChat) return;
+
+    socket.emit("joinChat", selectedChat.ChatId);
+
+    const handler = (msg) => {
+      if (msg.ChatId !== selectedChat.ChatId) return;
+
+      setMessages((prev) => {
+        if (prev.some((m) => m.MessageId === msg.MessageId)) return prev;
+        return [...prev, msg];
+      });
+    };
+
+    socket.on("newMessage", handler);
+
+    return () => {
+      socket.off("newMessage", handler);
+    };
   }, [selectedChat]);
 
   /* ===== AUTO SCROLL ===== */
@@ -101,13 +178,12 @@ export default function SellerChat() {
     if (!input.trim() || !selectedChat) return;
 
     try {
-      const res = await axios.post("/messages", {
+      await axios.post("/messages", {
         chatId: selectedChat.ChatId,
         senderId: sellerId,
         content: input.slice(0, MAX_LEN),
       });
 
-      setMessages((prev) => [...prev, res.data]);
       setInput("");
     } catch (err) {
       console.error(err);
@@ -122,47 +198,51 @@ export default function SellerChat() {
         <SellerSidebar />
 
         <div className="flex-1 bg-white flex h-[650px] overflow-hidden rounded-xl border border-black-300 shadow-md">
-
           {/* ===== CHAT LIST ===== */}
-<div className="w-72 border-r flex flex-col">
-  {/* Header cố định */}
-  <div className="p-3 font-semibold border-b flex-shrink-0">
-    Tin nhắn
-  </div>
+          <div className="w-72 border-r flex flex-col">
+            <div className="p-3 font-semibold border-b">Tin nhắn</div>
 
-  {/* Danh sách chat scrollable */}
-  <div className="flex-1 overflow-y-auto">
-    {chats.map((chat) => (
-      <div
-        key={chat.ChatId}
-        onClick={() => setSelectedChat(chat)}
-        className={`p-3 cursor-pointer border-b hover:bg-gray-100 ${
-          selectedChat?.ChatId === chat.ChatId ? "bg-orange-100" : ""
-        }`}
-      >
-        <div className="flex gap-2 items-center">
-          <img
-            src={
-              chat.BuyerAvatar
-                ? `${API_URL}/uploads/AccountAvatar/${chat.BuyerAvatar}`
-                : `${API_URL}/uploads/AccountAvatar/avtDf.png`
-            }
-            className="w-10 h-10 rounded-full"
-          />
-          <div className="min-w-0">
-            <div className="font-semibold text-sm truncate">
-              {chat.BuyerName}
-            </div>
-            <div className="text-xs text-gray-500 truncate">
-              {chat.LastMessage || "Chưa có tin nhắn"}
+            <div className="flex-1 overflow-y-auto">
+              {chats.map((chat) => (
+                <div
+                  key={chat.ChatId}
+                  onClick={() => setSelectedChat(chat)}
+                  className={`p-3 cursor-pointer border-b hover:bg-gray-100 ${
+                    selectedChat?.ChatId === chat.ChatId
+                      ? "bg-orange-100"
+                      : ""
+                  }`}
+                >
+                  <div className="flex gap-2 items-center">
+                    <img
+                      src={
+                        chat.BuyerAvatar
+                          ? `${API_URL}/uploads/AccountAvatar/${chat.BuyerAvatar}`
+                          : `${API_URL}/uploads/AccountAvatar/avtDf.png`
+                      }
+                      className="w-10 h-10 rounded-full"
+                    />
+                    <div className="min-w-0">
+                      <div className="font-semibold text-sm truncate">
+                        {chat.BuyerName}
+                      </div>
+                      <div className="text-xs truncate">
+                        <span
+                          className={
+                            chat.UnreadCount > 0
+                              ? "font-bold text-black"
+                              : "text-gray-500"
+                          }
+                        >
+                          {chat.LastMessage || "Chưa có tin nhắn"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-        </div>
-      </div>
-    ))}
-  </div>
-</div>
-
 
           {/* ===== CHAT CONTENT ===== */}
           <div className="flex-1 flex flex-col">
@@ -205,7 +285,7 @@ export default function SellerChat() {
                       <div key={m.MessageId}>
                         {showTime && (
                           <div className="text-center text-xs text-gray-400 my-2">
-                            {formatTime(m.SentAt)}
+                            {formatTime(m.SendAt)}
                           </div>
                         )}
 
@@ -229,8 +309,6 @@ export default function SellerChat() {
                               border: isMe
                                 ? "none"
                                 : "1px solid #e5e7eb",
-                              fontFamily:
-                                '"Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif',
                             }}
                           >
                             {renderEmoji(m.Content)}

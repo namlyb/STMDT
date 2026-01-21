@@ -3,6 +3,9 @@ const cors = require("cors");
 const cookieParser = require("cookie-parser");
 require("dotenv").config();
 const path = require("path");
+const http = require("http");
+const { Server } = require("socket.io");
+
 
 const { connectDB } = require("./config/db");
 const accountRoute = require("./routes/AccountRouter");
@@ -18,7 +21,7 @@ const messageRouter = require("./routes/MessageRouter");
 const AdsRouter = require("./routes/AdsRouter");
 
 const app = express();
-
+const server = http.createServer(app);
 // Middlewares
 app.use(cors());
 app.use(express.json());
@@ -75,3 +78,28 @@ const PORT = process.env.PORT || 8080;
     console.log(`🚀 Backend running at http://localhost:${PORT}`);
   });
 })();
+
+const io = new Server(server, {
+  cors: {
+    origin: "*"
+  }
+});
+
+io.on("connection", (socket) => {
+  console.log("🟢 Client connected:", socket.id);
+
+  socket.on("joinChat", (chatId) => {
+    socket.join(`chat_${chatId}`);
+  });
+
+  socket.on("disconnect", () => {
+    console.log("🔴 Client disconnected");
+  });
+});
+
+app.set("io", io);
+
+server.listen(PORT, async () => {
+  await connectDB();
+  console.log(`🚀 Server running at http://localhost:${PORT}`);
+});

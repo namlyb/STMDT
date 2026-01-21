@@ -5,7 +5,7 @@ const Message = {
     const [rows] = await pool.query(
       `SELECT * FROM Messages
        WHERE ChatId=?
-       ORDER BY SentAt ASC`,
+       ORDER BY SendAt ASC`,
       [chatId]
     );
     return rows;
@@ -13,8 +13,8 @@ const Message = {
 
   create: async ({ chatId, senderId, content }) => {
     const [result] = await pool.query(
-      `INSERT INTO Messages (ChatId, SenderId, Content, SentAt, IsRead)
-       VALUES (?, ?, ?, NOW(), 0)`,
+      `INSERT INTO Messages (ChatId, SenderId, Content, SendAt, IsRead)
+       VALUES (?, ?, ?, NOW(3), 0)`,
       [chatId, senderId, content]
     );
 
@@ -22,7 +22,8 @@ const Message = {
       MessageId: result.insertId,
       ChatId: chatId,
       SenderId: senderId,
-      Content: content
+      Content: content,
+      SendAt: new Date().toISOString().slice(0, 23).replace('T', ' ')
     };
   },
 

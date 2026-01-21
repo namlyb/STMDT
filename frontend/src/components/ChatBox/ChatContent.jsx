@@ -63,7 +63,7 @@ export default function ChatContent({ chat, buyerId, messages = [], onSendMessag
 };
 
 
-  const isSameBlock = (a, b) => a && b && a.SenderId === b.SenderId && new Date(b.SentAt) - new Date(a.SentAt) <= 2 * 60 * 1000;
+  const isSameBlock = (a, b) => a && b && a.SenderId === b.SenderId && new Date(b.SendAt) - new Date(a.SendAt) <= 2 * 60 * 1000;
 
   const send = async () => {
     if (!input.trim()) return;
@@ -98,7 +98,7 @@ export default function ChatContent({ chat, buyerId, messages = [], onSendMessag
 
           return (
             <div key={m.MessageId}>
-              {showTime && <div className="text-center text-xs text-gray-400 my-2">{formatTime(m.SentAt)}</div>}
+              {showTime && <div className="text-center text-xs text-gray-400 my-2">{formatTime(m.SendAt)}</div>}
               <div className={`flex ${isMe ? "justify-end" : "justify-start"} mb-1`}>
                 <div
                   className={radius}
