@@ -9,7 +9,7 @@ import {
   FiBox,
   FiShoppingCart,
   FiTag,
-  FiLayers,
+  FiRss,
 } from "react-icons/fi";
 
 const AdminLayout = ({ children }) => {
@@ -20,12 +20,12 @@ const AdminLayout = ({ children }) => {
 
   // Menu items
   const menuItems = [
-    { name: "Dashboard", url: "#", icon: <FiHome /> },
-    { name: "Accounts", url: "/admin/accounts", icon: <FiUsers /> },
-    { name: "Products", url: "/admin/products", icon: <FiBox /> },
-    { name: "Orders", url: "#", icon: <FiShoppingCart /> },
-    { name: "Categories", url: "#", icon: <FiLayers /> },
-    { name: "Promotions", url: "#", icon: <FiTag /> },
+    { name: "Trang chủ", url: "/", icon: <FiHome /> },
+    { name: "Tài Khoản", url: "/admin/accounts", icon: <FiUsers /> },
+    { name: "Sản phẩm", url: "/admin/products", icon: <FiBox /> },
+    { name: "Quảng Cáo", url: "/admin/ads", icon: <FiRss /> },
+    { name: "Đơn hàng", url: "#", icon: <FiShoppingCart /> },
+    { name: "Hàng Khuyến Mãi", url: "#", icon: <FiTag /> },
   ];
 
   // Logout: xóa sessionStorage và chuyển hướng về Home

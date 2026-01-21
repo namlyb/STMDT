@@ -121,42 +121,48 @@ export default function SellerChat() {
       <div className="max-w-6xl mx-auto mt-4 flex gap-6">
         <SellerSidebar />
 
-        <div className="flex-1 bg-white shadow rounded flex h-[650px] overflow-hidden">
-          {/* ===== CHAT LIST ===== */}
-          <div className="w-72 border-r overflow-y-auto">
-            <div className="p-3 font-semibold border-b">Tin nhắn</div>
+        <div className="flex-1 bg-white flex h-[650px] overflow-hidden rounded-xl border border-black-300 shadow-md">
 
-            {chats.map((chat) => (
-              <div
-                key={chat.ChatId}
-                onClick={() => setSelectedChat(chat)}
-                className={`p-3 cursor-pointer border-b hover:bg-gray-100 ${
-                  selectedChat?.ChatId === chat.ChatId
-                    ? "bg-orange-100"
-                    : ""
-                }`}
-              >
-                <div className="flex gap-2 items-center">
-                  <img
-                    src={
-                      chat.BuyerAvatar
-                        ? `${API_URL}/uploads/AccountAvatar/${chat.BuyerAvatar}`
-                        : `${API_URL}/uploads/AccountAvatar/avtDf.png`
-                    }
-                    className="w-10 h-10 rounded-full"
-                  />
-                  <div className="min-w-0">
-                    <div className="font-semibold text-sm truncate">
-                      {chat.BuyerName}
-                    </div>
-                    <div className="text-xs text-gray-500 truncate">
-                      {chat.LastMessage || "Chưa có tin nhắn"}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
+          {/* ===== CHAT LIST ===== */}
+<div className="w-72 border-r flex flex-col">
+  {/* Header cố định */}
+  <div className="p-3 font-semibold border-b flex-shrink-0">
+    Tin nhắn
+  </div>
+
+  {/* Danh sách chat scrollable */}
+  <div className="flex-1 overflow-y-auto">
+    {chats.map((chat) => (
+      <div
+        key={chat.ChatId}
+        onClick={() => setSelectedChat(chat)}
+        className={`p-3 cursor-pointer border-b hover:bg-gray-100 ${
+          selectedChat?.ChatId === chat.ChatId ? "bg-orange-100" : ""
+        }`}
+      >
+        <div className="flex gap-2 items-center">
+          <img
+            src={
+              chat.BuyerAvatar
+                ? `${API_URL}/uploads/AccountAvatar/${chat.BuyerAvatar}`
+                : `${API_URL}/uploads/AccountAvatar/avtDf.png`
+            }
+            className="w-10 h-10 rounded-full"
+          />
+          <div className="min-w-0">
+            <div className="font-semibold text-sm truncate">
+              {chat.BuyerName}
+            </div>
+            <div className="text-xs text-gray-500 truncate">
+              {chat.LastMessage || "Chưa có tin nhắn"}
+            </div>
           </div>
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+
 
           {/* ===== CHAT CONTENT ===== */}
           <div className="flex-1 flex flex-col">

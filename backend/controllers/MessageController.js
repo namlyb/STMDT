@@ -41,26 +41,19 @@ const MessageController = {
 
   // POST /api/messages/read
 markRead: async (req, res) => {
-  try {
-    const { chatId, readerId } = req.body;
+    try {
+      const { chatId, readerId } = req.body;
+      if (!chatId || !readerId) return res.status(400).json({ message: "Thiếu dữ liệu" });
 
-    if (!chatId || !readerId) {
-      return res.status(400).json({ message: "Thiếu dữ liệu" });
+      // Gọi model để đánh dấu các tin nhắn
+      await Message.markAsRead(chatId, readerId);
+
+      res.json({ success: true });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Update IsRead thất bại" });
     }
-
-    await Message.markAsRead({
-      chatId,
-      readerId,
-      openedAt: new Date()
-    });
-
-    res.json({ success: true });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Update IsRead thất bại" });
-  }
-}
-
+  },
 
 };
 

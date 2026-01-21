@@ -2,7 +2,7 @@ import { Routes, Route } from "react-router-dom";
 import ListAccount from "./page/Admin/ListAccount";
 import ListProduct from "./page/Admin/ListProduct";
 import ListProductOfSeller from "./page/Seller/ListProduct";
-import Home from "./page/Guest/home";
+import Home from "./page/Guest/Home";
 import Search from "./page/Guest/Search";
 import Login from "./page/Auth/Login";
 import Register from "./page/Auth/Register";
@@ -15,7 +15,7 @@ import SellerProfile from "./page/Seller/Profile";
 import Address from "./page/Buyer/Address";
 import AddAddress from "./page/Buyer/AddNewAddress";
 import SellerChat from "./page/Seller/Chat";
-
+import ListAds from "./page/Admin/ListAds";
 
 function App() {
   return (
@@ -29,6 +29,7 @@ function App() {
         {/*<Route path="/admin/dashboard" element={<AdminDashboard />} />*/}
         <Route path="/admin/accounts" element={<ListAccount />} />
         <Route path="/admin/products" element={<ListProduct />} />
+        <Route path="/admin/ads" element={<ListAds />} />
         <Route path="/admin/accounts/:id" element={<UpdateAccount />} />
 
         {/* Seller */}

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import twemoji from "twemoji";
+import { FaPaperPlane } from "react-icons/fa";
 
 const MAX_LEN = 500;
 const emojiMap = { ":)": "😊", ":(": "☹️", ":D": "😃", ";)": "😉", ":P": "😛" };
@@ -85,7 +86,7 @@ export default function ChatContent({ chat, buyerId, messages = [], onSendMessag
           onKeyDown={(e) => e.key === "Enter" && send()}
           placeholder="Nhập nội dung tin nhắn"
         />
-        <button onClick={send} className="h-11 bg-orange-500 text-white px-5 rounded-full text-sm cursor-pointer">Gửi</button>
+        <button onClick={send} className="h-11 bg-orange-500 text-white px-5 rounded-full text-sm cursor-pointer"><FaPaperPlane /></button>
       </div>
     </div>
   );

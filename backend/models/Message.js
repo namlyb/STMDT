@@ -26,15 +26,12 @@ const Message = {
     };
   },
 
-  markAsRead: async ({ chatId, readerId, openedAt }) => {
+  markAsRead: async (chatId, readerId) => {
   await pool.query(
     `UPDATE Messages
      SET IsRead = 1
-     WHERE ChatId = ?
-       AND SenderId <> ?
-       AND IsRead = 0
-       AND SentAt <= ?`,
-    [chatId, readerId, openedAt]
+     WHERE ChatId = ? AND SenderId <> ? AND IsRead = 0`,
+    [chatId, readerId]
   );
 },
 

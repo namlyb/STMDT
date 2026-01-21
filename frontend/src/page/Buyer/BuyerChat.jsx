@@ -40,13 +40,36 @@ export default function BuyerChat({ sellerId, onClose }) {
   }, [buyerId, sellerId]);
 
   useEffect(() => {
-    const loadMessages = async () => {
-      if (!selectedChat) return;
-      const res = await axios.get("/messages", { params: { chatId: selectedChat.ChatId } });
-      setMessagesMap(prev => ({ ...prev, [selectedChat.ChatId]: res.data }));
-    };
-    loadMessages();
-  }, [selectedChat]);
+  const loadMessages = async () => {
+    if (!selectedChat) return;
+
+    // 1. Lấy tin nhắn
+    const res = await axios.get("/messages", { params: { chatId: selectedChat.ChatId } });
+    setMessagesMap(prev => ({ ...prev, [selectedChat.ChatId]: res.data }));
+
+    // 2. Đánh dấu đã đọc
+    try {
+      await axios.post("/messages/read", {
+        chatId: selectedChat.ChatId,
+        readerId: buyerId
+      });
+
+      // 3. Cập nhật sidebar local để bỏ in đậm ngay lập tức
+      setChats(prev =>
+        prev.map(c =>
+          c.ChatId === selectedChat.ChatId
+            ? { ...c, UnreadCount: 0 }
+            : c
+        )
+      );
+    } catch (err) {
+      console.error("Mark as read failed", err);
+    }
+  };
+
+  loadMessages();
+}, [selectedChat]);
+
 
   const handleSendMessage = async (content) => {
     if (!selectedChat || !content.trim()) return;

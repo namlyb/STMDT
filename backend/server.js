@@ -15,6 +15,7 @@ const adsRoute = require("./routes/AdsRouter");
 const stallRouter = require("./routes/StallRouter");
 const chatRouter = require("./routes/ChatRouter");
 const messageRouter = require("./routes/MessageRouter");
+const AdsRouter = require("./routes/AdsRouter");
 
 const app = express();
 
@@ -35,7 +36,7 @@ app.use("/api/ads", adsRoute);
 app.use("/api/stalls", stallRouter);
 app.use("/api/chats", chatRouter);
 app.use("/api/messages", messageRouter);
-
+app.use("/api/styleAds", AdsRouter);
 
 app.use("/api/chats", require("./routes/ChatRouter"));
 app.use("/api/messages", require("./routes/MessageRouter"));

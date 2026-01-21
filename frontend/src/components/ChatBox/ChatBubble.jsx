@@ -3,40 +3,43 @@ import axios from "../lib/axios";
 import BuyerChat from "../../page/Buyer/BuyerChat";
 
 export default function ChatBubble({ sellerId, visible = true, onOpen }) {
-  const [open, setOpen] = useState(false); // internal open cho các màn khác
+  const [open, setOpen] = useState(false);
   const [chats, setChats] = useState([]);
   const account = JSON.parse(sessionStorage.getItem("account"));
   const buyerId = account?.AccountId;
 
-  useEffect(() => {
+  const loadChats = async () => {
     if (!buyerId) return;
-    const loadChats = async () => {
-      try {
-        const res = await axios.get("/chats/buyer", { params: { buyerId } });
-        setChats(res.data);
-      } catch {
-        console.error("Load unread chat failed");
-      }
-    };
+    const res = await axios.get("/chats/buyer", { params: { buyerId } });
+    setChats(res.data);
+  };
+
+  useEffect(() => {
     loadChats();
+    // Polling để nhận tin nhắn mới
+    const interval = setInterval(loadChats, 5000);
+    return () => clearInterval(interval);
   }, [buyerId]);
 
-  const totalUnread = useMemo(
-    () => chats.reduce((sum, c) => sum + (c.UnreadCount || 0), 0),
-    [chats]
-  );
+  const totalUnread = useMemo(() => chats.reduce((sum, c) => sum + (c.UnreadCount || 0), 0), [chats]);
 
-  if (!visible) return null; // ẩn bubble nếu parent muốn ẩn
+  if (!visible) return null;
 
-  // nếu internal open = true, Bubble tự mở popup của nó
-  if (open) return <BuyerChat sellerId={sellerId} onClose={() => setOpen(false)} />;
+  if (open)
+    return (
+      <BuyerChat
+        sellerId={sellerId}
+        onClose={() => setOpen(false)}
+        onRead={(chatId) =>
+          setChats(prev => prev.map(c => (c.ChatId === chatId ? { ...c, UnreadCount: 0 } : c)))
+        }
+      />
+    );
 
   return (
     <div
       onClick={() => {
-        // Nếu parent truyền onOpen (ProductDetail), gọi để bật popup ProductDetail
         if (onOpen) onOpen();
-        // nếu không, mở internal popup của bubble
         else setOpen(true);
       }}
       className="fixed bottom-6 right-6 w-12 h-12 bg-orange-500 text-white rounded-full cursor-pointer shadow-xl flex items-center justify-center z-[99999]"

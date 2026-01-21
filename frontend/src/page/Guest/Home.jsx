@@ -23,7 +23,7 @@ export default function Home() {
       .then(res => setProducts(res.data))
       .catch(console.error);
 
-    axios.get("/ads/style/1")
+    axios.get("/ads/style/2") // StyleID = 2 dành cho trang chủ
       .then(res => setAd(res.data))
       .catch(console.error);
   }, []);
@@ -116,7 +116,8 @@ export default function Home() {
                 />
               ) : (
                 <p className="p-4 text-sm text-gray-400 text-center">
-                  Chưa có quảng cáo
+                  Chưa có quảng cáo,
+                  liên hệ ngay ở góc dưới cùng màn hình để được hỗ trợ!
                 </p>
               )}
             </div>
