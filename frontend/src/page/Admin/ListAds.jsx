@@ -15,6 +15,14 @@ export default function ListAds() {
   const [page, setPage] = useState(1);
   const pageSize = 12;
 
+  useEffect(() => {
+  const roleId = sessionStorage.getItem("roleId");
+
+  if (roleId !== "1") {
+    alert("Bạn không có quyền truy cập");
+    navigate("/");
+  }
+}, [navigate]);
   /* ================= FETCH DATA ================= */
   const fetchAds = async () => {
     try {
@@ -305,7 +313,7 @@ export default function ListAds() {
             flex items-center gap-2 px-4 py-2 rounded-full border
             transition-all duration-200
             ${page === totalPages || totalPages === 0
-              ? "bg-orange-300 text-white"
+              ? "bg-orange-100 text-orange-300 border-orange-200 cursor-not-allowed"
               : "bg-white text-orange-500 border-orange-300 hover:bg-orange-500 hover:text-white cursor-pointer"}
           `}
         >

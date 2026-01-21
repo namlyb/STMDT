@@ -8,6 +8,16 @@ export default function ListAccount() {
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  useEffect(() => {
+  const roleId = sessionStorage.getItem("roleId");
+
+  if (roleId !== "1") {
+    alert("Bạn không có quyền truy cập");
+    navigate("/");
+  }
+}, [navigate]);
+
+
   // filter + search
   const [search, setSearch] = useState("");
   const [role, setRole] = useState("");
@@ -29,7 +39,12 @@ export default function ListAccount() {
 
   // Fetch accounts
   useEffect(() => {
-    fetch(`${API_URL}/api/accounts`)
+    fetch(`${API_URL}/api/accounts`, {
+  headers: {
+    Authorization: `Bearer ${sessionStorage.getItem("token")}`,
+  },
+})
+
       .then(res => res.json())
       .then(data => {
         setAccounts(data);

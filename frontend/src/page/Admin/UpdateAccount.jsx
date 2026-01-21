@@ -20,6 +20,15 @@ export default function UpdateAccount() {
   });
 
   useEffect(() => {
+  const roleId = sessionStorage.getItem("roleId");
+
+  if (roleId !== "1") {
+    alert("Bạn không có quyền truy cập");
+    navigate("/");
+  }
+}, [navigate]);
+
+  useEffect(() => {
     const fetchData = async () => {
       try {
         // 1. Lấy danh sách role

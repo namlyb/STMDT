@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "../../components/lib/axios";
+import { API_URL } from "../../config";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -17,8 +18,11 @@ export default function Login() {
       const { account, token } = res.data;
 
       // Lưu token vào sessionStorage
-    sessionStorage.setItem("token", token);
-      sessionStorage.setItem("account", JSON.stringify(account));
+    // 🔥 SỬA 1: ép RoleId về number khi lưu
+sessionStorage.setItem("token", token);
+sessionStorage.setItem("roleId", Number(account.RoleId)); // 👈 QUAN TRỌNG
+sessionStorage.setItem("accountId", account.AccountId);   // 👈 THÊM
+sessionStorage.setItem("account", JSON.stringify(account));
       // Chuyển hướng theo role
       switch (account.RoleId) {
         case '1':

@@ -1,4 +1,7 @@
 import { Routes, Route } from "react-router-dom";
+
+import AdminGuard from "./components/Admin/AdminGuard";
+
 import ListAccount from "./page/Admin/ListAccount";
 import ListProduct from "./page/Admin/ListProduct";
 import ListProductOfSeller from "./page/Seller/ListProduct";
@@ -26,12 +29,13 @@ function App() {
         <Route path="/register" element={<Register />} />
 
         {/* Admin */}
+        <Route element={<AdminGuard />}>
         {/*<Route path="/admin/dashboard" element={<AdminDashboard />} />*/}
-        <Route path="/admin/accounts" element={<ListAccount />} />
-        <Route path="/admin/products" element={<ListProduct />} />
-        <Route path="/admin/ads" element={<ListAds />} />
-        <Route path="/admin/accounts/:id" element={<UpdateAccount />} />
-
+          <Route path="/admin/accounts" element={<ListAccount />} />
+          <Route path="/admin/products" element={<ListProduct />} />
+          <Route path="/admin/ads" element={<ListAds />} />
+          <Route path="/admin/accounts/:id" element={<UpdateAccount />} />
+        </Route>
         {/* Seller */}
         {/*<Route path="/seller/dashboard" element={<SellerDashboard />} />}*/}
         <Route path="/seller/products" element={<ListProductOfSeller />} />

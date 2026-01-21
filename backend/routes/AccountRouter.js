@@ -5,7 +5,7 @@ const { verifyToken, verifyRole } = require("../middleware/auth");
 const Account = require("../models/Account");
 const uploadAvatar = require("../middleware/uploadAvatar");
 
-router.get("/", AccountController.getUsers);
+router.get("/", verifyToken, verifyRole([1]), AccountController.getUsers);
 router.post("/login", AccountController.login);
 router.post("/register", AccountController.register);
 
@@ -27,8 +27,8 @@ router.get("/me", verifyToken, async (req, res) => {
   }
 });
 
-router.put("/:id/active", AccountController.updateActive);
-router.put("/:id", AccountController.updateAccount);
+router.put("/:id/active", verifyToken, verifyRole([1]), AccountController.updateActive);
+router.put("/:id", verifyToken, verifyRole([1]), AccountController.updateAccount);
 router.get("/:id", AccountController.getAccountById); 
 router.put("/:id/profile", verifyToken, AccountController.updateProfile);
 router.put("/:id/avatar", verifyToken, uploadAvatar.single("avatar"), AccountController.updateAvatar);

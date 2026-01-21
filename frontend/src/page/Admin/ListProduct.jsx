@@ -17,6 +17,15 @@ function ListProduct() {
   const pageSize = 10;
 
   useEffect(() => {
+  const roleId = sessionStorage.getItem("roleId");
+
+  if (roleId !== "1") {
+    alert("Bạn không có quyền truy cập");
+    navigate("/");
+  }
+}, [navigate]);
+  // ================= FETCH DATA =================
+  useEffect(() => {
     fetch(`${API_URL}/api/products`)
       .then(res => res.json())
       .then(data => {
