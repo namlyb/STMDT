@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useSearchParams  } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import axios from "../../components/lib/axios";
 import Header from "../../components/Guest/Header";
 import SellerSidebar from "../../components/Seller/Sidebar";
@@ -8,7 +8,7 @@ export default function CreateVoucher() {
     const navigate = useNavigate();
     const account = JSON.parse(sessionStorage.getItem("account"));
     const [params] = useSearchParams();
-const voucherId = params.get("id");
+    const voucherId = params.get("id");
     const [form, setForm] = useState({
         VoucherName: "",
         DiscountType: "percent",
@@ -19,6 +19,15 @@ const voucherId = params.get("id");
     });
 
     const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        const roleId = sessionStorage.getItem("roleId");
+
+        if (roleId !== "3") {
+            alert("Bạn không có quyền truy cập");
+            navigate("/");
+        }
+    }, [navigate]);
 
     const handleChange = (e) => {
         setForm({ ...form, [e.target.name]: e.target.value });
@@ -78,22 +87,22 @@ const voucherId = params.get("id");
     };
 
     useEffect(() => {
-  if (!voucherId) return;
+        if (!voucherId) return;
 
-  const fetchVoucher = async () => {
-    const res = await axios.get(`/vouchers/${voucherId}`);
-    setForm({
-      VoucherName: res.data.VoucherName,
-      DiscountType: res.data.DiscountType,
-      Discount: res.data.Discount,
-      Quantity: "",
-      ConditionText: res.data.ConditionText,
-      EndTime: res.data.EndTime.split("T")[0],
-    });
-  };
+        const fetchVoucher = async () => {
+            const res = await axios.get(`/vouchers/${voucherId}`);
+            setForm({
+                VoucherName: res.data.VoucherName,
+                DiscountType: res.data.DiscountType,
+                Discount: res.data.Discount,
+                Quantity: "",
+                ConditionText: res.data.ConditionText,
+                EndTime: res.data.EndTime.split("T")[0],
+            });
+        };
 
-  fetchVoucher();
-}, [voucherId]);
+        fetchVoucher();
+    }, [voucherId]);
 
 
     return (

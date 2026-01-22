@@ -22,6 +22,15 @@ export default function ProductDetail() {
   });
 
   useEffect(() => {
+  const roleId = sessionStorage.getItem("roleId");
+
+  if (roleId !== "3") {
+    alert("Bạn không có quyền truy cập");
+    navigate("/");
+  }
+}, [navigate]);
+
+  useEffect(() => {
     const fetchDetail = async () => {
       try {
         const res = await axios.get(`/products/${id}`);

@@ -14,11 +14,13 @@ export default function ListProduct() {
 
   // CHECK ROLE
   useEffect(() => {
-    if (!account || Number(account.RoleId) !== 3) {
-      alert("Bạn không có quyền truy cập trang này!");
+    const roleId = sessionStorage.getItem("roleId");
+
+    if (roleId !== "3") {
+      alert("Bạn không có quyền truy cập");
       navigate("/");
     }
-  }, [account, navigate]);
+  }, [navigate]);
 
   // LOAD PRODUCTS
   useEffect(() => {
@@ -108,9 +110,8 @@ export default function ListProduct() {
                 {/* STATUS */}
                 <div className="mt-2 flex justify-between items-center">
                   <span
-                    className={`px-2 py-1 rounded text-white text-xs ${
-                      p.Status ? "bg-green-500" : "bg-gray-400"
-                    }`}
+                    className={`px-2 py-1 rounded text-white text-xs ${p.Status ? "bg-green-500" : "bg-gray-400"
+                      }`}
                   >
                     {p.Status ? "Đang bán" : "Ngừng bán"}
                   </span>

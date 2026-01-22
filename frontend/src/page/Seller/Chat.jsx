@@ -6,7 +6,7 @@ import { API_URL } from "../../config";
 import twemoji from "twemoji";
 import { FaPaperPlane } from "react-icons/fa";
 import { io } from "socket.io-client";
-
+import { useNavigate } from "react-router-dom";
 /* ================= CONFIG ================= */
 const MAX_LEN = 500;
 const SAME_BLOCK_INTERVAL = 2 * 60 * 1000; // 2 giây
@@ -95,6 +95,7 @@ const isSameBlock = (a, b) => {
 
 /* ================= COMPONENT ================= */
 export default function SellerChat() {
+  const navigate = useNavigate();
   const account = JSON.parse(sessionStorage.getItem("account"));
   const sellerId = account?.AccountId;
 
@@ -104,6 +105,15 @@ export default function SellerChat() {
   const [input, setInput] = useState("");
 
   const scrollRef = useRef(null);
+  // CHECK ROLE
+  useEffect(() => {
+    const roleId = sessionStorage.getItem("roleId");
+
+    if (roleId !== "3") {
+      alert("Bạn không có quyền truy cập");
+      navigate("/");
+    }
+  }, [navigate]);
 
   /* ===== LOAD CHAT LIST ===== */
   useEffect(() => {
@@ -207,11 +217,10 @@ export default function SellerChat() {
                 <div
                   key={chat.ChatId}
                   onClick={() => setSelectedChat(chat)}
-                  className={`p-3 cursor-pointer border-b hover:bg-gray-100 ${
-                    selectedChat?.ChatId === chat.ChatId
+                  className={`p-3 cursor-pointer border-b hover:bg-gray-100 ${selectedChat?.ChatId === chat.ChatId
                       ? "bg-orange-100"
                       : ""
-                  }`}
+                    }`}
                 >
                   <div className="flex gap-2 items-center">
                     <img
@@ -290,9 +299,8 @@ export default function SellerChat() {
                         )}
 
                         <div
-                          className={`flex ${
-                            isMe ? "justify-end" : "justify-start"
-                          } mb-1`}
+                          className={`flex ${isMe ? "justify-end" : "justify-start"
+                            } mb-1`}
                         >
                           <div
                             className={radius}

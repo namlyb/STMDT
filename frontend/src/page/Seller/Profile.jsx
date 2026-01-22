@@ -3,6 +3,7 @@ import Header from "../../components/Guest/Header";
 import Sidebar from "../../components/Seller/Sidebar";
 import axios from "../../components/lib/axios";
 import { API_URL } from "../../config";
+import { useNavigate } from "react-router-dom";
 
 export default function Profile() {
   const [form, setForm] = useState({
@@ -14,13 +15,21 @@ export default function Profile() {
     month: "",
     year: "",
   });
-
+  const navigate = useNavigate();
   const [account, setAccount] = useState(null);
   const [avatarFile, setAvatarFile] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState(null);
   const fileInputRef = useRef(null);
 
   const token = sessionStorage.getItem("token");
+  useEffect(() => {
+    const roleId = sessionStorage.getItem("roleId");
+
+    if (roleId !== "3") {
+      alert("Bạn không có quyền truy cập");
+      navigate("/");
+    }
+  }, [navigate]);
 
   // ================= FETCH PROFILE =================
   useEffect(() => {
@@ -92,41 +101,41 @@ export default function Profile() {
   };
 
   const handleAvatarSubmit = async () => {
-  if (!avatarFile) return alert("Chưa chọn avatar");
+    if (!avatarFile) return alert("Chưa chọn avatar");
 
-  const formData = new FormData();
-  formData.append("avatar", avatarFile);
+    const formData = new FormData();
+    formData.append("avatar", avatarFile);
 
-  // 1. upload avatar
-  await axios.put(
-    `/accounts/${account.AccountId}/avatar`,
-    formData,
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "multipart/form-data",
-      },
-    }
-  );
+    // 1. upload avatar
+    await axios.put(
+      `/accounts/${account.AccountId}/avatar`,
+      formData,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
 
-  // 2. fetch lại account mới nhất từ DB
-  const res = await axios.get("/accounts/me", {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+    // 2. fetch lại account mới nhất từ DB
+    const res = await axios.get("/accounts/me", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
 
-  // 3. cập nhật sessionStorage
-  sessionStorage.setItem("account", JSON.stringify(res.data));
+    // 3. cập nhật sessionStorage
+    sessionStorage.setItem("account", JSON.stringify(res.data));
 
-  // 4. cập nhật state local
-  setAccount(res.data);
-  setAvatarFile(null);
-  setAvatarPreview(null);
+    // 4. cập nhật state local
+    setAccount(res.data);
+    setAvatarFile(null);
+    setAvatarPreview(null);
 
-  alert("Cập nhật avatar thành công");
+    alert("Cập nhật avatar thành công");
 
-  // 5. reload để Header + Sidebar render avatar mới
-  window.location.reload();
-};
+    // 5. reload để Header + Sidebar render avatar mới
+    window.location.reload();
+  };
 
 
   // ================= UI =================
@@ -244,13 +253,13 @@ export default function Profile() {
               <div className="grid grid-cols-3">
                 <div />
                 <div className="grid grid-cols-2">
-                <button
-                  type="submit"
-                  className="col-span-1 bg-orange-500 text-white px-2 py-2 rounded"
-                >
-                  Lưu
-                </button>
-                <div className="col-span-2"/>
+                  <button
+                    type="submit"
+                    className="col-span-1 bg-orange-500 text-white px-2 py-2 rounded"
+                  >
+                    Lưu
+                  </button>
+                  <div className="col-span-2" />
                 </div>
               </div>
             </form>

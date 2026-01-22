@@ -7,8 +7,15 @@ import SellerSidebar from "../../components/Seller/Sidebar";
 export default function UpdateVoucher() {
   const navigate = useNavigate();
   const { id } = useParams();
-  const account = JSON.parse(sessionStorage.getItem("account"));
 
+  useEffect(() => {
+  const roleId = sessionStorage.getItem("roleId");
+
+  if (roleId !== "3") {
+    alert("Bạn không có quyền truy cập");
+    navigate("/");
+  }
+}, [navigate]);
   const [form, setForm] = useState({
     VoucherName: "",
     DiscountType: "",
