@@ -59,58 +59,51 @@ export default function UpdateVoucher() {
 
   // ================= SUBMIT =================
   const handleSubmit = async (e) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    const quantity = Number(form.Quantity);
+  const quantity = Number(form.Quantity);
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
-    const newEnd = new Date(form.EndTime);
-    newEnd.setHours(0, 0, 0, 0);
+  const newEnd = new Date(form.EndTime);
+  newEnd.setHours(0, 0, 0, 0);
 
-    const oldEnd = new Date(oldEndTime);
-    oldEnd.setHours(0, 0, 0, 0);
+  const oldEnd = new Date(oldEndTime);
+  oldEnd.setHours(0, 0, 0, 0);
 
-    // ===== VALIDATION =====
-    if (!Number.isInteger(quantity) || quantity < 1 || quantity > 500) {
-      alert("Số lượng phải từ 1 đến 500");
-      return;
-    }
+  // ===== VALIDATION =====
+  if (!Number.isInteger(quantity) || quantity < 1 || quantity > 500) {
+    alert("Số lượng phải từ 1 đến 500");
+    return;
+  }
 
-    if (newEnd <= today) {
-      alert("Ngày hết hạn phải là ngày trong tương lai");
-      return;
-    }
 
-    if (newEnd <= oldEnd) {
-      alert("Ngày hết hạn mới phải lớn hơn ngày cũ");
-      return;
-    }
+  setLoading(true);
+  try {
+    const token = sessionStorage.getItem("token");
 
-    setLoading(true);
-    try {
-      const token = sessionStorage.getItem("token");
-      await axios.post(
-        "/vouchers",
-        {
-          ...form,
-          CreatedBy: account.AccountId,
-        },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+    await axios.put(
+      `/vouchers/${id}`,
+      {
+        Quantity: quantity,
+        EndTime: form.EndTime,
+      },
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
 
-      alert("Cập nhật voucher thành công!");
-      navigate("/seller/voucher");
-    } catch (err) {
-      console.error(err);
-      alert("Lỗi khi cập nhật voucher");
-    } finally {
-      setLoading(false);
-    }
-  };
+    alert("Cập nhật voucher thành công!");
+    navigate("/seller/voucher");
+  } catch (err) {
+    console.error(err);
+    alert("Lỗi khi cập nhật voucher");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   return (
     <>
@@ -118,7 +111,7 @@ export default function UpdateVoucher() {
       <div className="max-w-6xl mx-auto mt-4 flex gap-6 items-start">
         <SellerSidebar />
 
-        <div className="flex-1 bg-white p-6 rounded-lg shadow">
+        <div className="flex-1 bg-white p-6 rounded-lg border border-black-300 shadow">
           <h1 className="text-2xl font-bold mb-6">Cập nhật voucher</h1>
 
           <form className="space-y-4" onSubmit={handleSubmit}>
@@ -177,7 +170,7 @@ export default function UpdateVoucher() {
               <select
                 value={form.ConditionText}
                 disabled
-                className={`border rounded px-3 py-2 w-full ${lockClass}`}
+                className={`border rounded px-3 py-2 w-full ${lockClass} appearance-none`}
               >
                 <option value=">=0">Đơn từ 0đ</option>
                 <option value=">=10000">Đơn từ 10.000đ</option>
@@ -211,18 +204,13 @@ export default function UpdateVoucher() {
             {/* END TIME */}
             <div>
               <label className="block text-sm font-medium mb-1">
-                Ngày hết hạn mới
+                Ngày hết hạn
               </label>
               <input
-                type="date"
-                name="EndTime"
+              type="date"
                 value={form.EndTime}
-                onChange={handleChange}
-                min={new Date(Date.now() + 86400000)
-                  .toISOString()
-                  .split("T")[0]}
-                className="border rounded px-3 py-2 w-full"
-                required
+                disabled
+                className={`border rounded px-3 py-2 w-full ${lockClass}`}
               />
             </div>
 
@@ -231,7 +219,7 @@ export default function UpdateVoucher() {
               <button
                 type="submit"
                 disabled={loading}
-                className="px-4 py-2 bg-orange-500 text-white rounded-md hover:bg-orange-600 transition"
+                className="px-4 py-2 bg-orange-500 cursor-pointer text-white rounded-md hover:bg-orange-600 transition "
               >
                 {loading ? "Đang cập nhật..." : "Cập nhật voucher"}
               </button>
@@ -239,7 +227,7 @@ export default function UpdateVoucher() {
               <button
                 type="button"
                 onClick={() => navigate("/seller/voucher")}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition"
+                className="px-4 py-2 bg-gray-200 text-gray-700 cursor-pointer rounded-md hover:bg-gray-300 transition"
               >
                 Huỷ
               </button>

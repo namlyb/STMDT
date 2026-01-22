@@ -66,7 +66,7 @@ export default function SellerListVoucher() {
             <h1 className="text-2xl font-bold">Danh sách phiếu giảm giá</h1>
             <button
               onClick={() => navigate("/seller/voucher/create")}
-              className="px-4 py-2 bg-orange-500 text-white rounded hover:bg-orange-600"
+              className="px-4 py-2 bg-orange-500 cursor-pointer text-white rounded hover:bg-orange-600"
             >
               Tạo phiếu giảm giá mới
             </button>
@@ -91,7 +91,9 @@ export default function SellerListVoucher() {
                       ? `${v.Discount}%`
                       : `${v.Discount.toLocaleString("vi-VN")}đ`}
                   </p>
-                  <p>Số lượng: {v.Quantity} Phiếu</p>
+                  <p>Tổng số phiếu: {v.TotalQuantity} Phiếu</p>
+                  {/*<p>Đã dùng: {v.UsedQuantity} Phiếu</p>*/}
+                  <p>Còn lại: {v.Quantity} Phiếu</p>
                   <p>
                     Điều kiện:{" "}
                     {CONDITION_LABELS[v.ConditionText] || v.ConditionText}

@@ -23,7 +23,18 @@ const Voucher = {
 
   getBySeller: async (sellerId) => {
     const [rows] = await pool.query(
-      `SELECT * FROM Vouchers WHERE CreatedBy = ?`,
+      `
+      SELECT 
+      v.*,
+      (v.Quantity + IFNULL(SUM(vu.Quantity), 0)) AS TotalQuantity,
+      IFNULL(SUM(vu.Quantity), 0) AS UsedQuantity
+    FROM Vouchers v
+    LEFT JOIN VoucherUsage vu 
+      ON v.VoucherId = vu.VoucherId
+    WHERE v.CreatedBy = ?
+      AND v.EndTime >= CURDATE()
+    GROUP BY v.VoucherId
+      `,
       [sellerId]
     );
     return rows;

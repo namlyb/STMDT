@@ -6,6 +6,7 @@ const { verifyToken } = require("../middleware/auth");
 // Tạo voucher
 router.post("/", verifyToken, VoucherController.create);
 router.get("/:id", verifyToken, VoucherController.getById);
+router.put("/:id", verifyToken, VoucherController.update);
 
 // Lấy voucher của seller
 router.get("/seller/:sellerId", verifyToken, VoucherController.getBySeller);
