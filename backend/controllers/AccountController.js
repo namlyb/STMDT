@@ -77,6 +77,7 @@ const AccountController = {
   login: async (req, res) => {
     try {
       const { username, password } = req.body;
+
       if (!username || !password) {
         return res.status(400).json({ message: "Thiếu username hoặc password" });
       }
@@ -85,6 +86,10 @@ const AccountController = {
 
       if (!account) {
         return res.status(401).json({ message: "Tài khoản không tồn tại" });
+      }
+
+      if (!account.IsActive) {
+        return res.status(403).json({ message: "Tài khoản đã bị khóa" });
       }
 
       if (!account.Password) {
@@ -117,8 +122,8 @@ const AccountController = {
       });
 
       const avatarUrl = account.Avatar
-  ? `${req.protocol}://${req.get("host")}/uploads/AccountAvatar/${account.Avatar}`
-  : null;
+        ? `${req.protocol}://${req.get("host")}/uploads/AccountAvatar/${account.Avatar}`
+        : null;
 
       // Trả về thông tin account + role
       res.status(200).json({
@@ -207,30 +212,37 @@ const AccountController = {
   },
 
   // UPDATE PROFILE (buyer, NO AVATAR)
-updateProfile: async (req, res) => {
-  const { id } = req.params;
-  const { Name, Phone, IdentityNumber, DateOfBirth, Gender } = req.body;
+  updateProfile: async (req, res) => {
+    const { id } = req.params;
 
-  await Account.updateProfile(id, {
-    Name,
-    Phone,
-    IdentityNumber,
-    DateOfBirth,
-    Gender,
-  });
+    if (req.user.AccountId !== Number(id)) {
+      return res.status(403).json({ message: "Không có quyền" });
+    }
+    const { Name, Phone, IdentityNumber, DateOfBirth, Gender } = req.body;
 
-  res.json({ message: "Updated profile" });
-},
+    await Account.updateProfile(id, {
+      Name,
+      Phone,
+      IdentityNumber,
+      DateOfBirth,
+      Gender,
+    });
 
-// UPDATE AVATAR(buyer)
-updateAvatar: async (req, res) => {
-  const { id } = req.params;
-  if (!req.file) return res.status(400).json({ message: "No file" });
+    res.json({ message: "Updated profile" });
+  },
 
-  await Account.updateAvatar(id, req.file.filename);
+  // UPDATE AVATAR(buyer)
+  updateAvatar: async (req, res) => {
+    const { id } = req.params;
+    if (req.user.AccountId !== Number(id)) {
+      return res.status(403).json({ message: "Không có quyền sửa ảnh đại diện người khác" });
+    }
+    if (!req.file) return res.status(400).json({ message: "No file" });
 
-  res.json({ message: "Avatar updated" });
-},
+    await Account.updateAvatar(id, req.file.filename);
+
+    res.json({ message: "Avatar updated" });
+  },
 
 
 };

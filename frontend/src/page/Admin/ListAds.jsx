@@ -2,8 +2,10 @@ import { useEffect, useState, useMemo } from "react";
 import axios from "../../components/lib/axios";
 import AdminLayout from "../../components/Admin/Sidebar";
 import { FiSettings } from "react-icons/fi";
-
+import { useNavigate } from "react-router-dom";
+  
 export default function ListAds() {
+  const navigate = useNavigate();
   const [adsList, setAdsList] = useState([]);
   const [styles, setStyles] = useState([]);
   const [selectedAd, setSelectedAd] = useState(null);

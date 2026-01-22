@@ -9,6 +9,11 @@ export default function AdminGuard() {
     return <Navigate to="/login" replace />;
   }
 
+  // Tài khoản bị khóa
+  // if (user.IsActive === false) {
+  //   return <Navigate to="/login" replace />;
+  // }
+
   // không phải admin
   if (roleId !== 1) {
     return <Navigate to="/" replace />;

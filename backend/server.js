@@ -25,7 +25,10 @@ const voucherRouter = require("./routes/VoucherRouter");
 const app = express();
 const server = http.createServer(app);
 // Middlewares
-app.use(cors());
+app.use(cors({
+  origin: "http://localhost:5173",
+  credentials: true
+}));
 app.use(express.json());
 app.use(cookieParser());
 app.use("/uploads", express.static("uploads"));
@@ -43,8 +46,6 @@ app.use("/api/chats", chatRouter);
 app.use("/api/messages", messageRouter);
 app.use("/api/styleAds", AdsRouter);
 app.use("/api/orders", orderRouter);
-app.use("/api/chats", require("./routes/ChatRouter"));
-app.use("/api/messages", require("./routes/MessageRouter"));
 app.use("/api/vouchers", voucherRouter);
 
 // Avatar images
@@ -74,12 +75,6 @@ app.use(
 // Start server AFTER DB connected
 const PORT = process.env.PORT || 8080;
 
-(async () => {
-  await connectDB();
-  app.listen(PORT, () => {
-    console.log(`🚀 Backend running at http://localhost:${PORT}`);
-  });
-})();
 
 const io = new Server(server, {
   cors: {

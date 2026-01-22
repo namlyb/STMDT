@@ -1,8 +1,9 @@
 import { useEffect, useState, useMemo } from "react";
 import { API_URL } from "../../config";
 import AdminLayout from "../../components/Admin/Sidebar.jsx";
-
+import { useNavigate } from "react-router-dom";
 function ListProduct() {
+  const navigate = useNavigate();
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
