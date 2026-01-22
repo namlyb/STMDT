@@ -19,6 +19,8 @@ const stallRouter = require("./routes/StallRouter");
 const chatRouter = require("./routes/ChatRouter");
 const messageRouter = require("./routes/MessageRouter");
 const AdsRouter = require("./routes/AdsRouter");
+const orderRouter = require("./routes/OrderRouter");
+const voucherRouter = require("./routes/VoucherRouter");
 
 const app = express();
 const server = http.createServer(app);
@@ -40,10 +42,10 @@ app.use("/api/stalls", stallRouter);
 app.use("/api/chats", chatRouter);
 app.use("/api/messages", messageRouter);
 app.use("/api/styleAds", AdsRouter);
-
+app.use("/api/orders", orderRouter);
 app.use("/api/chats", require("./routes/ChatRouter"));
 app.use("/api/messages", require("./routes/MessageRouter"));
-
+app.use("/api/vouchers", voucherRouter);
 
 // Avatar images
 app.use(

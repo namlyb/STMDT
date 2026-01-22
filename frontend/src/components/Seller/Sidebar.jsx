@@ -13,7 +13,8 @@ export default function SellerSidebar() {
     { id: 2, label: "Sản phẩm", path: "/seller/products" },
     { id: 3, label: "Tin nhắn", path: "/seller/chat" },
     { id: 4, label: "Đơn hàng", path: "#" },
-    { id: 5, label: "Khuyến mãi", path: "#" },
+    { id: 5, label: "Phiếu giảm giá", path: "/seller/voucher" },
+    { id: 6, label: "Khuyến mãi", path: "#" },
   ];
 
   useEffect(() => {

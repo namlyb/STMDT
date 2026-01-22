@@ -19,7 +19,10 @@ import Address from "./page/Buyer/Address";
 import AddAddress from "./page/Buyer/AddNewAddress";
 import SellerChat from "./page/Seller/Chat";
 import ListAds from "./page/Admin/ListAds";
-
+import Order from "./page/Buyer/Order";
+import SellerListVoucher from "./page/Seller/LIstVoucher";
+import CreateVoucher from "./page/Seller/CreateVoucher";
+import UpdateVoucher from "./page/Seller/UpdateVoucher";
 function App() {
   return (
       <Routes>
@@ -42,6 +45,9 @@ function App() {
         <Route path="/seller/profile" element={<SellerProfile />} />
         <Route path="/seller/products/:id" element={<SellerProductDetail />} />
         <Route path="/seller/chat" element={<SellerChat />} />
+        <Route path="/seller/voucher" element={<SellerListVoucher />} />
+        <Route path="/seller/voucher/create" element={<CreateVoucher />} />
+        <Route path="/seller/voucher/update/:id" element={<UpdateVoucher />} />
 
         {/* Buyer */}
         <Route path="/profile" element={<Profile />} />
@@ -49,7 +55,7 @@ function App() {
         <Route path="/product/:id" element={<ProductDetail />} />
         <Route path="/address" element={<Address />} />
         <Route path="/address/add" element={<AddAddress />} />
-
+        <Route path="/buyer/checkout" element={<Order />} />
         
         
       </Routes>

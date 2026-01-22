@@ -1,22 +1,15 @@
-const { sql } = require("../config/db");
+const { pool } = require("../config/db");
 
-module.exports = {
-  create: async (data) => {
-    const {
-      accountId,
-      shipmentId,
-      shipperId,
-      feeId,
-      adressId,
-      orderDate
-    } = data;
+const Order = {
+  getByIds: async (accountId, cartIds) => {
+  const [rows] = await pool.query(
+    `SELECT c.CartId, c.Quantity, c.UnitPrice, p.ProductId, p.ProductName, p.Description, p.Image
+     FROM Carts c
+     JOIN Products p ON c.ProductId = p.ProductId
+     WHERE c.AccountId = ? AND c.CartId IN (?) AND c.Status = 1`,
+    [accountId, cartIds]
+  );
+  return rows;
+},
 
-    await sql.query`
-      INSERT INTO Orders
-      (AccountId, ShipmentId, ShipperId, FeeId, AdressId, OrderDate)
-      VALUES
-      (${accountId}, ${shipmentId}, ${shipperId},
-       ${feeId}, ${adressId}, ${orderDate})
-    `;
-  }
 };
