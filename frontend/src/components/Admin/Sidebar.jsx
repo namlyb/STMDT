@@ -6,10 +6,11 @@ import {
   FiLogOut,
   FiHome,
   FiUsers,
-  FiBox,
+  FiShoppingBag,
   FiShoppingCart,
   FiTag,
   FiRss,
+  FiZap,
 } from "react-icons/fi";
 
 const AdminLayout = ({ children }) => {
@@ -21,11 +22,12 @@ const AdminLayout = ({ children }) => {
   // Menu items
   const menuItems = [
     { name: "Trang chủ", url: "/", icon: <FiHome /> },
-    { name: "Tài Khoản", url: "/admin/accounts", icon: <FiUsers /> },
-    { name: "Sản phẩm", url: "/admin/products", icon: <FiBox /> },
-    { name: "Quảng Cáo", url: "/admin/ads", icon: <FiRss /> },
+    { name: "Tài khoản", url: "/admin/accounts", icon: <FiUsers /> },
+    { name: "Sản phẩm", url: "/admin/products", icon: <FiShoppingBag /> },
+    { name: "Quảng cáo", url: "/admin/ads", icon: <FiRss /> },
+    { name: "Phiếu giảm giá", url: "/admin/vouchers", icon: <FiTag /> },
     { name: "Đơn hàng", url: "#", icon: <FiShoppingCart /> },
-    { name: "Hàng Khuyến Mãi", url: "#", icon: <FiTag /> },
+    { name: "Hàng khuyến mãi", url: "#", icon: <FiZap /> },
   ];
 
   // Logout: xóa sessionStorage và chuyển hướng về Home

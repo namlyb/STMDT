@@ -46,6 +46,17 @@ const VoucherController = {
     res.json(voucher);
   },
   
+  getByAdmin: async (req, res) => {
+  try {
+    const vouchers = await Voucher.getByAdmin();
+    res.status(200).json(vouchers);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Lỗi server" });
+  }
+},
+
+
 };
 
 module.exports = VoucherController;

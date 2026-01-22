@@ -1,12 +1,18 @@
 import { useEffect, useState } from "react";
 import axios from "../../components/lib/axios";
+import { useNavigate } from "react-router-dom";
 
 export default function Order() {
   const [cartItems, setCartItems] = useState([]);
   const [vouchers, setVouchers] = useState([]);
   const [selectedVoucher, setSelectedVoucher] = useState(null);
-
+  const navigate = useNavigate();
+  const total = cartItems.reduce((sum, i) => sum + i.UnitPrice * i.Quantity, 0);
+  const discount = selectedVoucher ? selectedVoucher.Discount : 0;
+  const finalTotal = total - discount;
+  
   useEffect(() => {
+
     const cartIds = JSON.parse(sessionStorage.getItem("checkoutCart"));
     if (!cartIds || cartIds.length === 0) return;
 
@@ -18,9 +24,15 @@ export default function Order() {
       .catch(console.error);
   }, []);
 
-  const total = cartItems.reduce((sum, i) => sum + i.UnitPrice * i.Quantity, 0);
-  const discount = selectedVoucher ? selectedVoucher.Discount : 0;
-  const finalTotal = total - discount;
+  useEffect(() => {
+    const roleId = sessionStorage.getItem("roleId");
+
+    if (roleId !== "2") {
+      alert("Bạn không có quyền truy cập");
+      navigate("/");
+    }
+  }, [navigate]);
+
 
   return (
     <div className="max-w-4xl mx-auto p-4">

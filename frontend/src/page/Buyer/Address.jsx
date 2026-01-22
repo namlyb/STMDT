@@ -26,6 +26,14 @@ export default function Address() {
   };
 
   useEffect(() => {
+    const roleId = sessionStorage.getItem("roleId");
+
+    if (roleId !== "2") {
+      alert("Bạn không có quyền truy cập");
+      navigate("/");
+    }
+  }, [navigate]);
+  useEffect(() => {
     if (token) fetchAddress();
   }, [token]);
 

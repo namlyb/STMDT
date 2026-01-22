@@ -10,7 +10,14 @@ export default function AddNewAddress() {
 
   const navigate = useNavigate();
   const token = sessionStorage.getItem("token");
+  useEffect(() => {
+    const roleId = sessionStorage.getItem("roleId");
 
+    if (roleId !== "2") {
+      alert("Bạn không có quyền truy cập");
+      navigate("/");
+    }
+  }, [navigate]);
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!content.trim()) return alert("Nhập địa chỉ");

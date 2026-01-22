@@ -41,31 +41,52 @@ const Voucher = {
   },
 
   getById: async (id) => {
-  const [rows] = await pool.query(
-    `SELECT * FROM Vouchers WHERE VoucherId = ?`,
-    [id]
-  );
-  return rows[0];
-},
+    const [rows] = await pool.query(
+      `SELECT * FROM Vouchers WHERE VoucherId = ?`,
+      [id]
+    );
+    return rows[0];
+  },
 
-getByNameAndSeller: async (name, sellerId) => {
-  const [rows] = await pool.query(
-    `SELECT * FROM Vouchers WHERE VoucherName = ? AND CreatedBy = ?`,
-    [name, sellerId]
-  );
-  return rows[0];
-},
+  getByNameAndSeller: async (name, sellerId) => {
+    const [rows] = await pool.query(
+      `SELECT * FROM Vouchers WHERE VoucherName = ? AND CreatedBy = ?`,
+      [name, sellerId]
+    );
+    return rows[0];
+  },
 
-update: async (id, addQuantity, newEndTime) => {
-  const [result] = await pool.query(
-    `UPDATE Vouchers
+  update: async (id, addQuantity, newEndTime) => {
+    const [result] = await pool.query(
+      `UPDATE Vouchers
      SET Quantity = Quantity + ?,
          EndTime = ?
      WHERE VoucherId = ?`,
-    [addQuantity, newEndTime, id]
+      [addQuantity, newEndTime, id]
+    );
+    return result.affectedRows;
+  },
+
+  getByAdmin: async () => {
+  const [rows] = await pool.query(
+    `
+    SELECT 
+      v.*,
+      s.StallName,
+      a.Name AS SellerName,
+      (v.Quantity + IFNULL(SUM(vu.Quantity), 0)) AS TotalQuantity,
+      IFNULL(SUM(vu.Quantity), 0) AS UsedQuantity
+    FROM Vouchers v
+    JOIN Stalls s ON s.AccountId = v.CreatedBy
+    JOIN Accounts a ON a.AccountId = v.CreatedBy
+    LEFT JOIN VoucherUsage vu ON v.VoucherId = vu.VoucherId
+    GROUP BY v.VoucherId, s.StallName, a.Name
+    ORDER BY v.Endtime DESC
+    `
   );
-  return result.affectedRows;
+  return rows;
 },
+
 
 };
 

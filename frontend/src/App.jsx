@@ -2,10 +2,11 @@ import { Routes, Route } from "react-router-dom";
 
 import AdminGuard from "./components/Guard/AdminGuard";
 import SellerGuard from "./components/Guard/SellerGuard";
+import BuyerGuard from "./components/Guard/BuyerGuard";
 
 import ListAccount from "./page/Admin/ListAccount";
 import ListProduct from "./page/Admin/ListProduct";
-import ListProductOfSeller from "./page/Seller/ListProduct";
+import SellerListProduct from "./page/Seller/ListProduct";
 import Home from "./page/Guest/Home";
 import Search from "./page/Guest/Search";
 import Login from "./page/Auth/Login";
@@ -24,6 +25,7 @@ import Order from "./page/Buyer/Order";
 import SellerListVoucher from "./page/Seller/LIstVoucher";
 import CreateVoucher from "./page/Seller/CreateVoucher";
 import UpdateVoucher from "./page/Seller/UpdateVoucher";
+import ListVoucher from "./page/Admin/ListVoucher";
 function App() {
   return (
     <Routes>
@@ -39,12 +41,13 @@ function App() {
         <Route path="/admin/products" element={<ListProduct />} />
         <Route path="/admin/ads" element={<ListAds />} />
         <Route path="/admin/accounts/:id" element={<UpdateAccount />} />
+        <Route path="/admin/vouchers" element={<ListVoucher />} />
       </Route>
 
       {/* Seller */}
       <Route element={<SellerGuard />}>
         {/*<Route path="/seller/dashboard" element={<SellerDashboard />} />}*/}
-        <Route path="/seller/products" element={<ListProductOfSeller />} />
+        <Route path="/seller/products" element={<SellerListProduct />} />
         <Route path="/seller/profile" element={<SellerProfile />} />
         <Route path="/seller/products/:id" element={<SellerProductDetail />} />
         <Route path="/seller/chat" element={<SellerChat />} />
@@ -54,12 +57,14 @@ function App() {
       </Route>
 
       {/* Buyer */}
-      <Route path="/profile" element={<Profile />} />
-      <Route path="/cart" element={<Cart />} />
-      <Route path="/product/:id" element={<ProductDetail />} />
-      <Route path="/address" element={<Address />} />
-      <Route path="/address/add" element={<AddAddress />} />
-      <Route path="/buyer/checkout" element={<Order />} />
+      <Route element={<BuyerGuard />}>
+        <Route path="/profile" element={<Profile />} />
+        <Route path="/address" element={<Address />} />
+        <Route path="/address/add" element={<AddAddress />} />
+      </Route>
+        <Route path="/cart" element={<Cart />} />
+        <Route path="/product/:id" element={<ProductDetail />} />
+        <Route path="/buyer/checkout" element={<Order />} />
 
 
     </Routes>
