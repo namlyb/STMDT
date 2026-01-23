@@ -68,24 +68,29 @@ const Voucher = {
   },
 
   getByAdmin: async () => {
-  const [rows] = await pool.query(
+    const [rows] = await pool.query(
+      `
+        SELECT
+          v.*, s.StallName,
+        CASE 
+          WHEN v.CreatedBy = 1 THEN 'Admin'
+          ELSE a.Name
+          END AS SellerName, v.Quantity AS TotalQuantity,
+          IFNULL(SUM(vu.Quantity), 0) AS UsedQuantity,
+            v.Quantity - IFNULL(SUM(vu.Quantity), 0) AS RemainingQuantity
+        FROM Vouchers v
+        LEFT JOIN Stalls s  ON s.AccountId = v.CreatedBy
+        LEFT JOIN Accounts a  ON a.AccountId = v.CreatedBy
+        LEFT JOIN VoucherUsage vu  ON v.VoucherId = vu.VoucherId
+        GROUP BY 
+          v.VoucherId,
+          s.StallName,
+          a.Name
+        ORDER BY v.EndTime DESC;
     `
-    SELECT 
-      v.*,
-      s.StallName,
-      a.Name AS SellerName,
-      (v.Quantity + IFNULL(SUM(vu.Quantity), 0)) AS TotalQuantity,
-      IFNULL(SUM(vu.Quantity), 0) AS UsedQuantity
-    FROM Vouchers v
-    JOIN Stalls s ON s.AccountId = v.CreatedBy
-    JOIN Accounts a ON a.AccountId = v.CreatedBy
-    LEFT JOIN VoucherUsage vu ON v.VoucherId = vu.VoucherId
-    GROUP BY v.VoucherId, s.StallName, a.Name
-    ORDER BY v.Endtime DESC
-    `
-  );
-  return rows;
-},
+    );
+    return rows;
+  },
 
 
 };

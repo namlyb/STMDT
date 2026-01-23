@@ -14,3 +14,21 @@
   display: inline;
 }
 
+@keyframes rainbow {
+  0%   { color: #ff0000; }
+  16%  { color: #ff7f00; }
+  33%  { color: #b4b417; }
+  50%  { color: #0dbd0d; }
+  66%  { color: #0000ff; }
+  83%  { color: #4b0082; }
+  100% { color: #ff0000; }
+}
+
+.rainbow-text {
+  font-weight: 700;
+  animation: rainbow 2s linear infinite;
+  text-shadow:
+    0 0 4px rgba(255,255,255,0.6),
+    0 0 8px rgba(255,255,255,0.4);
+}
+

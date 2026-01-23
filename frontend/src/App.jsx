@@ -23,9 +23,10 @@ import SellerChat from "./page/Seller/Chat";
 import ListAds from "./page/Admin/ListAds";
 import Order from "./page/Buyer/Order";
 import SellerListVoucher from "./page/Seller/LIstVoucher";
-import CreateVoucher from "./page/Seller/CreateVoucher";
+import SellerCreateVoucher from "./page/Seller/CreateVoucher";
 import UpdateVoucher from "./page/Seller/UpdateVoucher";
 import ListVoucher from "./page/Admin/ListVoucher";
+import CreateVoucher from "./page/Admin/CreateVoucher";
 function App() {
   return (
     <Routes>
@@ -42,6 +43,7 @@ function App() {
         <Route path="/admin/ads" element={<ListAds />} />
         <Route path="/admin/accounts/:id" element={<UpdateAccount />} />
         <Route path="/admin/vouchers" element={<ListVoucher />} />
+        <Route path="/admin/voucher/create" element={<CreateVoucher />} />
       </Route>
 
       {/* Seller */}
@@ -52,7 +54,7 @@ function App() {
         <Route path="/seller/products/:id" element={<SellerProductDetail />} />
         <Route path="/seller/chat" element={<SellerChat />} />
         <Route path="/seller/voucher" element={<SellerListVoucher />} />
-        <Route path="/seller/voucher/create" element={<CreateVoucher />} />
+        <Route path="/seller/voucher/create" element={<SellerCreateVoucher />} />
         <Route path="/seller/voucher/update/:id" element={<UpdateVoucher />} />
       </Route>
 
