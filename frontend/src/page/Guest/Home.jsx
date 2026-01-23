@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "../../components/Guest/Header";
 import Footer from "../../components/Guest/footer";
@@ -9,9 +9,17 @@ import canChat from "../../utils/canChat";
 export default function Home() {
   const navigate = useNavigate();
 
+  const [vouchers, setVouchers] = useState([]);
+  const [voucherIndex, setVoucherIndex] = useState(0);
   const [categories, setCategories] = useState([]);
   const [products, setProducts] = useState([]);
   const [ad, setAd] = useState(null);
+
+  const sliderRef = useRef(null);
+  const [maxTranslate, setMaxTranslate] = useState(0);
+
+  /* ================= CONSTANT ================= */
+  const VOUCHER_WIDTH = 240; // 220px + gap
 
   /* ================= LOAD DATA ================= */
   useEffect(() => {
@@ -23,10 +31,73 @@ export default function Home() {
       .then(res => setProducts(res.data))
       .catch(console.error);
 
-    axios.get("/ads/style/2") // StyleID = 2 dành cho trang chủ
+    axios.get("/ads/style/2")
       .then(res => setAd(res.data))
       .catch(console.error);
+
+    axios.get("/vouchers/random?limit=8")
+      .then(res => {
+        console.log("voucher api =", res.data);
+        if (Array.isArray(res.data)) {
+          setVouchers(res.data);
+        } else {
+          setVouchers([]);
+        }
+      })
+      .catch(console.error);
   }, []);
+
+  /* ================= CALC SLIDER ================= */
+  useEffect(() => {
+    if (!sliderRef.current || vouchers.length === 0) return;
+
+    const containerWidth = sliderRef.current.offsetWidth;
+    const totalWidth = vouchers.length * VOUCHER_WIDTH;
+
+    const max = Math.max(totalWidth - containerWidth, 0);
+    setMaxTranslate(max);
+  }, [vouchers]);
+
+  const renderConditionText = (condition) => {
+    if (!condition) return "";
+
+    const map = {
+      ">=0": "Đơn từ 0đ",
+      ">=10000": "Đơn từ 10.000đ",
+      ">=20000": "Đơn từ 20.000đ",
+      ">=50000": "Đơn từ 50.000đ",
+      ">=100000": "Đơn từ 100.000đ",
+      ">=200000": "Đơn từ 200.000đ",
+      ">=500000": "Đơn từ 500.000đ",
+      ">=1000000": "Đơn từ 1.000.000đ",
+      ">=2000000": "Đơn từ 2.000.000đ",
+    };
+
+    return map[condition] || "";
+  };
+
+  const translateX = Math.min(voucherIndex * VOUCHER_WIDTH, maxTranslate);
+
+const getVoucherBtnClass = (v) => {
+  if (v.isOut) return "bg-gray-300 text-gray-500 cursor-not-allowed";
+  if (v.isReceived) return "bg-gray-400 text-white cursor-not-allowed";
+  return "bg-orange-500 hover:bg-orange-600 text-white";
+};
+
+const handleSaveVoucher = async (voucherId) => {
+  try {
+    await axios.post("/voucher-usage/save", { voucherId });
+    setVouchers(prev =>
+      prev.map(v =>
+        v.VoucherId === voucherId
+          ? { ...v, isReceived: 1, Quantity: v.Quantity - 1 }
+          : v
+      )
+    );
+  } catch (err) {
+    alert(err.response?.data?.message || "Lỗi");
+  }
+};
 
   return (
     <>
@@ -103,6 +174,91 @@ export default function Home() {
                 </div>
               ))}
             </div>
+
+            {/* ================= VOUCHER SLIDER ================= */}
+            <div className="mt-8 relative group">
+              <h3 className="text-lg font-bold mb-3">🎁 Voucher nổi bật</h3>
+
+              {/* Nút trái */}
+              {voucherIndex > 0 && (
+                <button
+                  onClick={() => setVoucherIndex(voucherIndex - 1)}
+                  className="absolute left-0 top-1/2 -translate-y-1/2
+                             bg-white shadow rounded-full w-8 h-8
+                             hidden group-hover:flex
+                             items-center justify-center z-10 cursor-pointer"
+                >
+                  ◀
+                </button>
+              )}
+
+              {/* List voucher */}
+              <div className="overflow-hidden" ref={sliderRef}>
+                <div
+                  className="flex gap-4 transition-transform duration-300"
+                  style={{
+                    transform: `translateX(-${translateX}px)`
+                  }}
+                >
+                  {vouchers.map(v => (
+                    <div
+                      key={v.VoucherId}
+                      className="w-[220px] shrink-0 bg-white border rounded-lg p-3 shadow-sm"
+                    >
+                      <p className="font-semibold text-sm line-clamp-2">
+                        {v.VoucherName}
+                      </p>
+
+                      <p className="text-red-500 font-bold mt-1">
+                        {v.DiscountType === "percent"
+                          ? `Giảm ${v.Discount}%`
+                          : `Giảm ${Number(v.Discount).toLocaleString()} ₫`}
+                      </p>
+
+                      {v.ConditionText && (
+                        <p className="text-xs text-gray-600 mt-1">
+                          {renderConditionText(v.ConditionText)}
+                        </p>
+                      )}
+
+                      <p className="text-xs text-gray-500 mt-1 italic">
+                        {v.StallName
+                          ? `Áp dụng cho gian hàng "${v.StallName}"`
+                          : "Áp dụng cho tất cả mặt hàng"}
+                      </p>
+
+                      <p className="text-xs text-gray-400 mt-1">
+                        HSD: {v.EndTime}
+                      </p>
+
+                      <button
+  disabled={v.isReceived || v.isOut}
+  onClick={() => handleSaveVoucher(v.VoucherId)}
+  className={`mt-2 w-full text-sm rounded py-1 transition
+    ${getVoucherBtnClass(v)}
+  `}
+>
+  {v.isOut ? "Hết lượt" : v.isReceived ? "Đã nhận" : "Lưu voucher"}
+</button>
+
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Nút phải */}
+              {voucherIndex * VOUCHER_WIDTH < maxTranslate && (
+                <button
+                  onClick={() => setVoucherIndex(voucherIndex + 1)}
+                  className="absolute right-0 top-1/2 -translate-y-1/2
+                             bg-white shadow rounded-full w-8 h-8
+                             hidden group-hover:flex
+                             items-center justify-center z-10 cursor-pointer"
+                >
+                  ▶
+                </button>
+              )}
+            </div>
           </section>
 
           {/* ===== RIGHT SIDEBAR ===== */}
@@ -129,11 +285,8 @@ export default function Home() {
       {/* ================= FOOTER ================= */}
       <Footer />
 
-      {/* ================= CHAT BUBBLE ================= */}
-      {/* Luôn nổi – không ảnh hưởng layout */}
-      {console.log("canChat =", canChat())}
+      {/* ================= CHAT ================= */}
       {canChat() && <ChatBubble sellerId={null} />}
-
     </>
   );
 }

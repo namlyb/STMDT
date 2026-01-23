@@ -56,6 +56,19 @@ const VoucherController = {
   }
 },
 
+getRandom: async (req, res) => {
+  try {
+    const limit = Number(req.query.limit) || 8;
+    const accountId = req.user?.AccountId || null;
+
+    const vouchers = await Voucher.getRandom(limit, accountId);
+    res.json(vouchers);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json([]);
+  }
+},
+
 
 };
 

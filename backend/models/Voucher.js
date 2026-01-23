@@ -92,6 +92,51 @@ const Voucher = {
     return rows;
   },
 
+  getRandom: async (limit, accountId) => {
+  const [rows] = await pool.query(
+    `
+      SELECT 
+        v.VoucherId,
+        v.VoucherName,
+        v.DiscountType,
+        v.Discount,
+        v.Quantity,
+        v.ConditionText,
+        v.EndTime,
+
+        s.StallName,
+
+        /* CHECK ĐÃ NHẬN CHƯA */
+        CASE 
+          WHEN vu.UsageId IS NOT NULL THEN 1
+          ELSE 0
+        END AS isReceived,
+
+        /* CHECK HẾT LƯỢT */
+        CASE 
+          WHEN v.Quantity <= 0 THEN 1
+          ELSE 0
+        END AS isOut
+
+      FROM Vouchers v
+      LEFT JOIN Stalls s 
+        ON s.AccountId = v.CreatedBy
+
+      LEFT JOIN VoucherUsage vu
+        ON vu.VoucherId = v.VoucherId
+       AND vu.AccountId = ?
+
+      WHERE v.EndTime >= CURDATE()
+      AND v.Quantity > 0
+      ORDER BY RAND()
+      LIMIT ?
+      `,
+    [accountId, limit]
+  );
+  return rows;
+},
+
+
 
 };
 

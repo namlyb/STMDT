@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { API_URL } from "../../config";
 import AdminLayout from "../../components/Admin/Sidebar.jsx";
+import axios from "../../components/lib/axios";
 
 export default function UpdateAccount() {
   const { id } = useParams();
@@ -67,29 +68,21 @@ export default function UpdateAccount() {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      const body = { ...form };
-      if (!body.Password) delete body.Password; // không update nếu password trống
+  e.preventDefault();
 
-      const res = await fetch(`${API_URL}/api/accounts/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
+  try {
+    const body = { ...form };
+    if (!body.Password) delete body.Password;
 
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.message || "Cập nhật thất bại");
-      }
+    await axios.put(`/accounts/${id}`, body);
 
-      alert("Cập nhật thành công!");
-      navigate("/admin/accounts");
-    } catch (err) {
-      console.error(err);
-      alert(err.message || "Cập nhật thất bại");
-    }
-  };
+    alert("Cập nhật thành công!");
+    navigate("/admin/accounts");
+  } catch (err) {
+    console.error(err);
+    alert(err.response?.data?.message || "Cập nhật thất bại");
+  }
+};
 
   if (loading) return <p className="text-center mt-6">Đang tải dữ liệu...</p>;
   if (!account) return <p className="text-center mt-6">Không tìm thấy tài khoản</p>;

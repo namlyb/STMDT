@@ -5,9 +5,10 @@ export default function Sidebar() {
   const location = useLocation();
 
   const menu = [
-    { label: "Profile", path: "/profile" },
-    { label: "Address", path: "/address" },
-    { label: "Order", path: "/orders" },
+    { label: "Thông tin cá nhân", path: "/profile" },
+    { label: "Địa chỉ", path: "/address" },
+    { label: "Đơn hàng", path: "/orders" },
+    { label: "Kho voucher", path: "/my-voucher" },
   ];
 
   const account = JSON.parse(sessionStorage.getItem("account"));

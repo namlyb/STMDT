@@ -4,6 +4,7 @@ const VoucherController = require("../controllers/VoucherController");
 const { verifyToken, verifyRole } = require("../middleware/auth");
 
 // Tạo voucher
+router.get("/random", verifyToken, VoucherController.getRandom);
 router.get("/admin", verifyToken, verifyRole([1]), VoucherController.getByAdmin);
 router.post("/", verifyToken, VoucherController.create);
 router.get("/:id", verifyToken, VoucherController.getById);

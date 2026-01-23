@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { API_URL } from "../../config";
 import AdminLayout from "../../components/Admin/Sidebar.jsx";
+import axios from "../../components/lib/axios";
 
 export default function ListAccount() {
   const navigate = useNavigate();
@@ -58,27 +59,23 @@ export default function ListAccount() {
 
   // Toggle Active
   const toggleActive = async (accountId, currentStatus) => {
-    try {
-      const res = await fetch(`${API_URL}/api/accounts/${accountId}/active`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isActive: currentStatus ? 0 : 1 })
-      });
+  try {
+    await axios.put(`/accounts/${accountId}/active`, {
+      isActive: currentStatus ? 0 : 1,
+    });
 
-      if (!res.ok) throw new Error("Update failed");
-
-      setAccounts(prev =>
-        prev.map(acc =>
-          acc.AccountId === accountId
-            ? { ...acc, IsActive: currentStatus ? 0 : 1 }
-            : acc
-        )
-      );
-    } catch (err) {
-      console.error(err);
-      alert("Không thể cập nhật trạng thái");
-    }
-  };
+    setAccounts(prev =>
+      prev.map(acc =>
+        acc.AccountId === accountId
+          ? { ...acc, IsActive: currentStatus ? 0 : 1 }
+          : acc
+      )
+    );
+  } catch (err) {
+    console.error(err);
+    alert("Không thể cập nhật trạng thái");
+  }
+};
 
   // Filter + Search
   const filteredAccounts = useMemo(() => {
