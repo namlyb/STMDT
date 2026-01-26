@@ -16,7 +16,7 @@ CREATE TABLE Accounts (
     Password TEXT NOT NULL,
     Avt TEXT,
     Name TEXT NOT NULL,
-    Phone VARCHAR(12) NOT NULL,
+    Phone VARCHAR(10) NOT NULL,
     IdentityNumber VARCHAR(12) NOT NULL,
     DateOfBirth DATE,
     Gender ENUM('m','f'),

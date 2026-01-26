@@ -28,11 +28,40 @@ export default function Register() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    const password = form.password.trim();
+    const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[!-/:-@\[-`\{-~]).{8,}$/;
+    if (!passwordRegex.test(password)) {
+      setError("Mật khẩu phải có ít nhất 8 ký tự, bao gồm chữ cái, số và ký tự đặc biệt!");
+      return;
+    }
 
-    if (form.password !== form.confirmPassword) {
+    if (password !== form.confirmPassword) {
       setError("Password và Confirm Password không khớp");
       return;
     }
+
+    if (form.phone.length !== 10 || !/^0\d{9}$/.test(form.phone)) {
+      setError("Số điện thoại không hợp lệ!");
+      return;
+    }
+
+    if (form.identityNumber.length !== 12 || !/^\d+$/.test(form.identityNumber)) {
+      setError("Số CMND/CCCD không hợp lệ!");
+      return;
+    }
+
+    // date of birth: phải trong quá khứ
+  const today = new Date();
+  const dob = new Date(form.dateOfBirth);
+
+  // reset giờ để so sánh chính xác
+  today.setHours(0, 0, 0, 0);
+  dob.setHours(0, 0, 0, 0);
+
+  if (dob >= today) {
+    setError("Ngày sinh không thể lớn hơn hiện tại!");
+    return;
+  }
 
     try {
       await axios.post(`${API_URL}/api/accounts/register`, form);
