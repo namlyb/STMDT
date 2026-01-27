@@ -66,9 +66,9 @@ CREATE TABLE Promotions (
     DiscountType VARCHAR(50) NOT NULL,
     DiscountValue INT NOT NULL,
     Quantity INT,
-    StartTime TIME NOT NULL,
-    EndTime TIME NOT NULL,
-    Status TINYINT(1) DEFAULT 1 not null,
+    StartTime DATETIME NOT NULL,
+    EndTime DATETIME NOT NULL,
+    Status TINYINT(1) DEFAULT 1 not null
 );
 CREATE TABLE PromotionProduct (
     ProductId INT NOT NULL,
@@ -80,6 +80,8 @@ CREATE TABLE PromotionProduct (
 CREATE TABLE Address (
     AddressId INT AUTO_INCREMENT PRIMARY KEY,
     AccountId INT NOT NULL,
+    Name VARCHAR(50) NOT NULL,
+    Phone VARCHAR(10) NOT NULL,
     Content TEXT NOT NULL,
     Status TINYINT(1) NOT NULL DEFAULT 1,
     FOREIGN KEY (AccountId) REFERENCES Accounts(AccountId)
@@ -94,21 +96,19 @@ CREATE TABLE Messages (
     FOREIGN KEY (ChatId) REFERENCES Chats(ChatId),
     FOREIGN KEY (SenderId) REFERENCES Accounts(AccountId)
 );
-CREATE TABLE Shippers (
-    ShipperId INT AUTO_INCREMENT PRIMARY KEY,
-    CompanyName VARCHAR(255) NOT NULL,
-    Phone VARCHAR(12) NOT NULL,
-    Status TINYINT(1) DEFAULT 1,
+CREATE TABLE ShipType (
+    ShipTypeId INT AUTO_INCREMENT PRIMARY KEY,
+    Content VARCHAR(255) NOT NULL,
+    ShipFee INT NOT NULL
 );
 CREATE TABLE Shipments (
     ShipmentId INT AUTO_INCREMENT PRIMARY KEY,
-    ShipperId INT NOT NULL,
-    TrackingCode VARCHAR(255) NOT NULL,
+    TrackingCode VARCHAR(100) NOT NULL,
     ShippingFee INT NOT NULL,
-    CreatedAt DATE NOT NULL,
-    Status TINYINT(1) DEFAULT 1,
     CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (ShipperId) REFERENCES Shippers(ShipperId)
+    Status VARCHAR(255),
+    ShipTypeId INT NOT NULL,
+    FOREIGN KEY (ShipTypeId) REFERENCES ShipType(ShipTypeId)
 );
 CREATE TABLE PlatformFees (
     FeeId INT AUTO_INCREMENT PRIMARY KEY,
@@ -119,24 +119,28 @@ CREATE TABLE PlatformFees (
 CREATE TABLE Orders (
     OrderId INT AUTO_INCREMENT PRIMARY KEY,
     AccountId INT NOT NULL,
-    ShipmentId INT,
     FeeId INT NOT NULL,
     AddressId INT NOT NULL,
+    MethodId INT NOT NULL,
+    UsageId INT,
     OrderDate DATE NOT NULL,
     StallId INT NOT NULL,
     CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UpdatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    ShipmentId INT,
     FOREIGN KEY (AccountId) REFERENCES Accounts(AccountId),
-    FOREIGN KEY (ShipmentId) REFERENCES Shipments(ShipmentId),
     FOREIGN KEY (FeeId) REFERENCES PlatformFees(FeeId),
     FOREIGN KEY (AddressId) REFERENCES Address(AddressId),
-    FOREIGN KEY (StallId) REFERENCES Stalls(StallId);
+    FOREIGN KEY (MethodId) REFERENCES PaymentMethods(MethodId),
+    FOREIGN KEY (UsageId) REFERENCES VoucherUsage(UsageId),
+    FOREIGN KEY (StallId) REFERENCES Stalls(StallId),
+    FOREIGN KEY (ShipmentId) REFERENCES Shipments(ShipmentId)
 );
 CREATE TABLE PaymentMethods (
     MethodId INT AUTO_INCREMENT PRIMARY KEY,
     MethodName VARCHAR(100) NOT NULL,
     Description TEXT,
-    Status TINYINT(1) DEFAULT 1,
+    Status TINYINT(1) DEFAULT 1
 );
 CREATE TABLE Vouchers (
     VoucherId INT AUTO_INCREMENT PRIMARY KEY,
@@ -154,6 +158,7 @@ CREATE TABLE VoucherUsage (
     VoucherId INT NOT NULL,
     AccountId INT NOT NULL,
     Quantity INT NOT NULL,
+    IsUsed TINYINT(1) DEFAULT 0,
     FOREIGN KEY (VoucherId) REFERENCES Vouchers(VoucherId),
     FOREIGN KEY (AccountId) REFERENCES Accounts(AccountId)
 );
@@ -161,14 +166,12 @@ CREATE TABLE OrderDetails (
     OrderDetailId INT AUTO_INCREMENT PRIMARY KEY,
     OrderId INT NOT NULL,
     ProductId INT NOT NULL,
-    MethodId INT NOT NULL,
     UsageId INT,
     UnitPrice INT NOT NULL,
     Quantity INT NOT NULL,
     CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (OrderId) REFERENCES Orders(OrderId),
     FOREIGN KEY (ProductId) REFERENCES Products(ProductId),
-    FOREIGN KEY (MethodId) REFERENCES PaymentMethods(MethodId),
     FOREIGN KEY (UsageId) REFERENCES VoucherUsage(UsageId)
 );
 CREATE TABLE Feedbacks (

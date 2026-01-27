@@ -46,7 +46,59 @@ const Cart = {
       "UPDATE Carts SET Status = 0 WHERE CartId = ?",
       [cartId]
     );
-  }
+  },
+
+  getByIds: async (accountId, cartIds) => {
+  if (!cartIds.length) return [];
+
+  const [rows] = await pool.query(
+    `
+    SELECT 
+      c.CartId,
+      c.Quantity,
+      c.UnitPrice,
+      p.ProductId,
+      p.ProductName,
+      p.Description,
+      p.Image
+    FROM Carts c
+    JOIN Products p ON c.ProductId = p.ProductId
+    WHERE c.AccountId = ?
+      AND c.CartId IN (?)
+      AND c.Status = 1
+    `,
+    [accountId, cartIds]
+  );
+
+  return rows;
+},
+
+getCheckoutItems: async (accountId, cartIds) => {
+    if (!cartIds.length) return [];
+
+    const placeholders = cartIds.map(() => "?").join(",");
+    const [rows] = await pool.query(
+      `SELECT 
+         c.CartId,
+         c.Quantity,
+         c.UnitPrice,
+         (c.Quantity * c.UnitPrice) AS totalPrice,
+         p.ProductId,
+         p.ProductName,
+         p.Image,
+         s.StallId
+       FROM Carts c
+       JOIN Products p ON p.ProductId = c.ProductId
+       JOIN Stalls s ON s.StallId = p.StallId
+       WHERE c.AccountId = ?
+         AND c.CartId IN (${placeholders})
+         AND c.Status = 1`,
+      [accountId, ...cartIds]
+    );
+
+    return rows;
+  },
+
 };
 
 module.exports = Cart;

@@ -34,7 +34,18 @@ const VoucherUsageController = {
       console.error(err);
       res.status(500).json({ message: "Lỗi server" });
     }
-  }
+  },
+  
+  getByAccount: async (req, res) => {
+    try {
+      const accountId = req.params.accountId;
+      const vouchers = await VoucherUsage.getByAccount(accountId);
+      res.json(vouchers);
+    } catch (err) {
+      console.error("Error getting voucher usage:", err);
+      res.status(500).json({ message: "Lỗi khi lấy voucher" });
+    }
+  },
 };
 
 module.exports = VoucherUsageController;

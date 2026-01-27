@@ -22,7 +22,7 @@ const AdsRouter = require("./routes/AdsRouter");
 const orderRouter = require("./routes/OrderRouter");
 const voucherRouter = require("./routes/VoucherRouter");
 const VoucherUsageRouter = require("./routes/VoucherUsageRouter");
-
+const shipTypeRouter = require("./routes/ShipTypeRouter");
 
 const app = express();
 const server = http.createServer(app);
@@ -50,7 +50,7 @@ app.use("/api/styleAds", AdsRouter);
 app.use("/api/orders", orderRouter);
 app.use("/api/vouchers", voucherRouter);
 app.use("/api/voucher-usage", VoucherUsageRouter);
-
+app.use("/api/shiptypes", shipTypeRouter);
 
 // Avatar images
 app.use(

@@ -94,11 +94,13 @@ export default function Cart() {
   const handleCheckout = async () => {
     if (checkedItems.length === 0) return;
 
-    await axios.post("/orders/checkout", {
-      cartIds: checkedItems
-    });
+    sessionStorage.setItem(
+  "checkoutCartIds",
+  JSON.stringify(checkedItems)
+);
 
-    navigate("/buyer/checkout");
+navigate("/checkout");
+
   };
 
   /* ================= RENDER ================= */
