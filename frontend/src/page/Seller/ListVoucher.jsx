@@ -15,18 +15,6 @@ export default function SellerListVoucher() {
     fixed: "Giá cố định",
   };
 
-  const CONDITION_LABELS = {
-    ">=0": "Đơn từ 0đ",
-    ">=10000": "Đơn từ 10.000đ",
-    ">=20000": "Đơn từ 20.000đ",
-    ">=50000": "Đơn từ 50.000đ",
-    ">=100000": "Đơn từ 100.000đ",
-    ">=200000": "Đơn từ 200.000đ",
-    ">=500000": "Đơn từ 500.000đ",
-    ">=1000000": "Đơn từ 1.000.000đ",
-    ">=2000000": "Đơn từ 2.000.000đ",
-  };
-
   // CHECK ROLE
   useEffect(() => {
     if (!account || Number(account.RoleId) !== 3) {
@@ -86,18 +74,17 @@ export default function SellerListVoucher() {
                   <h3 className="font-semibold text-lg">{v.VoucherName}</h3>
                   <p>Loại: {DISCOUNTTYPE_LABELS[v.DiscountType]}</p>
                   <p>
-                    Giá trị:{" "}
+                    Giá trị giảm:{" "}
                     {v.DiscountType === "percent"
-                      ? `${v.Discount}%`
-                      : `${v.Discount.toLocaleString("vi-VN")}đ`}
+                      ? `${v.DiscountValue}% (tối đa ${v.MaxDiscount?.toLocaleString()}đ)`
+                      : `${v.DiscountValue.toLocaleString()}đ`}
                   </p>
+
+                  <p>Đơn tối thiểu: {v.MinOrderValue.toLocaleString()}đ</p>
+
                   <p>Tổng số phiếu: {v.TotalQuantity} Phiếu</p>
                   {/*<p>Đã dùng: {v.UsedQuantity} Phiếu</p>*/}
                   <p>Còn lại: {v.Quantity} Phiếu</p>
-                  <p>
-                    Điều kiện:{" "}
-                    {CONDITION_LABELS[v.ConditionText] || v.ConditionText}
-                  </p>
                   <p>
                     Hết hạn:{" "}
                     {new Date(v.EndTime).toLocaleDateString("vi-VN")}

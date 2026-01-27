@@ -12,11 +12,13 @@ export default function CreateVoucher() {
     const [form, setForm] = useState({
         VoucherName: "",
         DiscountType: "percent",
-        Discount: "",
+        DiscountValue: "",
+        MinOrderValue: "",
+        MaxDiscount: "",
         Quantity: "",
-        ConditionText: "",
         EndTime: "",
     });
+
 
     const [loading, setLoading] = useState(false);
 
@@ -30,8 +32,16 @@ export default function CreateVoucher() {
     }, [navigate]);
 
     const handleChange = (e) => {
-        setForm({ ...form, [e.target.name]: e.target.value });
+        const { name, value } = e.target;
+
+        if (name === "DiscountType" && value !== "percent") {
+            setForm({ ...form, DiscountType: value, MaxDiscount: "" });
+            return;
+        }
+
+        setForm({ ...form, [name]: value });
     };
+
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -73,9 +83,20 @@ export default function CreateVoucher() {
             const token = sessionStorage.getItem("token");
             await axios.post(
                 "/vouchers",
-                { ...form, CreatedBy: account.AccountId },
+                {
+                    ...form,
+                    DiscountValue: Number(form.DiscountValue),
+                    MinOrderValue: Number(form.MinOrderValue),
+                    MaxDiscount: form.DiscountType === "percent"
+                        ? Number(form.MaxDiscount)
+                        : null,
+                    Quantity: Number(form.Quantity),
+                    EndTime: form.EndTime,
+                    CreatedBy: account.AccountId,
+                },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
+
             alert("Tạo voucher thành công!");
             navigate("/seller/voucher");
         } catch (err) {
@@ -115,34 +136,28 @@ export default function CreateVoucher() {
                     <h1 className="text-2xl font-bold mb-6">Tạo phiếu giảm giá mới</h1>
 
                     <form className="space-y-4" onSubmit={handleSubmit}>
-                        {/* TÊN VOUCHER */}
+                        {/* TÊN */}
                         <div>
-                            <label className="block text-sm font-medium mb-1">
-                                Tên voucher
-                            </label>
+                            <label className="block text-sm font-medium mb-1">Tên voucher</label>
                             <input
-                                type="text"
                                 name="VoucherName"
                                 value={form.VoucherName}
                                 onChange={handleChange}
-                                className="border rounded px-3 py-2 w-full"
-                                placeholder="VD: SALE10"
                                 required
+                                className="border rounded px-3 py-2 w-full"
                             />
                         </div>
 
-                        {/* LOẠI GIẢM GIÁ */}
+                        {/* LOẠI */}
                         <div>
-                            <label className="block text-sm font-medium mb-1">
-                                Loại giảm giá
-                            </label>
+                            <label className="block text-sm font-medium mb-1">Loại giảm</label>
                             <select
                                 name="DiscountType"
                                 value={form.DiscountType}
                                 onChange={handleChange}
-                                className="border rounded px-3 py-2 w-full cursor-pointer"
+                                className="border rounded px-3 py-2 w-full"
                             >
-                                <option value="percent">Phần trăm (%)</option>
+                                <option value="percent">Theo %</option>
                                 <option value="fixed">Giảm tiền cố định</option>
                             </select>
                         </div>
@@ -154,22 +169,74 @@ export default function CreateVoucher() {
                             </label>
                             <input
                                 type="number"
-                                name="Discount"
-                                value={form.Discount}
+                                name="DiscountValue"
+                                value={form.DiscountValue}
                                 onChange={handleChange}
-                                className="border rounded px-3 py-2 w-full"
-                                placeholder={form.DiscountType === "percent" ? "VD: 10 (%)" : "VD: 50000 (vnđ)"}
-                                min={form.DiscountType === "percent" ? 5 : 1}
+                                min={form.DiscountType === "percent" ? 1 : 1000}
                                 max={form.DiscountType === "percent" ? 100 : undefined}
                                 required
+                                className="border rounded px-3 py-2 w-full"
+                                placeholder={
+                                    form.DiscountType === "percent"
+                                        ? "VD: 10 (%)"
+                                        : "VD: 50000 (vnđ)"
+                                }
                             />
+                        </div>
+
+                        {/* 🔥 MAX DISCOUNT – CHỈ HIỆN KHI percent */}
+                        {form.DiscountType === "percent" && (
+                            <div>
+                                <label className="block text-sm font-medium mb-1">
+                                    Giảm tối đa (vnđ)
+                                </label>
+                                <select
+                                    name="MaxDiscount"
+                                    value={form.MaxDiscount}
+                                    onChange={handleChange}
+                                    required
+                                    className="border rounded px-3 py-2 w-full cursor-pointer"
+                                >
+                                    <option value="">-- Chọn mức tối đa --</option>
+                                    <option value="10000">10.000đ</option>
+                                    <option value="20000">20.000đ</option>
+                                    <option value="50000">50.000đ</option>
+                                    <option value="100000">100.000đ</option>
+                                    <option value="200000">200.000đ</option>
+                                    <option value="500000">500.000đ</option>
+                                    <option value="1000000">1.000.000đ</option>
+                                </select>
+                            </div>
+                        )}
+
+                        {/* ĐƠN TỐI THIỂU */}
+                        <div>
+                            <label className="block text-sm font-medium mb-1">
+                                Giá trị đơn tối thiểu
+                            </label>
+                            <select
+                                name="MinOrderValue"
+                                value={form.MinOrderValue}
+                                onChange={handleChange}
+                                required
+                                className="border rounded px-3 py-2 w-full"
+                            >
+                                <option value="">-- Chọn --</option>
+                                <option value="0">Từ 0đ</option>
+                                <option value="10000">Từ 10.000đ</option>
+                                <option value="20000">Từ 20.000đ</option>
+                                <option value="50000">Từ 50.000đ</option>
+                                <option value="100000">Từ 100.000đ</option>
+                                <option value="200000">Từ 200.000đ</option>
+                                <option value="500000">Từ 500.000đ</option>
+                                <option value="1000000">Từ 1.000.000đ</option>
+                                <option value="2000000">Từ 2.000.000đ</option>
+                            </select>
                         </div>
 
                         {/* SỐ LƯỢNG */}
                         <div>
-                            <label className="block text-sm font-medium mb-1">
-                                Số lượng voucher
-                            </label>
+                            <label className="block text-sm font-medium mb-1">Số lượng</label>
                             <input
                                 type="number"
                                 name="Quantity"
@@ -177,40 +244,12 @@ export default function CreateVoucher() {
                                 onChange={handleChange}
                                 min={1}
                                 max={500}
-                                step={1}
-                                className="border rounded px-3 py-2 w-full"
-                                placeholder="VD: 20 (Phiếu)"
                                 required
+                                className="border rounded px-3 py-2 w-full"
                             />
                         </div>
 
-                        {/* ĐIỀU KIỆN */}
-
-                        <div>
-                            <label className="block text-sm font-medium mb-1">
-                                Điều kiện áp dụng
-                            </label>
-                            <select
-                                name="ConditionText"
-                                value={form.ConditionText}
-                                onChange={handleChange}
-                                className="border rounded px-3 py-2 w-full cursor-pointer"
-                                required
-                            >
-                                <option value="">-- Chọn điều kiện --</option>
-                                <option value=">=0">Đơn từ 0đ</option>
-                                <option value=">=10000">Đơn từ 10.000đ</option>
-                                <option value=">=20000">Đơn từ 20.000đ</option>
-                                <option value=">=50000">Đơn từ 50.000đ</option>
-                                <option value=">=100000">Đơn từ 100.000đ</option>
-                                <option value=">=200000">Đơn từ 200.000đ</option>
-                                <option value=">=500000">Đơn từ 500.000đ</option>
-                                <option value=">=1000000">Đơn từ 1.000.000đ</option>
-                                <option value=">=2000000">Đơn từ 2.000.000đ</option>
-                            </select>
-                        </div>
-
-                        {/* HẠN SỬ DỤNG */}
+                        {/* HẠN */}
                         <div>
                             <label className="block text-sm font-medium mb-1">
                                 Ngày hết hạn
@@ -220,32 +259,20 @@ export default function CreateVoucher() {
                                 name="EndTime"
                                 value={form.EndTime}
                                 onChange={handleChange}
+                                required
                                 min={new Date().toISOString().split("T")[0]}
                                 className="border rounded px-3 py-2 w-full"
-                                required
                             />
-
                         </div>
 
-                        {/* BUTTONS */}
-                        <div className="flex gap-3 pt-4">
-                            <button
-                                type="submit"
-                                disabled={loading}
-                                className="px-4 py-2 bg-orange-500 text-white cursor-pointer rounded-md text-sm hover:bg-orange-600 transition"
-                            >
-                                {loading ? "Đang tạo..." : "Tạo voucher"}
-                            </button>
-
-                            <button
-                                type="button"
-                                onClick={() => navigate("/seller/voucher")}
-                                className="px-4 py-2 bg-gray-200 text-gray-700 cursor-pointer rounded-md text-sm hover:bg-gray-300 transition"
-                            >
-                                Huỷ
-                            </button>
-                        </div>
+                        <button
+                            type="submit"
+                            className="px-4 py-2 bg-orange-500 text-white rounded hover:bg-orange-600"
+                        >
+                            Tạo voucher
+                        </button>
                     </form>
+
                 </div>
             </div>
         </>

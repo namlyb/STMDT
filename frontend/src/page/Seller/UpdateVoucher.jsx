@@ -9,19 +9,20 @@ export default function UpdateVoucher() {
   const { id } = useParams();
 
   useEffect(() => {
-  const roleId = sessionStorage.getItem("roleId");
+    const roleId = sessionStorage.getItem("roleId");
+    if (roleId !== "3") {
+      alert("Bạn không có quyền truy cập");
+      navigate("/");
+    }
+  }, [navigate]);
 
-  if (roleId !== "3") {
-    alert("Bạn không có quyền truy cập");
-    navigate("/");
-  }
-}, [navigate]);
   const [form, setForm] = useState({
     VoucherName: "",
     DiscountType: "",
-    Discount: "",
+    DiscountValue: "",
+    MaxDiscount: null,
+    MinOrderValue: "",
     Quantity: "",
-    ConditionText: "",
     EndTime: "",
   });
 
@@ -42,9 +43,10 @@ export default function UpdateVoucher() {
         setForm({
           VoucherName: res.data.VoucherName,
           DiscountType: res.data.DiscountType,
-          Discount: res.data.Discount,
+          DiscountValue: res.data.DiscountValue,
+          MaxDiscount: res.data.MaxDiscount,
+          MinOrderValue: res.data.MinOrderValue,
           Quantity: "",
-          ConditionText: res.data.ConditionText,
           EndTime: res.data.EndTime.split("T")[0],
         });
 
@@ -66,51 +68,38 @@ export default function UpdateVoucher() {
 
   // ================= SUBMIT =================
   const handleSubmit = async (e) => {
-  e.preventDefault();
+    e.preventDefault();
 
-  const quantity = Number(form.Quantity);
+    const quantity = Number(form.Quantity);
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > 500) {
+      alert("Số lượng phải từ 1 đến 500");
+      return;
+    }
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+    setLoading(true);
+    try {
+      const token = sessionStorage.getItem("token");
 
-  const newEnd = new Date(form.EndTime);
-  newEnd.setHours(0, 0, 0, 0);
+      await axios.put(
+        `/vouchers/${id}`,
+        {
+          Quantity: quantity,
+          EndTime: form.EndTime,
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
 
-  const oldEnd = new Date(oldEndTime);
-  oldEnd.setHours(0, 0, 0, 0);
-
-  // ===== VALIDATION =====
-  if (!Number.isInteger(quantity) || quantity < 1 || quantity > 500) {
-    alert("Số lượng phải từ 1 đến 500");
-    return;
-  }
-
-
-  setLoading(true);
-  try {
-    const token = sessionStorage.getItem("token");
-
-    await axios.put(
-      `/vouchers/${id}`,
-      {
-        Quantity: quantity,
-        EndTime: form.EndTime,
-      },
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      }
-    );
-
-    alert("Cập nhật voucher thành công!");
-    navigate("/seller/voucher");
-  } catch (err) {
-    console.error(err);
-    alert("Lỗi khi cập nhật voucher");
-  } finally {
-    setLoading(false);
-  }
-};
-
+      alert("Cập nhật voucher thành công!");
+      navigate("/seller/voucher");
+    } catch (err) {
+      console.error(err);
+      alert("Lỗi khi cập nhật voucher");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <>
@@ -128,7 +117,6 @@ export default function UpdateVoucher() {
                 Tên voucher
               </label>
               <input
-                type="text"
                 value={form.VoucherName}
                 disabled
                 className={`border rounded px-3 py-2 w-full ${lockClass}`}
@@ -141,10 +129,9 @@ export default function UpdateVoucher() {
                 Loại giảm giá
               </label>
               <input
-                type="text"
                 value={
                   form.DiscountType === "percent"
-                    ? "Phần trăm (%)"
+                    ? "Theo %"
                     : "Giảm tiền cố định"
                 }
                 disabled
@@ -158,37 +145,26 @@ export default function UpdateVoucher() {
                 Giá trị giảm
               </label>
               <input
-                type="text"
                 value={
                   form.DiscountType === "percent"
-                    ? `${form.Discount}%`
-                    : `${Number(form.Discount).toLocaleString("vi-VN")}đ`
+                    ? `${form.DiscountValue}% (tối đa ${form.MaxDiscount?.toLocaleString()}đ)`
+                    : `${Number(form.DiscountValue).toLocaleString()}đ`
                 }
                 disabled
                 className={`border rounded px-3 py-2 w-full ${lockClass}`}
               />
             </div>
 
-            {/* CONDITION */}
+            {/* MIN ORDER */}
             <div>
               <label className="block text-sm font-medium mb-1">
-                Điều kiện áp dụng
+                Giá trị đơn tối thiểu
               </label>
-              <select
-                value={form.ConditionText}
+              <input
+                value={`${Number(form.MinOrderValue).toLocaleString()}đ`}
                 disabled
-                className={`border rounded px-3 py-2 w-full ${lockClass} appearance-none`}
-              >
-                <option value=">=0">Đơn từ 0đ</option>
-                <option value=">=10000">Đơn từ 10.000đ</option>
-                <option value=">=20000">Đơn từ 20.000đ</option>
-                <option value=">=50000">Đơn từ 50.000đ</option>
-                <option value=">=100000">Đơn từ 100.000đ</option>
-                <option value=">=200000">Đơn từ 200.000đ</option>
-                <option value=">=500000">Đơn từ 500.000đ</option>
-                <option value=">=1000000">Đơn từ 1.000.000đ</option>
-                <option value=">=2000000">Đơn từ 2.000.000đ</option>
-              </select>
+                className={`border rounded px-3 py-2 w-full ${lockClass}`}
+              />
             </div>
 
             {/* QUANTITY */}
@@ -203,8 +179,8 @@ export default function UpdateVoucher() {
                 onChange={handleChange}
                 min={1}
                 max={500}
-                className="border rounded px-3 py-2 w-full"
                 required
+                className="border rounded px-3 py-2 w-full"
               />
             </div>
 
@@ -214,19 +190,18 @@ export default function UpdateVoucher() {
                 Ngày hết hạn
               </label>
               <input
-              type="date"
+                type="date"
                 value={form.EndTime}
                 disabled
                 className={`border rounded px-3 py-2 w-full ${lockClass}`}
               />
             </div>
 
-            {/* BUTTONS */}
             <div className="flex gap-3 pt-4">
               <button
                 type="submit"
                 disabled={loading}
-                className="px-4 py-2 bg-orange-500 cursor-pointer text-white rounded-md hover:bg-orange-600 transition "
+                className="px-4 py-2 bg-orange-500 text-white rounded hover:bg-orange-600"
               >
                 {loading ? "Đang cập nhật..." : "Cập nhật voucher"}
               </button>
@@ -234,7 +209,7 @@ export default function UpdateVoucher() {
               <button
                 type="button"
                 onClick={() => navigate("/seller/voucher")}
-                className="px-4 py-2 bg-gray-200 text-gray-700 cursor-pointer rounded-md hover:bg-gray-300 transition"
+                className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
               >
                 Huỷ
               </button>

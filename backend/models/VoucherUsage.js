@@ -60,51 +60,58 @@ const VoucherUsage = {
   },
 
   getByAccount: async (accountId) => {
-    const [rows] = await pool.query(
-      `
+  const [rows] = await pool.query(
+    `
     SELECT 
-      vu.*,
+      vu.UsageId,
       v.VoucherId,
       v.VoucherName,
       v.DiscountType,
-      v.Discount,
-      v.ConditionText,
+      v.DiscountValue,
+      v.MinOrderValue,
+      v.MaxDiscount,
+      vu.Quantity,
       v.EndTime,
       v.CreatedBy
     FROM VoucherUsage vu
     JOIN Vouchers v ON v.VoucherId = vu.VoucherId
     WHERE vu.AccountId = ?
-    AND IsUsed = 0
-    AND v.EndTime >= CURDATE()
+      AND vu.IsUsed = 0
+      AND v.EndTime >= CURDATE()
     ORDER BY v.EndTime ASC
     `,
-      [accountId]
-    );
-    return rows;
-  },
+    [accountId]
+  );
+  return rows;
+},
+
+
   getUnusedByAccount: async (accountId) => {
-    const [rows] = await pool.query(
-      `SELECT 
-        vu.UsageId,
-        v.VoucherId,
-        v.VoucherName,
-        v.DiscountType,
-        v.Discount,
-        v.ConditionText,
-        v.EndTime,
-        v.CreatedBy,
-        s.StallId
-      FROM VoucherUsage vu
-      JOIN Vouchers v ON v.VoucherId = vu.VoucherId
-      LEFT JOIN Stalls s ON s.AccountId = v.CreatedBy
-      WHERE vu.AccountId = ?
-        AND vu.IsUsed = 0
-        AND v.EndTime >= CURDATE()
-`,
-      [accountId]
-    );
-    return rows;
-  },
+  const [rows] = await pool.query(
+    `
+    SELECT 
+      vu.UsageId,
+      v.VoucherId,
+      v.VoucherName,
+      v.DiscountType,
+      v.DiscountValue,
+      v.MinOrderValue,
+      v.MaxDiscount,
+      v.EndTime,
+      v.CreatedBy,
+      s.StallId
+    FROM VoucherUsage vu
+    JOIN Vouchers v ON v.VoucherId = vu.VoucherId
+    LEFT JOIN Stalls s ON s.AccountId = v.CreatedBy
+    WHERE vu.AccountId = ?
+      AND vu.IsUsed = 0
+      AND v.EndTime >= CURDATE()
+    `,
+    [accountId]
+  );
+  return rows;
+},
+
 
 
 };

@@ -211,15 +211,17 @@ const handleSaveVoucher = async (voucherId) => {
 
                       <p className="text-red-500 font-bold mt-1">
                         {v.DiscountType === "percent"
-                          ? `Giảm ${v.Discount}%`
-                          : `Giảm ${Number(v.Discount).toLocaleString()} ₫`}
+  ? `Giảm ${v.DiscountValue}%`
+  : `Giảm ${Number(v.DiscountValue).toLocaleString()} ₫`}
+
                       </p>
 
-                      {v.ConditionText && (
-                        <p className="text-xs text-gray-600 mt-1">
-                          {renderConditionText(v.ConditionText)}
-                        </p>
-                      )}
+                      {v.MinOrderValue > 0 && (
+  <p className="text-xs text-gray-600 mt-1">
+    Đơn từ {Number(v.MinOrderValue).toLocaleString()}đ
+  </p>
+)}
+
 
                       <p className="text-xs text-gray-500 mt-1 italic">
                         {v.StallName

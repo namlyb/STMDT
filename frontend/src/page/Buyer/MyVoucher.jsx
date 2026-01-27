@@ -8,6 +8,7 @@ export default function MyVoucher() {
     const [vouchers, setVouchers] = useState([]);
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
+
     useEffect(() => {
         const fetchMyVouchers = async () => {
             try {
@@ -23,18 +24,6 @@ export default function MyVoucher() {
         fetchMyVouchers();
     }, []);
 
-    const renderCondition = (condition) => {
-        if (!condition) return "";
-
-        if (condition.startsWith(">=")) {
-            const value = Number(condition.replace(">=", ""));
-            return `Đơn từ ${value.toLocaleString("vi-VN")}đ`;
-        }
-
-        return condition;
-    };
-
-
     return (
         <>
             <Header />
@@ -43,7 +32,7 @@ export default function MyVoucher() {
                 <Sidebar />
 
                 <div className="flex-1 bg-white rounded-lg p-6 border">
-                    <h1 className="text-xl font-semibold mb-4"> Voucher của tôi</h1>
+                    <h1 className="text-xl font-semibold mb-4">Voucher của tôi</h1>
 
                     {loading ? (
                         <p>Đang tải voucher...</p>
@@ -53,11 +42,10 @@ export default function MyVoucher() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {vouchers.map((v) => (
                                 <div key={v.UsageId}>
-
                                     {/* VOUCHER */}
                                     <div className="flex bg-white rounded-lg shadow-sm overflow-hidden h-[130px]">
 
-                                        {/* LEFT COLOR */}
+                                        {/* LEFT */}
                                         <div className="w-24 bg-orange-400 text-white flex flex-col items-center justify-center px-2">
                                             <div className="text-[10px] font-semibold tracking-wide">
                                                 VOUCHER
@@ -79,42 +67,57 @@ export default function MyVoucher() {
                                             </div>
                                         </div>
 
-                                        {/* RIGHT CONTENT */}
+                                        {/* RIGHT */}
                                         <div className="flex-1 p-3 pl-6 flex flex-col justify-between">
-
                                             <div>
+                                                {/* GIẢM GIÁ */}
                                                 <h2 className="font-semibold text-gray-900 text-sm">
                                                     {v.DiscountType === "percent"
-                                                        ? `Giảm ${v.Discount}%`
-                                                        : `Giảm ${v.Discount.toLocaleString("vi-VN")}đ`}
+                                                        ? `Giảm ${v.DiscountValue}%`
+                                                        : `Giảm ${Number(v.DiscountValue).toLocaleString("vi-VN")}đ`}
                                                 </h2>
 
+                                                {/* MAX DISCOUNT (NẾU CÓ) */}
+                                                {v.DiscountType === "percent" && v.MaxDiscount !== null && (
+                                                    <p className="text-xs text-gray-600">
+                                                        Giảm tối đa {Number(v.MaxDiscount).toLocaleString("vi-VN")}đ
+                                                    </p>
+                                                )}
+
+                                                {/* ĐIỀU KIỆN ĐƠN HÀNG */}
                                                 <p className="text-xs text-gray-600">
-                                                    {renderCondition(v.ConditionText)}
+                                                    Cho đơn từ{" "}
+                                                    {Number(v.MinOrderValue ?? 0).toLocaleString("vi-VN")}đ
                                                 </p>
                                             </div>
 
                                             <div className="flex items-center justify-between">
-                                                <p className="text-[11px] text-gray-500">
-                                                    HSD: {new Date(v.EndTime).toLocaleDateString("vi-VN")}
-                                                </p>
+                                                <div className="flex flex-col gap-1">
+                                                    {/* HẠN SỬ DỤNG */}
+                                                    <p className="text-[11px] text-gray-500">
+                                                        HSD: {new Date(v.EndTime).toLocaleDateString("vi-VN")}
+                                                    </p>
+
+                                                    {/* SỐ LƯỢNG */}
+                                                    <p className="text-[11px] text-gray-500">
+                                                        Số lượng: {v.Quantity}
+                                                    </p>
+                                                </div>
 
                                                 <button
                                                     onClick={() => navigate("/cart")}
-                                                    className="border border-red-500 text-red-500 cursor-pointer text-xs px-3 py-1 rounded hover:bg-red-50">
+                                                    className="border border-red-500 text-red-500 cursor-pointer text-xs px-3 py-1 rounded hover:bg-red-50"
+                                                >
                                                     Dùng ngay
                                                 </button>
                                             </div>
                                         </div>
 
+
                                     </div>
                                 </div>
                             ))}
                         </div>
-
-
-
-
                     )}
                 </div>
             </div>

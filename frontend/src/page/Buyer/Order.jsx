@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import axios from "../../components/lib/axios";
 import { useNavigate, useLocation } from "react-router-dom";
+import axios from "../../components/lib/axios";
 import Header from "../../components/Guest/Header";
 import Footer from "../../components/Guest/footer";
 
@@ -8,162 +8,133 @@ export default function Order() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  /* ================= INIT ================= */
   const cartIds =
     location.state?.cartIds ||
     JSON.parse(sessionStorage.getItem("checkoutCartIds")) ||
     [];
 
+  const isBuyNow = location.state?.buyNow;
+  const buyNowProductId = location.state?.productId;
+  const buyNowQuantity = location.state?.quantity;
+
+  /* ================= STATE ================= */
   const [items, setItems] = useState([]);
   const [addresses, setAddresses] = useState([]);
   const [shipTypes, setShipTypes] = useState([]);
+
   const [selectedAddress, setSelectedAddress] = useState(null);
   const [selectedShipType, setSelectedShipType] = useState(null);
 
   const [orderVoucher, setOrderVoucher] = useState(null);
-  const [orderVouchers, setOrderVouchers] = useState([]); // voucher admin
+  const [orderVouchers, setOrderVouchers] = useState([]);
+
   const [loading, setLoading] = useState(true);
 
-  const isBuyNow = location.state?.buyNow;
-const buyNowProductId = location.state?.productId;
-const buyNowQuantity = location.state?.quantity;
-
-
-  // ================= FETCH =================
-
-  
-
+  /* ================= FETCH ================= */
   useEffect(() => {
-  const fetchData = async () => {
-    try {
-      const account = JSON.parse(sessionStorage.getItem("account"));
-      if (!account) {
-        navigate("/login");
-        return;
-      }
+    const fetchData = async () => {
+      try {
+        const account = JSON.parse(sessionStorage.getItem("account"));
+        if (!account) return navigate("/login");
 
-      let checkoutRes;
+        const checkoutRes = isBuyNow
+          ? await axios.post("/orders/checkout/buynow", {
+              productId: buyNowProductId,
+              quantity: buyNowQuantity,
+            })
+          : await axios.post("/orders/checkout", { cartIds });
 
-      if (isBuyNow) {
-        checkoutRes = await axios.post(
-          "/orders/checkout/buynow",
-          {
-            productId: buyNowProductId,
-            quantity: buyNowQuantity,
-          },
-          {
-            headers: {
-              Authorization: `Bearer ${sessionStorage.getItem("token")}`,
-            },
-          }
+        const [addrRes, shipRes, voucherRes] = await Promise.all([
+          axios.get(`/addresses/account/${account.AccountId}`),
+          axios.get("/shiptypes"),
+          axios.get(`/voucher-usage/account/${account.AccountId}`),
+        ]);
+
+        setItems(
+          checkoutRes.data.items.map(i => ({
+            ...i,
+            selectedVoucher: null,
+            vouchers: (i.vouchers || []).filter(v =>
+              (v.CreatedBy === 1 || v.StallId === i.StallId) &&
+              v.DiscountType !== "ship"
+            ),
+          }))
         );
-      } else {
-        checkoutRes = await axios.post(
-          "/orders/checkout",
-          { cartIds },
-          {
-            headers: {
-              Authorization: `Bearer ${sessionStorage.getItem("token")}`,
-            },
-          }
+
+        setOrderVouchers(
+          (voucherRes.data || []).filter(v => v.CreatedBy === 1)
         );
+
+        setAddresses(addrRes.data || []);
+        setShipTypes(shipRes.data || []);
+
+        if (addrRes.data?.length) setSelectedAddress(addrRes.data[0]);
+        if (shipRes.data?.length) setSelectedShipType(shipRes.data[0]);
+
+        setLoading(false);
+      } catch (err) {
+        console.error(err);
+        alert("Không thể checkout");
+        navigate("/cart");
       }
+    };
 
-      const [addressRes, shipTypeRes, voucherRes] = await Promise.all([
-        axios.get(`/addresses/account/${account.AccountId}`),
-        axios.get("/shiptypes"),
-        axios.get(`/voucher-usage/account/${account.AccountId}`),
-      ]);
+    fetchData();
+  }, []);
 
-      setItems(
-        checkoutRes.data.items.map(i => ({
-          ...i,
-          selectedVoucher: null,
-        }))
-      );
+  /* ================= FORMAT ================= */
+  const fmt = n => Number(n || 0).toLocaleString("vi-VN");
 
-      setOrderVouchers(
-        (voucherRes.data || []).filter(v => v.CreatedBy === 1)
-      );
+  /* ================= ITEM PRICE ================= */
+  const calcItemDiscount = item => {
+    const v = item.selectedVoucher;
+    if (!v) return 0;
+    if (item.totalPrice < v.MinOrderValue) return 0;
 
-      setAddresses(addressRes.data || []);
-      setShipTypes(shipTypeRes.data || []);
-
-      if (addressRes.data?.length) setSelectedAddress(addressRes.data[0]);
-      if (shipTypeRes.data?.length) setSelectedShipType(shipTypeRes.data[0]);
-
-      setLoading(false);
-    } catch (err) {
-      console.error("CHECKOUT ERROR:", err);
-      alert("Không thể tạo đơn hàng. Vui lòng thử lại.");
-      navigate("/cart");
-    }
-  };
-
-  fetchData();
-}, []);
-
-
-  // ================= VOUCHER STATE =================
-  const usedVoucherUsageIds = items
-    .map(i => i.selectedVoucher?.UsageId)
-    .filter(Boolean);
-
-  const orderVoucherUsageId = orderVoucher?.UsageId;
-
-  // ================= PRICE =================
-  const calcItemDiscount = (item) => {
-    if (!item.selectedVoucher) return 0;
-
-    let discount = 0;
-
-    if (item.selectedVoucher.DiscountType === "percent") {
-      discount = Math.floor(
-        (item.totalPrice * item.selectedVoucher.Discount) / 100
-      );
+    let d = 0;
+    if (v.DiscountType === "percent") {
+      d = Math.floor(item.totalPrice * v.DiscountValue / 100);
+      if (v.MaxDiscount) d = Math.min(d, v.MaxDiscount);
     } else {
-      discount = item.selectedVoucher.Discount;
+      d = v.DiscountValue;
     }
 
-    return Math.min(discount, item.totalPrice);
+    return Math.min(d, item.totalPrice);
   };
 
-  const calcItemTotal = (item) =>
+  const calcItemFinal = item =>
     Math.max(item.totalPrice - calcItemDiscount(item), 0);
 
-  const itemsTotal = items.reduce((s, i) => s + i.totalPrice, 0);
-  const itemDiscountTotal = items.reduce(
-    (s, i) => s + calcItemDiscount(i),
-    0
-  );
-
-  const shippingFee = selectedShipType?.ShipFee || 0;
-
-  const totalBeforeOrderVoucher = Math.max(
-    itemsTotal - itemDiscountTotal + shippingFee,
-    0
-  );
+  /* ================= TOTAL ================= */
+  const productTotal = items.reduce((s, i) => s + calcItemFinal(i), 0);
+  const shipFee = selectedShipType?.ShipFee || 0;
 
   const orderVoucherDiscount = (() => {
-    if (!orderVoucher) return 0;
+    if (!orderVoucher) return { product: 0, ship: 0 };
+    if (productTotal < orderVoucher.MinOrderValue) return { product: 0, ship: 0 };
 
-    if (orderVoucher.DiscountType === "percent") {
-      return Math.floor(
-        (totalBeforeOrderVoucher * orderVoucher.Discount) / 100
-      );
+    if (orderVoucher.DiscountType === "ship") {
+      return { product: 0, ship: Math.min(shipFee, orderVoucher.DiscountValue) };
     }
-    return orderVoucher.Discount;
+
+    let d = orderVoucher.DiscountType === "percent"
+      ? Math.floor(productTotal * orderVoucher.DiscountValue / 100)
+      : orderVoucher.DiscountValue;
+
+    if (orderVoucher.MaxDiscount) d = Math.min(d, orderVoucher.MaxDiscount);
+
+    return { product: Math.min(d, productTotal), ship: 0 };
   })();
 
-  const grandTotal = Math.max(
-    totalBeforeOrderVoucher - orderVoucherDiscount,
-    0
-  );
-
-  const fmt = (n) => Number(n || 0).toLocaleString();
+  const grandTotal =
+    productTotal -
+    orderVoucherDiscount.product +
+    (shipFee - orderVoucherDiscount.ship);
 
   if (loading) return <p className="text-center mt-10">Đang tải...</p>;
 
-  // ================= RENDER =================
+  /* ================= RENDER ================= */
   return (
     <>
       <Header />
@@ -171,16 +142,16 @@ const buyNowQuantity = location.state?.quantity;
       <div className="bg-gray-100 py-8">
         <form className="max-w-6xl mx-auto bg-white rounded-xl shadow-sm overflow-hidden">
 
-          {/* ===== ĐỊA CHỈ ===== */}
+          {/* ADDRESS */}
           <section className="p-6 border-b">
             <h3 className="text-lg font-semibold text-orange-600 mb-3">
               📍 Địa chỉ nhận hàng
             </h3>
 
             <select
-              className="w-full p-3 rounded-lg border border-gray-200 focus:ring-2 focus:ring-orange-400"
+              className="w-full p-3 rounded-lg border"
               value={selectedAddress?.AddressId || ""}
-              onChange={(e) =>
+              onChange={e =>
                 setSelectedAddress(
                   addresses.find(a => a.AddressId === Number(e.target.value))
                 )
@@ -194,148 +165,128 @@ const buyNowQuantity = location.state?.quantity;
             </select>
           </section>
 
-          {/* ===== SẢN PHẨM ===== */}
+          {/* ITEMS */}
           <section className="p-6 space-y-6">
             <h3 className="text-lg font-semibold">🛒 Sản phẩm</h3>
 
             {items.map(item => (
-              <div key={item.CartId ?? `buy-${item.ProductId}`} className="flex gap-4">
-                <img
-                  src={item.Image}
-                  alt={item.ProductName}
-                  className="w-24 h-24 object-cover rounded-lg"
-                />
+              <div key={item.CartId ?? item.ProductId} className="flex gap-4">
+                <img src={item.Image} className="w-24 h-24 rounded-lg" />
 
                 <div className="flex-1">
                   <h4 className="font-medium">{item.ProductName}</h4>
-                  <p className="text-sm text-gray-500">
-                    Số lượng: {item.Quantity}
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    Giá: {fmt(item.UnitPrice)}đ
-                  </p>
+                  <p className="text-sm text-gray-500">SL: {item.Quantity}</p>
 
-                  {/* Voucher sản phẩm */}
                   <select
-                    className="mt-2 w-full p-2 text-sm rounded-md border border-gray-200"
-                    value={item.selectedVoucher?.VoucherId || ""}
-                    onChange={(e) => {
+                    className="mt-2 w-full p-2 text-sm rounded-md border"
+                    value={item.selectedVoucher?.UsageId || ""}
+                    onChange={e => {
                       const v = item.vouchers.find(
-                        x => x.VoucherId === Number(e.target.value)
+                        x => x.UsageId === Number(e.target.value)
                       );
                       setItems(prev =>
                         prev.map(i =>
-                          i.CartId === item.CartId
-                            ? { ...i, selectedVoucher: v || null }
-                            : i
+                          i === item ? { ...i, selectedVoucher: v || null } : i
                         )
                       );
                     }}
                   >
-                    <option value="">🎟️ Chọn voucher cho sản phẩm</option>
+                    <option value="">🎟️ Voucher sản phẩm</option>
+                    {item.vouchers.map(v => (
+                      <option
+                        key={v.UsageId}
+                        value={v.UsageId}
+                        disabled={item.totalPrice < v.MinOrderValue}
+                      >
+                        {v.VoucherName} (
+  {v.DiscountType === "percent"
+    ? `-${v.DiscountValue}%`
+    : `-${fmt(v.DiscountValue)}đ`
+  }
+)
 
-                    {item.vouchers.map(v => {
-                      const disabled =
-                        (usedVoucherUsageIds.includes(v.UsageId) &&
-                          item.selectedVoucher?.UsageId !== v.UsageId) ||
-                        orderVoucherUsageId === v.UsageId;
-
-                      return (
-                        <option
-                          key={v.UsageId}
-                          value={v.VoucherId}
-                          disabled={disabled}
-                        >
-                          {v.VoucherName} –{" "}
-                          {v.DiscountType === "percent"
-                            ? `${v.Discount}%`
-                            : `${fmt(v.Discount)}đ`}
-                        </option>
-                      );
-                    })}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
                 <div className="text-right font-semibold text-red-500 text-lg">
-                  {calcItemTotal(item).toLocaleString()}đ
+                  {fmt(calcItemFinal(item))}đ
                 </div>
               </div>
             ))}
           </section>
 
-          {/* ===== VOUCHER TOÀN ĐƠN ===== */}
+          {/* ORDER VOUCHER */}
           <section className="p-6 border-t">
             <h3 className="font-semibold mb-2">🎫 Voucher toàn đơn</h3>
 
             <select
-              className="w-full p-3 rounded-lg border border-gray-200"
-              value={orderVoucher?.VoucherId || ""}
-              onChange={(e) => {
-                const v = orderVouchers.find(
-                  x => x.VoucherId === Number(e.target.value)
-                );
-                setOrderVoucher(v || null);
-              }}
-            >
-              <option value="">Không dùng voucher</option>
-
-              {orderVouchers.map(v => {
-                const disabled = usedVoucherUsageIds.includes(v.UsageId);
-
-                return (
-                  <option
-                    key={v.VoucherId}
-                    value={v.VoucherId}
-                    disabled={disabled}
-                  >
-                    {v.VoucherName} –{" "}
-                    {v.DiscountType === "percent"
-                      ? `${v.Discount}%`
-                      : `${v.Discount.toLocaleString()}đ`}
-                  </option>
-                );
-              })}
-            </select>
-          </section>
-
-          {/* ===== VẬN CHUYỂN ===== */}
-          <section className="p-6 border-t">
-            <h3 className="font-semibold mb-2">🚚 Phương thức vận chuyển</h3>
-
-            <select
-              className="w-full p-3 rounded-lg border border-gray-200"
-              value={selectedShipType?.ShipTypeId || ""}
-              onChange={(e) =>
-                setSelectedShipType(
-                  shipTypes.find(
-                    x => x.ShipTypeId === Number(e.target.value)
-                  )
+              className="w-full p-3 rounded-lg border"
+              value={orderVoucher?.UsageId || ""}
+              onChange={e =>
+                setOrderVoucher(
+                  orderVouchers.find(v => v.UsageId === Number(e.target.value)) || null
                 )
               }
             >
-              {shipTypes.map(st => (
-                <option key={st.ShipTypeId} value={st.ShipTypeId}>
-                  {st.Content} (+{st.ShipFee.toLocaleString()}đ)
+              <option value="">Không dùng</option>
+              {orderVouchers.map(v => (
+                <option
+                  key={v.UsageId}
+                  value={v.UsageId}
+                  disabled={productTotal < v.MinOrderValue}
+                >
+                  {v.VoucherName} (
+  {v.DiscountType === "percent"
+    ? `-${v.DiscountValue}%`
+    : `-${fmt(v.DiscountValue)}đ`
+  }
+)
+
                 </option>
               ))}
             </select>
           </section>
 
-          {/* ===== TỔNG ===== */}
+          {/* SHIP */}
+          <section className="p-6 border-t">
+            <h3 className="font-semibold mb-2">🚚 Vận chuyển</h3>
+            <select
+              className="w-full p-3 rounded-lg border"
+              value={selectedShipType?.ShipTypeId || ""}
+              onChange={e =>
+                setSelectedShipType(
+                  shipTypes.find(s => s.ShipTypeId === Number(e.target.value))
+                )
+              }
+            >
+              {shipTypes.map(s => (
+                <option key={s.ShipTypeId} value={s.ShipTypeId}>
+                  {s.Content} (+{fmt(s.ShipFee)}đ)
+                </option>
+              ))}
+            </select>
+          </section>
+
+          {/* TOTAL */}
           <section className="p-6 border-t bg-gray-50">
             <div className="text-right text-sm space-y-1">
-              <p>Giá hàng: {fmt(itemsTotal)}đ</p>
-              <p>Giảm giá: -{fmt(itemDiscountTotal)}đ</p>
-              <p>Phí ship: {fmt(shippingFee)}đ</p>
-
-              {orderVoucher && (
+              <p>Tiền hàng: {fmt(productTotal)}đ</p>
+              <p>Phí ship: {fmt(shipFee)}đ</p>
+              {orderVoucherDiscount.product > 0 && (
                 <p className="text-green-600">
-                  Voucher: -{fmt(orderVoucherDiscount)}đ
+                  Giảm đơn: -{fmt(orderVoucherDiscount.product)}đ
+                </p>
+              )}
+              {orderVoucherDiscount.ship > 0 && (
+                <p className="text-green-600">
+                  Giảm ship: -{fmt(orderVoucherDiscount.ship)}đ
                 </p>
               )}
             </div>
 
-            <div className="flex justify-between items-center mt-4">
+            <div className="flex justify-between mt-4">
               <span className="text-lg font-semibold">Tổng thanh toán</span>
               <span className="text-2xl font-bold text-red-500">
                 {fmt(grandTotal)}đ
@@ -344,13 +295,11 @@ const buyNowQuantity = location.state?.quantity;
 
             <button
               type="button"
-              className="w-full mt-4 py-3 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg"
-              onClick={() => alert("TODO: confirm order")}
+              className="w-full mt-4 py-3 bg-orange-500 text-white rounded-lg"
             >
               Đặt hàng
             </button>
           </section>
-
         </form>
       </div>
 

@@ -12,11 +12,9 @@ export default function ListVoucher() {
   // 📄 pagination (GIỐNG ListProduct)
   const [page, setPage] = useState(1);
   const pageSize = 15;
-  const renderConditionText = (condition) => {
-    if (!condition) return "Không điều kiện";
-
-    const value = Number(condition.replace(">=", ""));
-    return `Đơn từ ${value.toLocaleString("vi-VN")} đ`;
+  const renderConditionText = (minOrder) => {
+    if (!minOrder || Number(minOrder) === 0) return "N/A";
+    return `Đơn từ ${Number(minOrder).toLocaleString("vi-VN")} đ`;
   };
 
   const [filters, setFilters] = useState({
@@ -37,33 +35,25 @@ export default function ListVoucher() {
   const now = new Date();
 
   const filteredVouchers = vouchers.filter(v => {
-    // filter discount type
     if (filters.discountType && v.DiscountType !== filters.discountType) {
       return false;
     }
 
-    // filter condition text
-    if (filters.conditionText && v.ConditionText !== filters.conditionText) {
+    if (filters.conditionText && Number(v.MinOrderValue) !== Number(filters.conditionText)) {
       return false;
     }
 
-    // filter endtime
     const endTime = new Date(v.EndTime);
 
-    if (filters.endTime === "active" && endTime < now) {
-      return false;
-    }
-
-    if (filters.endTime === "expired" && endTime >= now) {
-      return false;
-    }
+    if (filters.endTime === "active" && endTime < now) return false;
+    if (filters.endTime === "expired" && endTime >= now) return false;
 
     return true;
   });
 
-  const renderDiscount = (type, value) => {
+  const renderDiscount = (type, value, max) => {
     if (type === "percent") {
-      return `${value} %`;
+      return `${value}% (tối đa ${Number(max).toLocaleString("vi-VN")} đ)`;
     }
     return `${Number(value).toLocaleString("vi-VN")} đ`;
   };
@@ -146,6 +136,7 @@ export default function ListVoucher() {
             <option value="">-- Loại giảm giá --</option>
             <option value="percent">Phần trăm (%)</option>
             <option value="fixed">Số tiền (đ)</option>
+            <option value="ship">Vận chuyển (đ)</option>
           </select>
 
           {/* End Time */}
@@ -168,32 +159,33 @@ export default function ListVoucher() {
             className="border rounded px-3 py-2 cursor-pointer"
           >
             <option value="">-- Chọn điều kiện --</option>
-            <option value=">=0">Đơn từ 0đ</option>
-            <option value=">=10000">Đơn từ 10.000đ</option>
-            <option value=">=20000">Đơn từ 20.000đ</option>
-            <option value=">=50000">Đơn từ 50.000đ</option>
-            <option value=">=100000">Đơn từ 100.000đ</option>
-            <option value=">=200000">Đơn từ 200.000đ</option>
-            <option value=">=500000">Đơn từ 500.000đ</option>
-            <option value=">=1000000">Đơn từ 1.000.000đ</option>
-            <option value=">=2000000">Đơn từ 2.000.000đ</option>
+            <option value="0">Đơn không cần điều kiện</option>
+            <option value="10000">Đơn từ 10.000đ</option>
+            <option value="20000">Đơn từ 20.000đ</option>
+            <option value="50000">Đơn từ 50.000đ</option>
+            <option value="100000">Đơn từ 100.000đ</option>
+            <option value="200000">Đơn từ 200.000đ</option>
+            <option value="500000">Đơn từ 500.000đ</option>
+            <option value="1000000">Đơn từ 1.000.000đ</option>
+            <option value="2000000">Đơn từ 2.000.000đ</option>
           </select>
+
           <span className="col-span-1"></span>
           {/* RESET */}
           <div className="col-span-2 flex justify-end">
-          <button
-            onClick={() => {
-              setFilters({
-                discountType: "",
-                endTime: "",
-                conditionText: ""
-              });
-              setPage(1);
-            }}
-            className="bg-gray-100 hover:bg-gray-200 rounded px-4 py-2 text-sm font-medium cursor-pointer"
-          >
-            Reset filter
-          </button>
+            <button
+              onClick={() => {
+                setFilters({
+                  discountType: "",
+                  endTime: "",
+                  conditionText: ""
+                });
+                setPage(1);
+              }}
+              className="bg-gray-100 hover:bg-gray-200 rounded px-4 py-2 text-sm font-medium cursor-pointer"
+            >
+              Làm mới
+            </button>
           </div>
         </div>
 
@@ -216,8 +208,13 @@ export default function ListVoucher() {
 
             <tbody>
               {pagedData.map((v) => {
-                const conditionText = renderConditionText(v.ConditionText);
-                const discountText = renderDiscount(v.DiscountType, v.Discount);
+                const conditionText = renderConditionText(v.MinOrderValue);
+                const discountText = renderDiscount(
+                  v.DiscountType,
+                  v.DiscountValue,
+                  v.MaxDiscount
+                );
+
 
                 return (
                   <tr

@@ -128,14 +128,17 @@ CREATE TABLE PaymentMethods (
 CREATE TABLE Vouchers (
     VoucherId INT AUTO_INCREMENT PRIMARY KEY,
     VoucherName VARCHAR(100) NOT NULL,
-    DiscountType VARCHAR(50) NOT NULL,
-    Discount INT NOT NULL,
+    DiscountType ENUM('fixed', 'percent', 'ship') NOT NULL,
+    DiscountValue INT NOT NULL,
+    MinOrderValue INT NOT NULL DEFAULT 0,
+    MaxDiscount INT DEFAULT NULL,
     Quantity INT NOT NULL,
-    ConditionText TEXT NOT NULL,
     EndTime DATE NOT NULL,
     CreatedBy INT NOT NULL,
+    CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (CreatedBy) REFERENCES Accounts(AccountId)
 );
+
 CREATE TABLE VoucherUsage (
     UsageId INT AUTO_INCREMENT PRIMARY KEY,
     VoucherId INT NOT NULL,
