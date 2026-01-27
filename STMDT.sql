@@ -60,23 +60,6 @@ CREATE TABLE ProductCategory (
     FOREIGN KEY (ProductId) REFERENCES Products(ProductId),
     FOREIGN KEY (CategoryId) REFERENCES Categories(CategoryId)
 );
-
-CREATE TABLE Promotions (
-    PromotionId INT AUTO_INCREMENT PRIMARY KEY,
-    DiscountType VARCHAR(50) NOT NULL,
-    DiscountValue INT NOT NULL,
-    Quantity INT,
-    StartTime DATETIME NOT NULL,
-    EndTime DATETIME NOT NULL,
-    Status TINYINT(1) DEFAULT 1 not null
-);
-CREATE TABLE PromotionProduct (
-    ProductId INT NOT NULL,
-    PromotionId INT NOT NULL,
-    PRIMARY KEY (ProductId, PromotionId),
-    FOREIGN KEY (ProductId) REFERENCES Products(ProductId),
-    FOREIGN KEY (PromotionId) REFERENCES Promotions(PromotionId)
-);
 CREATE TABLE Address (
     AddressId INT AUTO_INCREMENT PRIMARY KEY,
     AccountId INT NOT NULL,
