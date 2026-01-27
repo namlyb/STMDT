@@ -31,7 +31,59 @@ const OrderController = {
       console.error(err);
       res.status(500).json({ message: "Lỗi server" });
     }
+  },
+
+  checkoutBuyNow: async (req, res) => {
+  try {
+    const accountId = req.user.AccountId;
+    const { productId, quantity } = req.body;
+
+    const rows = await Order.checkoutBuyNow(
+      accountId,
+      productId,
+      quantity
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ message: "Không tìm thấy sản phẩm" });
+    }
+
+    // 🎯 gom thành 1 item
+    const base = rows[0];
+
+    const item = {
+      CartId: null,
+      ProductId: base.ProductId,
+      ProductName: base.ProductName,
+      Image: `${req.protocol}://${req.get("host")}/uploads/ProductImage/${base.Image}`,
+      Quantity: Number(base.Quantity),
+      UnitPrice: Number(base.UnitPrice),
+      totalPrice: Number(base.totalPrice),
+      StallId: base.StallId,
+      SellerAccountId: base.SellerAccountId,
+      vouchers: [],
+      selectedVoucher: null
+    };
+
+    // 🎟 gom voucher
+    item.vouchers = rows
+      .filter(r => r.VoucherId)
+      .map(r => ({
+        UsageId: r.UsageId,
+        VoucherId: r.VoucherId,
+        VoucherName: r.VoucherName,
+        DiscountType: r.DiscountType,
+        Discount: r.Discount,
+        CreatedBy: r.CreatedBy
+      }));
+
+    return res.json({ items: [item] });
+  } catch (err) {
+    console.error("checkoutBuyNow:", err);
+    return res.status(500).json({ message: "Checkout buy now failed" });
   }
+},
+
 
 };
 

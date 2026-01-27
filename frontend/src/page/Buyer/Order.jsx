@@ -23,48 +23,85 @@ export default function Order() {
   const [orderVouchers, setOrderVouchers] = useState([]); // voucher admin
   const [loading, setLoading] = useState(true);
 
+  const isBuyNow = location.state?.buyNow;
+const buyNowProductId = location.state?.productId;
+const buyNowQuantity = location.state?.quantity;
+
+
   // ================= FETCH =================
+
+  
+
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const account = JSON.parse(sessionStorage.getItem("account"));
-        if (!account) return navigate("/login");
-
-        const [checkoutRes, addressRes, shipTypeRes, voucherRes] =
-          await Promise.all([
-            axios.post("/orders/checkout", { cartIds }),
-            axios.get(`/addresses/account/${account.AccountId}`),
-            axios.get("/shiptypes"),
-            axios.get(`/voucher-usage/account/${account.AccountId}`),
-          ]);
-
-        setItems(
-          checkoutRes.data.items.map(i => ({
-            ...i,
-            selectedVoucher: null,
-          }))
-        );
-
-        // chỉ voucher admin cho toàn đơn
-        setOrderVouchers(
-          (voucherRes.data || []).filter(v => v.CreatedBy === 1)
-        );
-
-        setAddresses(addressRes.data || []);
-        setShipTypes(shipTypeRes.data || []);
-
-        if (addressRes.data?.length) setSelectedAddress(addressRes.data[0]);
-        if (shipTypeRes.data?.length) setSelectedShipType(shipTypeRes.data[0]);
-
-        setLoading(false);
-      } catch (err) {
-        console.error(err);
-        navigate("/cart");
+  const fetchData = async () => {
+    try {
+      const account = JSON.parse(sessionStorage.getItem("account"));
+      if (!account) {
+        navigate("/login");
+        return;
       }
-    };
 
-    fetchData();
-  }, []);
+      let checkoutRes;
+
+      if (isBuyNow) {
+        checkoutRes = await axios.post(
+          "/orders/checkout/buynow",
+          {
+            productId: buyNowProductId,
+            quantity: buyNowQuantity,
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${sessionStorage.getItem("token")}`,
+            },
+          }
+        );
+      } else {
+        checkoutRes = await axios.post(
+          "/orders/checkout",
+          { cartIds },
+          {
+            headers: {
+              Authorization: `Bearer ${sessionStorage.getItem("token")}`,
+            },
+          }
+        );
+      }
+
+      const [addressRes, shipTypeRes, voucherRes] = await Promise.all([
+        axios.get(`/addresses/account/${account.AccountId}`),
+        axios.get("/shiptypes"),
+        axios.get(`/voucher-usage/account/${account.AccountId}`),
+      ]);
+
+      setItems(
+        checkoutRes.data.items.map(i => ({
+          ...i,
+          selectedVoucher: null,
+        }))
+      );
+
+      setOrderVouchers(
+        (voucherRes.data || []).filter(v => v.CreatedBy === 1)
+      );
+
+      setAddresses(addressRes.data || []);
+      setShipTypes(shipTypeRes.data || []);
+
+      if (addressRes.data?.length) setSelectedAddress(addressRes.data[0]);
+      if (shipTypeRes.data?.length) setSelectedShipType(shipTypeRes.data[0]);
+
+      setLoading(false);
+    } catch (err) {
+      console.error("CHECKOUT ERROR:", err);
+      alert("Không thể tạo đơn hàng. Vui lòng thử lại.");
+      navigate("/cart");
+    }
+  };
+
+  fetchData();
+}, []);
+
 
   // ================= VOUCHER STATE =================
   const usedVoucherUsageIds = items
@@ -122,6 +159,8 @@ export default function Order() {
     0
   );
 
+  const fmt = (n) => Number(n || 0).toLocaleString();
+
   if (loading) return <p className="text-center mt-10">Đang tải...</p>;
 
   // ================= RENDER =================
@@ -160,7 +199,7 @@ export default function Order() {
             <h3 className="text-lg font-semibold">🛒 Sản phẩm</h3>
 
             {items.map(item => (
-              <div key={item.CartId} className="flex gap-4">
+              <div key={item.CartId ?? `buy-${item.ProductId}`} className="flex gap-4">
                 <img
                   src={item.Image}
                   alt={item.ProductName}
@@ -173,7 +212,7 @@ export default function Order() {
                     Số lượng: {item.Quantity}
                   </p>
                   <p className="text-sm text-gray-500">
-                    Giá: {item.UnitPrice.toLocaleString()}đ
+                    Giá: {fmt(item.UnitPrice)}đ
                   </p>
 
                   {/* Voucher sản phẩm */}
@@ -210,7 +249,7 @@ export default function Order() {
                           {v.VoucherName} –{" "}
                           {v.DiscountType === "percent"
                             ? `${v.Discount}%`
-                            : `${v.Discount.toLocaleString()}đ`}
+                            : `${fmt(v.Discount)}đ`}
                         </option>
                       );
                     })}
@@ -285,13 +324,13 @@ export default function Order() {
           {/* ===== TỔNG ===== */}
           <section className="p-6 border-t bg-gray-50">
             <div className="text-right text-sm space-y-1">
-              <p>Giá hàng: {itemsTotal.toLocaleString()}đ</p>
-              <p>Giảm giá: -{itemDiscountTotal.toLocaleString()}đ</p>
-              <p>Phí ship: {shippingFee.toLocaleString()}đ</p>
+              <p>Giá hàng: {fmt(itemsTotal)}đ</p>
+              <p>Giảm giá: -{fmt(itemDiscountTotal)}đ</p>
+              <p>Phí ship: {fmt(shippingFee)}đ</p>
 
               {orderVoucher && (
                 <p className="text-green-600">
-                  Voucher: -{orderVoucherDiscount.toLocaleString()}đ
+                  Voucher: -{fmt(orderVoucherDiscount)}đ
                 </p>
               )}
             </div>
@@ -299,7 +338,7 @@ export default function Order() {
             <div className="flex justify-between items-center mt-4">
               <span className="text-lg font-semibold">Tổng thanh toán</span>
               <span className="text-2xl font-bold text-red-500">
-                {grandTotal.toLocaleString()}đ
+                {fmt(grandTotal)}đ
               </span>
             </div>
 

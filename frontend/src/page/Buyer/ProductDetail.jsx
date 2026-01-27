@@ -69,6 +69,17 @@ export default function ProductDetail() {
     }
   };
 
+  const buyNow = () => {
+  navigate("/checkout", {
+    state: {
+      buyNow: true,
+      productId: product.ProductId,
+      quantity
+    }
+  });
+};
+
+
   return (
     <>
       <Header />
@@ -106,9 +117,13 @@ export default function ProductDetail() {
             </div>
 
             <div className="flex gap-3">
-              <button className="px-6 py-2 bg-orange-500 text-white rounded cursor-pointer">
-                Mua ngay
-              </button>
+              <button
+  onClick={buyNow}
+  className="px-6 py-2 bg-orange-500 text-white rounded cursor-pointer"
+>
+  Mua ngay
+</button>
+
               <button onClick={addToCart} className="px-6 py-2 border rounded cursor-pointer">
                 Thêm vào giỏ
               </button>

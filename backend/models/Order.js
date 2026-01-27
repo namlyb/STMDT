@@ -1,4 +1,5 @@
 const {pool} = require("../config/db");
+const { checkoutBuyNow } = require("../controllers/OrderController");
 
 const Order = {
   getByIds: async (accountId, cartIds) => {
@@ -71,6 +72,58 @@ const Order = {
   return rows;
   },
 
+   checkoutBuyNow: async (accountId, productId, quantity) => {
+    const [rows] = await pool.query(
+      `
+      SELECT
+        NULL AS CartId,
+        ? AS Quantity,
+        p.Price AS UnitPrice,
+        (? * p.Price) AS totalPrice,
+
+        p.ProductId,
+        p.ProductName,
+        p.Image,
+
+        s.StallId,
+        s.AccountId AS SellerAccountId,
+
+        vu.UsageId,
+        v.VoucherId,
+        v.VoucherName,
+        v.DiscountType,
+        v.Discount,
+        v.ConditionText,
+        v.EndTime,
+        v.CreatedBy
+
+      FROM Products p
+      JOIN Stalls s ON s.StallId = p.StallId
+
+      LEFT JOIN VoucherUsage vu 
+        ON vu.AccountId = ?
+        AND vu.IsUsed = 0
+
+      LEFT JOIN Vouchers v 
+        ON v.VoucherId = vu.VoucherId
+        AND (
+          v.CreatedBy = s.AccountId OR v.CreatedBy = 1
+        )
+        AND v.EndTime >= CURDATE()
+
+      WHERE p.ProductId = ?
+        AND p.IsActive = 1
+      `,
+      [
+        quantity,
+        quantity,
+        accountId,
+        productId
+      ]
+    );
+
+    return rows;
+  },
 };
 
 module.exports = Order;
