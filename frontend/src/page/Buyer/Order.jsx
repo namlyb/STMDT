@@ -40,9 +40,9 @@ export default function Order() {
 
         const checkoutRes = isBuyNow
           ? await axios.post("/orders/checkout/buynow", {
-              productId: buyNowProductId,
-              quantity: buyNowQuantity,
-            })
+            productId: buyNowProductId,
+            quantity: buyNowQuantity,
+          })
           : await axios.post("/orders/checkout", { cartIds });
 
         const [addrRes, shipRes, voucherRes] = await Promise.all([
@@ -149,7 +149,7 @@ export default function Order() {
             </h3>
 
             <select
-              className="w-full p-3 rounded-lg border"
+              className="w-full p-3 rounded-lg border border-gray-300"
               value={selectedAddress?.AddressId || ""}
               onChange={e =>
                 setSelectedAddress(
@@ -167,8 +167,6 @@ export default function Order() {
 
           {/* ITEMS */}
           <section className="p-6 space-y-6">
-            <h3 className="text-lg font-semibold">🛒 Sản phẩm</h3>
-
             {items.map(item => (
               <div key={item.CartId ?? item.ProductId} className="flex gap-4">
                 <img src={item.Image} className="w-24 h-24 rounded-lg" />
@@ -178,7 +176,7 @@ export default function Order() {
                   <p className="text-sm text-gray-500">SL: {item.Quantity}</p>
 
                   <select
-                    className="mt-2 w-full p-2 text-sm rounded-md border"
+                    className="mt-2 w-full p-2 text-sm rounded-md border border-gray-300"
                     value={item.selectedVoucher?.UsageId || ""}
                     onChange={e => {
                       const v = item.vouchers.find(
@@ -199,11 +197,11 @@ export default function Order() {
                         disabled={item.totalPrice < v.MinOrderValue}
                       >
                         {v.VoucherName} (
-  {v.DiscountType === "percent"
-    ? `-${v.DiscountValue}%`
-    : `-${fmt(v.DiscountValue)}đ`
-  }
-)
+                        {v.DiscountType === "percent"
+                          ? `-${v.DiscountValue}%`
+                          : `-${fmt(v.DiscountValue)}đ`
+                        }
+                        )
 
                       </option>
                     ))}
@@ -218,11 +216,11 @@ export default function Order() {
           </section>
 
           {/* ORDER VOUCHER */}
-          <section className="p-6 border-t">
+          <section className="p-6">
             <h3 className="font-semibold mb-2">🎫 Voucher toàn đơn</h3>
 
             <select
-              className="w-full p-3 rounded-lg border"
+              className="w-full p-3 rounded-lg border border-gray-300"
               value={orderVoucher?.UsageId || ""}
               onChange={e =>
                 setOrderVoucher(
@@ -238,11 +236,11 @@ export default function Order() {
                   disabled={productTotal < v.MinOrderValue}
                 >
                   {v.VoucherName} (
-  {v.DiscountType === "percent"
-    ? `-${v.DiscountValue}%`
-    : `-${fmt(v.DiscountValue)}đ`
-  }
-)
+                  {v.DiscountType === "percent"
+                    ? `-${v.DiscountValue}%`
+                    : `-${fmt(v.DiscountValue)}đ`
+                  }
+                  )
 
                 </option>
               ))}
@@ -250,10 +248,10 @@ export default function Order() {
           </section>
 
           {/* SHIP */}
-          <section className="p-6 border-t">
+          <section className="p-6">
             <h3 className="font-semibold mb-2">🚚 Vận chuyển</h3>
             <select
-              className="w-full p-3 rounded-lg border"
+              className="w-full p-3 rounded-lg border border-gray-300"
               value={selectedShipType?.ShipTypeId || ""}
               onChange={e =>
                 setSelectedShipType(
@@ -295,7 +293,7 @@ export default function Order() {
 
             <button
               type="button"
-              className="w-full mt-4 py-3 bg-orange-500 text-white rounded-lg"
+              className="w-full mt-4 py-3 bg-orange-500 cursor-pointer text-white rounded-lg"
             >
               Đặt hàng
             </button>
