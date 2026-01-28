@@ -75,7 +75,7 @@ CREATE TABLE Messages (
     ChatId INT NOT NULL,
     SenderId INT NOT NULL,
     Content TEXT NOT NULL,
-    SendAt DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    SendAt DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     IsRead TINYINT(1) DEFAULT 0,
     FOREIGN KEY (ChatId) REFERENCES Chats(ChatId),
     FOREIGN KEY (SenderId) REFERENCES Accounts(AccountId)
@@ -84,15 +84,6 @@ CREATE TABLE ShipType (
     ShipTypeId INT AUTO_INCREMENT PRIMARY KEY,
     Content VARCHAR(255) NOT NULL,
     ShipFee INT NOT NULL
-);
-CREATE TABLE Shipments (
-    ShipmentId INT AUTO_INCREMENT PRIMARY KEY,
-    TrackingCode VARCHAR(100) NOT NULL,
-    ShippingFee INT NOT NULL,
-    CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    Status VARCHAR(255),
-    ShipTypeId INT NOT NULL,
-    FOREIGN KEY (ShipTypeId) REFERENCES ShipType(ShipTypeId)
 );
 CREATE TABLE PlatformFees (
     FeeId INT AUTO_INCREMENT PRIMARY KEY,
@@ -108,17 +99,13 @@ CREATE TABLE Orders (
     MethodId INT NOT NULL,
     UsageId INT,
     OrderDate DATE NOT NULL,
-    StallId INT NOT NULL,
     CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UpdatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    ShipmentId INT,
     FOREIGN KEY (AccountId) REFERENCES Accounts(AccountId),
     FOREIGN KEY (FeeId) REFERENCES PlatformFees(FeeId),
     FOREIGN KEY (AddressId) REFERENCES Address(AddressId),
     FOREIGN KEY (MethodId) REFERENCES PaymentMethods(MethodId),
-    FOREIGN KEY (UsageId) REFERENCES VoucherUsage(UsageId),
-    FOREIGN KEY (StallId) REFERENCES Stalls(StallId),
-    FOREIGN KEY (ShipmentId) REFERENCES Shipments(ShipmentId)
+    FOREIGN KEY (UsageId) REFERENCES VoucherUsage(UsageId)
 );
 CREATE TABLE PaymentMethods (
     MethodId INT AUTO_INCREMENT PRIMARY KEY,
@@ -157,9 +144,12 @@ CREATE TABLE OrderDetails (
     UnitPrice INT NOT NULL,
     Quantity INT NOT NULL,
     CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    ShipType INT NOT NULL,
+    ShipFee INT NOT NULL,
     FOREIGN KEY (OrderId) REFERENCES Orders(OrderId),
     FOREIGN KEY (ProductId) REFERENCES Products(ProductId),
-    FOREIGN KEY (UsageId) REFERENCES VoucherUsage(UsageId)
+    FOREIGN KEY (UsageId) REFERENCES VoucherUsage(UsageId),
+    FOREIGN KEY (ShipType) REFERENCES ShipType(ShipTypeId)
 );
 CREATE TABLE Feedbacks (
     FeedbackId INT AUTO_INCREMENT PRIMARY KEY,
@@ -184,6 +174,7 @@ CREATE TABLE Payments (
 CREATE TABLE OrderStatusHistory (
     HistoryId INT AUTO_INCREMENT PRIMARY KEY,
     OrderDetailId INT NOT NULL,
+    TrackingCode VARCHAR(100) NOT NULL,
     Status VARCHAR(100) NOT NULL,
     CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (OrderDetailId) REFERENCES OrderDetails(OrderDetailId)
