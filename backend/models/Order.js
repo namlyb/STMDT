@@ -84,6 +84,7 @@ const Order = {
         p.ProductId,
         p.ProductName,
         p.Image,
+        p.Price,
 
         s.StallId,
         s.AccountId AS SellerAccountId,
@@ -115,7 +116,6 @@ const Order = {
         AND p.IsActive = 1
       `,
       [
-        quantity,
         quantity,
         accountId,
         productId

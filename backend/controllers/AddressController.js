@@ -31,12 +31,14 @@ const AddressController = {
 
   create: async (req, res) => {
     try {
-      const { Content } = req.body;
-      if (!Content)
-        return res.status(400).json({ message: "Thiếu nội dung" });
+      const { Name, Phone, Content } = req.body;
+      if (!Name || !Phone || !Content)
+        return res.status(400).json({ message: "Thiếu thông tin địa chỉ" });
 
       const address = await Address.create({
         AccountId: req.user.AccountId,
+        Name,
+        Phone,
         Content,
       });
 
@@ -49,7 +51,10 @@ const AddressController = {
   update: async (req, res) => {
     try {
       const { id } = req.params;
-      const { Content } = req.body;
+      const { Name, Phone, Content } = req.body;
+
+    if (!Name || !Phone || !Content)
+      return res.status(400).json({ message: "Thiếu thông tin địa chỉ" });
 
       const address = await Address.getById(id);
       if (!address)
@@ -58,7 +63,7 @@ const AddressController = {
       if (address.AccountId !== req.user.AccountId)
         return res.status(403).json({ message: "Không có quyền" });
 
-      await Address.update(id, Content);
+      await Address.update(id, { Name, Phone, Content });
       res.json({ message: "Cập nhật thành công" });
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -82,6 +87,24 @@ const AddressController = {
       res.status(500).json({ message: err.message });
     }
   },
+
+  getById: async (req, res) => {
+  try {
+    const { id } = req.params;
+    const address = await Address.getById(id);
+
+    if (!address)
+      return res.status(404).json({ message: "Không tồn tại" });
+
+    if (address.AccountId !== req.user.AccountId)
+      return res.status(403).json({ message: "Không có quyền" });
+
+    res.json(address);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+},
+
 };
 
 module.exports = AddressController;

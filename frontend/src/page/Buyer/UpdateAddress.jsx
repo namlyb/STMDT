@@ -1,39 +1,63 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import Header from "../../components/Guest/Header";
 import Sidebar from "../../components/Buyer/Sidebar";
 import axios from "../../components/lib/axios";
 
-export default function AddNewAddress() {
+export default function UpdateAddress() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const token = sessionStorage.getItem("token");
+
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(false);
   const [phoneError, setPhoneError] = useState("");
 
-
-  const navigate = useNavigate();
-  const token = sessionStorage.getItem("token");
+  // ====== CHECK ROLE ======
   useEffect(() => {
     const roleId = sessionStorage.getItem("roleId");
-
     if (roleId !== "2") {
       alert("Bạn không có quyền truy cập");
       navigate("/");
     }
   }, [navigate]);
 
+  // ====== FETCH ADDRESS DETAIL ======
+  useEffect(() => {
+    const fetchDetail = async () => {
+      try {
+        const res = await axios.get(`/addresses/${id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        setName(res.data.Name);
+        setPhone(res.data.Phone);
+        setContent(res.data.Content);
+      } catch (err) {
+        alert("Không tìm thấy địa chỉ");
+        navigate("/address");
+      }
+    };
+
+    if (id && token) fetchDetail();
+  }, [id, token, navigate]);
+
+  // ====== SUBMIT UPDATE ======
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     if (!name.trim()) return alert("Nhập tên người nhận");
     if (!phone.trim()) return alert("Nhập số điện thoại");
-    if (phone.trim().length !== 10)
+    if (phone.length !== 10)
       return alert("Số điện thoại phải đúng 10 chữ số");
     if (!content.trim()) return alert("Nhập địa chỉ");
+
     try {
       setLoading(true);
-      await axios.post(
-        "/addresses",
+      await axios.put(
+        `/addresses/${id}`,
         {
           Name: name.trim(),
           Phone: phone.trim(),
@@ -44,7 +68,7 @@ export default function AddNewAddress() {
 
       navigate("/address");
     } catch (err) {
-      alert("Thêm thất bại");
+      alert("Cập nhật thất bại");
     } finally {
       setLoading(false);
     }
@@ -57,14 +81,14 @@ export default function AddNewAddress() {
     navigate("/address");
   };
 
-
   return (
     <>
       <Header />
       <div className="max-w-[1200px] mx-auto mt-6 flex gap-6">
         <Sidebar />
+
         <div className="flex-1 bg-white border rounded p-6">
-          <h2 className="text-xl font-semibold mb-6">Thêm địa chỉ</h2>
+          <h2 className="text-xl font-semibold mb-6">Cập nhật địa chỉ</h2>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <input
@@ -77,7 +101,7 @@ export default function AddNewAddress() {
             <input
               value={phone}
               onChange={(e) => {
-                const value = e.target.value.replace(/\D/g, ""); // chỉ cho số
+                const value = e.target.value.replace(/\D/g, "");
                 setPhone(value);
 
                 if (value.length > 10) {
@@ -92,12 +116,14 @@ export default function AddNewAddress() {
                 }
               }}
               placeholder="Số điện thoại"
-              className={`w-full border rounded p-3 ${phoneError ? "border-red-500" : ""
-                }`}
+              className={`w-full border rounded p-3 ${
+                phoneError ? "border-red-500" : ""
+              }`}
             />
             {phoneError && (
               <p className="text-red-500 text-sm mt-1">{phoneError}</p>
             )}
+
             <textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
@@ -110,10 +136,11 @@ export default function AddNewAddress() {
               <button
                 type="submit"
                 disabled={loading}
-                className="bg-orange-500 text-white cursor-pointer px-6 py-2 rounded disabled:opacity-60"
+                className="bg-orange-500 text-white px-6 py-2 cursor-pointer rounded disabled:opacity-60"
               >
-                {loading ? "Đang lưu..." : "Lưu"}
+                {loading ? "Đang lưu..." : "Cập nhật"}
               </button>
+
               <button
                 type="button"
                 onClick={handleCancel}
@@ -121,12 +148,8 @@ export default function AddNewAddress() {
               >
                 Huỷ
               </button>
-
             </div>
-
-
           </form>
-
         </div>
       </div>
     </>

@@ -143,26 +143,53 @@ export default function Order() {
         <form className="max-w-6xl mx-auto bg-white rounded-xl shadow-sm overflow-hidden">
 
           {/* ADDRESS */}
-          <section className="p-6 border-b">
-            <h3 className="text-lg font-semibold text-orange-600 mb-3">
+          <section className="p-6 border-b bg-orange-50">
+            <h3 className="text-lg font-semibold text-orange-600 mb-4 flex items-center gap-2">
               📍 Địa chỉ nhận hàng
             </h3>
 
-            <select
-              className="w-full p-3 rounded-lg border border-gray-300"
-              value={selectedAddress?.AddressId || ""}
-              onChange={e =>
-                setSelectedAddress(
-                  addresses.find(a => a.AddressId === Number(e.target.value))
-                )
-              }
-            >
-              {addresses.map(a => (
-                <option key={a.AddressId} value={a.AddressId}>
-                  {a.Name} | {a.Phone} | {a.Content}
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              {/* Card hiển thị địa chỉ đang chọn */}
+              <div className="
+      p-4 bg-white border rounded-lg cursor-pointer
+      hover:border-orange-400 transition
+    ">
+                {selectedAddress ? (
+                  <>
+                    <p className="font-semibold text-gray-800">
+                      {selectedAddress.Name}
+                      <span className="ml-2 text-sm text-gray-500">
+                        | {selectedAddress.Phone}
+                      </span>
+                    </p>
+                    <p className="text-gray-600 mt-1 line-clamp-2">
+                      {selectedAddress.Content}
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-gray-400">Chọn địa chỉ nhận hàng</p>
+                )}
+              </div>
+
+              {/* Select phủ lên card */}
+              <select
+                className="
+        absolute inset-0 opacity-0 cursor-pointer
+      "
+                value={selectedAddress?.AddressId || ""}
+                onChange={e =>
+                  setSelectedAddress(
+                    addresses.find(a => a.AddressId === Number(e.target.value))
+                  )
+                }
+              >
+                {addresses.map(a => (
+                  <option key={a.AddressId} value={a.AddressId}>
+                    {a.Name} | {a.Phone} | {a.Content}
+                  </option>
+                ))}
+              </select>
+            </div>
           </section>
 
           {/* ITEMS */}
@@ -174,7 +201,7 @@ export default function Order() {
                 <div className="flex-1">
                   <h4 className="font-medium">{item.ProductName}</h4>
                   <p className="text-sm text-gray-500">SL: {item.Quantity}</p>
-
+                  <p className="text-sm text-gray-500">Giá: {fmt(item.UnitPrice)}</p>
                   <select
                     className="mt-2 w-full p-2 text-sm rounded-md border border-gray-300"
                     value={item.selectedVoucher?.UsageId || ""}
@@ -198,8 +225,8 @@ export default function Order() {
                       >
                         {v.VoucherName} (
                         {v.DiscountType === "percent"
-                          ? `-${v.DiscountValue}%`
-                          : `-${fmt(v.DiscountValue)}đ`
+                          ? `Giảm ${v.DiscountValue}% - tối đa ${fmt(v.MaxDiscount)}đ ${v.MinOrderValue === 0 ? "" : `cho đơn hàng từ ${fmt(v.MinOrderValue)}đ`}`
+                          : `Giảm ${fmt(v.DiscountValue)}đ ${v.MinOrderValue === 0 ? "" : `cho đơn hàng từ ${fmt(v.MinOrderValue)}đ`}`
                         }
                         )
 
@@ -237,8 +264,8 @@ export default function Order() {
                 >
                   {v.VoucherName} (
                   {v.DiscountType === "percent"
-                    ? `-${v.DiscountValue}%`
-                    : `-${fmt(v.DiscountValue)}đ`
+                    ? `Giảm ${v.DiscountValue}% - tối đa ${fmt(v.MaxDiscount)}đ ${v.MinOrderValue === 0 ? "" : `cho đơn hàng từ ${fmt(v.MinOrderValue)}đ`}`
+                    : `Giảm ${fmt(v.DiscountValue)}đ ${v.MinOrderValue === 0 ? "" : `cho đơn hàng từ ${fmt(v.MinOrderValue)}đ`}`
                   }
                   )
 

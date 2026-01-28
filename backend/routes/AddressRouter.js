@@ -12,5 +12,6 @@ router.get("/me", verifyToken, AddressController.getMyAddress);
 router.get("/account/:accountId", verifyToken, AddressController.getByAccount);
 router.put("/:id", verifyToken, AddressController.update);
 router.delete("/:id", verifyToken, AddressController.delete);
+router.get("/:id", verifyToken, AddressController.getById);
 
 module.exports = router;

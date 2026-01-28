@@ -28,6 +28,7 @@ import UpdateVoucher from "./page/Seller/UpdateVoucher";
 import ListVoucher from "./page/Admin/ListVoucher";
 import CreateVoucher from "./page/Admin/CreateVoucher";
 import MyVoucher from "./page/Buyer/MyVoucher";
+import UpdateAddress from "./page/Buyer/UpdateAddress";
 
 
 function App() {
@@ -66,6 +67,7 @@ function App() {
         <Route path="/profile" element={<Profile />} />
         <Route path="/address" element={<Address />} />
         <Route path="/address/add" element={<AddAddress />} />
+        <Route path="/address/update/:id" element={<UpdateAddress />} />
         <Route path="/my-voucher" element={<MyVoucher />} />
       </Route>
         <Route path="/cart" element={<Cart />} />

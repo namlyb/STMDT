@@ -82,20 +82,31 @@ export default function Address() {
               {list.map((item) => (
                 <div
                   key={item.AddressId}
-                  className="border rounded-lg p-4 flex justify-between items-start hover:shadow transition"
+                  onClick={() => navigate(`/address/update/${item.AddressId}`)}
+                  className="border rounded-lg p-4 flex justify-between items-start cursor-pointer hover:shadow transition relative"
                 >
+
                   <div>
-                    <p className="font-medium text-gray-800">
-                      {item.Content}
-                    </p>
+                    <div>
+                      <p className="font-semibold text-gray-800">
+                        {item.Name} - {item.Phone}
+                      </p>
+                      <p className="text-gray-600">{item.Content}</p>
+                    </div>
                   </div>
 
                   <button
-                    onClick={() => handleDelete(item.AddressId)}
-                    className="text-red-500 hover:text-red-600 text-sm"
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(item.AddressId);
+                    }}
+                    className=" flex items-center gap-1 cursor-pointer px-3 py-1.5 text-sm font-medium text-red-600 border border-red-200 rounded-md hover:bg-red-200 hover:border-red-500 active:scale-95 transition"
                   >
                     Xóa
                   </button>
+
+
                 </div>
               ))}
             </div>

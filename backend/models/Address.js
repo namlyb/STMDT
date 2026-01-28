@@ -10,7 +10,7 @@ const Address = {
 
   getByAccountId: async (accountId) => {
     const [rows] = await pool.query(
-      "SELECT * FROM Address WHERE AccountId = ? and Status = 1 ORDER BY AddressId DESC",
+      `SELECT * FROM Address WHERE AccountId = ? and Status = 1 ORDER BY AddressId DESC`,
       [accountId]
     );
     return rows;
@@ -24,23 +24,26 @@ const Address = {
     return rows[0];
   },
 
-  create: async ({ AccountId, Content }) => {
+  create: async ({ AccountId, Name, Phone,Content }) => {
     const [result] = await pool.query(
-      "INSERT INTO Address (AccountId, Content, Status) VALUES (?, ?, 1)",
-      [AccountId, Content]
+      `INSERT INTO Address (AccountId, Name, Phone, Content, Status)
+       VALUES (?, ?, ?, ?, 1)`,
+      [AccountId, Name, Phone, Content]
     );
 
     return {
       AddressId: result.insertId,
       AccountId,
+      Name,
+      Phone,
       Content,
     };
   },
 
-  update: async (id, Content) => {
+  update: async (id, { Name, Phone, Content }) => {
     await pool.query(
-      "UPDATE Address SET Content = ? WHERE AddressId = ?",
-      [Content, id]
+      "UPDATE Address SET Name = ?, Phone = ?, Content = ? WHERE AddressId = ?",
+      [Name, Phone, Content, id]
     );
   },
 
