@@ -58,46 +58,28 @@ export default function Home() {
     setMaxTranslate(max);
   }, [vouchers]);
 
-  const renderConditionText = (condition) => {
-    if (!condition) return "";
-
-    const map = {
-      ">=0": "Đơn từ 0đ",
-      ">=10000": "Đơn từ 10.000đ",
-      ">=20000": "Đơn từ 20.000đ",
-      ">=50000": "Đơn từ 50.000đ",
-      ">=100000": "Đơn từ 100.000đ",
-      ">=200000": "Đơn từ 200.000đ",
-      ">=500000": "Đơn từ 500.000đ",
-      ">=1000000": "Đơn từ 1.000.000đ",
-      ">=2000000": "Đơn từ 2.000.000đ",
-    };
-
-    return map[condition] || "";
-  };
-
   const translateX = Math.min(voucherIndex * VOUCHER_WIDTH, maxTranslate);
 
-const getVoucherBtnClass = (v) => {
-  if (v.isOut) return "bg-gray-300 text-gray-500 cursor-not-allowed";
-  if (v.isReceived) return "bg-gray-400 text-white cursor-not-allowed";
-  return "bg-orange-500 hover:bg-orange-600 text-white";
-};
+  const getVoucherBtnClass = (v) => {
+    if (v.isOut) return "bg-gray-300 text-gray-500 cursor-not-allowed";
+    if (v.isReceived) return "bg-gray-400 text-white cursor-not-allowed";
+    return "bg-orange-500 hover:bg-orange-600 text-white";
+  };
 
-const handleSaveVoucher = async (voucherId) => {
-  try {
-    await axios.post("/voucher-usage/save", { voucherId });
-    setVouchers(prev =>
-      prev.map(v =>
-        v.VoucherId === voucherId
-          ? { ...v, isReceived: 1, Quantity: v.Quantity - 1 }
-          : v
-      )
-    );
-  } catch (err) {
-    alert(err.response?.data?.message || "Lỗi");
-  }
-};
+  const handleSaveVoucher = async (voucherId) => {
+    try {
+      await axios.post("/voucher-usage/save", { voucherId });
+      setVouchers(prev =>
+        prev.map(v =>
+          v.VoucherId === voucherId
+            ? { ...v, isReceived: 1, Quantity: v.Quantity - 1 }
+            : v
+        )
+      );
+    } catch (err) {
+      alert(err.response?.data?.message || "Lỗi");
+    }
+  };
 
   return (
     <>
@@ -171,7 +153,12 @@ const handleSaveVoucher = async (voucherId) => {
                   <p className="text-red-500 font-bold">
                     {Number(product.Price).toLocaleString()} ₫
                   </p>
+                  {/* View Details Button */}
+                    <button className="mt-4 w-full py-2 bg-gray-50 text-gray-700 cursor-pointer rounded-lg font-medium hover:bg-orange-50 hover:text-orange-600 transition-colors text-sm">
+                      Xem chi tiết
+                    </button>
                 </div>
+                
               ))}
             </div>
 
@@ -211,16 +198,21 @@ const handleSaveVoucher = async (voucherId) => {
 
                       <p className="text-red-500 font-bold mt-1">
                         {v.DiscountType === "percent"
-  ? `Giảm ${v.DiscountValue}%`
-  : `Giảm ${Number(v.DiscountValue).toLocaleString()} ₫`}
+                          ? `Giảm ${v.DiscountValue}%`
+                          : `Giảm ${Number(v.DiscountValue).toLocaleString()} ₫`}
 
                       </p>
 
                       {v.MinOrderValue > 0 && (
-  <p className="text-xs text-gray-600 mt-1">
-    Đơn từ {Number(v.MinOrderValue).toLocaleString()}đ
-  </p>
-)}
+                        <p className="text-xs text-gray-600 mt-1">
+                          Đơn từ {Number(v.MinOrderValue).toLocaleString()}đ
+                        </p>
+                      )}
+                      {v.MaxDiscount > 0 && (
+                        <p className="text-xs text-gray-600 mt-1">
+                          Tối đa {Number(v.MaxDiscount).toLocaleString()}đ
+                        </p>
+                      )}
 
 
                       <p className="text-xs text-gray-500 mt-1 italic">
@@ -234,14 +226,14 @@ const handleSaveVoucher = async (voucherId) => {
                       </p>
 
                       <button
-  disabled={v.isReceived || v.isOut}
-  onClick={() => handleSaveVoucher(v.VoucherId)}
-  className={`mt-2 w-full text-sm rounded py-1 transition
+                        disabled={v.isReceived || v.isOut}
+                        onClick={() => handleSaveVoucher(v.VoucherId)}
+                        className={`mt-2 w-full text-sm rounded py-1 transition
     ${getVoucherBtnClass(v)}
   `}
->
-  {v.isOut ? "Hết lượt" : v.isReceived ? "Đã nhận" : "Lưu voucher"}
-</button>
+                      >
+                        {v.isOut ? "Hết lượt" : v.isReceived ? "Đã nhận" : "Lưu voucher"}
+                      </button>
 
                     </div>
                   ))}
