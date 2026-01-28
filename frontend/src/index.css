@@ -31,4 +31,46 @@
     0 0 4px rgba(255,255,255,0.6),
     0 0 8px rgba(255,255,255,0.4);
 }
+/* Thêm vào file index.css */
 
+/* Style cho select boxes */
+select:focus {
+  outline: none;
+  border-color: #f97316;
+  box-shadow: 0 0 0 1px #f97316;
+}
+
+/* Style cho option */
+option {
+  padding: 8px;
+}
+
+/* Style cho disabled options */
+option:disabled {
+  color: #9ca3af;
+  background-color: #f3f4f6;
+}
+
+/* Custom scrollbar cho select */
+select {
+  scrollbar-width: thin;
+  scrollbar-color: #d1d5db #f3f4f6;
+}
+
+select::-webkit-scrollbar {
+  width: 8px;
+}
+
+select::-webkit-scrollbar-track {
+  background: #f3f4f6;
+  border-radius: 4px;
+}
+
+select::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 4px;
+}
+
+select::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}

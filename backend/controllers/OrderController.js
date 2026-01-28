@@ -1,45 +1,35 @@
-const Cart = require("../models/Cart");
-const VoucherUsage = require("../models/VoucherUsage");
 const Order = require("../models/Order");
-
+const ShipType = require("../models/ShipType");
 
 const OrderController = {
   checkout: async (req, res) => {
     try {
       const { cartIds } = req.body;
-      const accountId = req.user.AccountId; // giả sử verifyToken gắn req.user
+      const accountId = req.user.AccountId;
 
       // 1️⃣ Lấy sản phẩm checkout
-      const items = await Cart.getCheckoutItems(accountId, cartIds);
+      const items = await Order.getCheckoutItems(accountId, cartIds);
 
-      // 2️⃣ Lấy voucher chưa dùng của user
-      const userVouchers = await VoucherUsage.getUnusedByAccount(accountId);
+      // 2️⃣ Lấy voucher toàn đơn (chỉ admin, tất cả loại)
+      const orderVouchers = await Order.getOrderVouchers(accountId);
 
-      // 3️⃣ Gắn voucher cho từng sản phẩm theo StallId
-      const itemsWithVouchers = items.map((item) => {
-        const vouchers = userVouchers.filter(v => v.CreatedBy === 1 || v.StallId === item.StallId);
-        return {
-          ...item,
-          Image: `${req.protocol}://${req.get("host")}/uploads/ProductImage/${item.Image}`,
-          vouchers,
-          selectedVoucher: null
-        };
+      // 3️⃣ Lấy tất cả voucher để kiểm tra trùng
+      const allVouchers = await Order.getAllVouchers(accountId);
+
+      // 4️⃣ Format image URL
+      const itemsWithImages = items.map(item => ({
+        ...item,
+        Image: `${req.protocol}://${req.get("host")}/uploads/ProductImage/${item.Image}`
+      }));
+
+      res.json({ 
+        items: itemsWithImages,
+        orderVouchers,
+        allVouchers // Gửi thêm để client có thể kiểm tra trùng
       });
 
-      const itemVouchers = userVouchers.filter(
-        v =>
-          v.DiscountType !== "ship" &&
-          (v.CreatedBy === item.SellerAccountId)
-      );
-
-      const orderVouchers = userVouchers.filter(
-        v => v.CreatedBy === 1
-      );
-
-
-      res.json({ items: itemsWithVouchers });
     } catch (err) {
-      console.error(err);
+      console.error("Checkout error:", err);
       res.status(500).json({ message: "Lỗi server" });
     }
   },
@@ -49,53 +39,68 @@ const OrderController = {
       const accountId = req.user.AccountId;
       const { productId, quantity } = req.body;
 
-      const rows = await Order.checkoutBuyNow(
-        accountId,
-        productId,
-        quantity
-      );
+      // 1️⃣ Lấy sản phẩm
+      const items = await Order.checkoutBuyNow(accountId, productId, quantity);
 
-      if (!rows.length) {
+      if (!items.length) {
         return res.status(404).json({ message: "Không tìm thấy sản phẩm" });
       }
 
-      // 🎯 gom thành 1 item
-      const base = rows[0];
+      // 2️⃣ Lấy voucher toàn đơn
+      const orderVouchers = await Order.getOrderVouchers(accountId);
 
-      const item = {
-        CartId: null,
-        ProductId: base.ProductId,
-        ProductName: base.ProductName,
-        Image: `${req.protocol}://${req.get("host")}/uploads/ProductImage/${base.Image}`,
-        Quantity: Number(base.Quantity),
-        UnitPrice: Number(base.UnitPrice),
-        totalPrice: Number(base.totalPrice),
-        StallId: base.StallId,
-        SellerAccountId: base.SellerAccountId,
-        vouchers: [],
-        selectedVoucher: null
-      };
+      // 3️⃣ Format image URL
+      const itemsWithImages = items.map(item => ({
+        ...item,
+        Image: `${req.protocol}://${req.get("host")}/uploads/ProductImage/${item.Image}`
+      }));
 
-      // 🎟 gom voucher
-      item.vouchers = rows
-        .filter(r => r.VoucherId)
-        .map(r => ({
-          UsageId: r.UsageId,
-          VoucherId: r.VoucherId,
-          VoucherName: r.VoucherName,
-          DiscountType: r.DiscountType,
-          Discount: r.Discount,
-          CreatedBy: r.CreatedBy
-        }));
+      return res.json({ 
+        items: itemsWithImages,
+        orderVouchers 
+      });
 
-      return res.json({ items: [item] });
     } catch (err) {
       console.error("checkoutBuyNow:", err);
       return res.status(500).json({ message: "Checkout buy now failed" });
     }
   },
 
+  // API để lấy danh sách ship type
+  getShipTypes: async (req, res) => {
+    try {
+      const shipTypes = await ShipType.getAll();
+      res.json(shipTypes);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Lỗi server" });
+    }
+  },
 
+  // API tạo đơn hàng
+  createOrder: async (req, res) => {
+    try {
+      const accountId = req.user.AccountId;
+      const {
+        addressId,
+        items, // Array of { productId, quantity, selectedVoucherId, selectedShipTypeId }
+        orderVoucherId,
+        paymentMethodId
+      } = req.body;
+
+      // TODO: Triển khai logic tạo đơn hàng
+      // 1. Validate dữ liệu
+      // 2. Tính toán giá trị
+      // 3. Tạo Order và OrderDetails
+      // 4. Cập nhật trạng thái voucher
+      // 5. Xóa cart items nếu có
+
+      res.json({ message: "Đặt hàng thành công", orderId: 123 });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Lỗi server" });
+    }
+  }
 };
 
 module.exports = OrderController;

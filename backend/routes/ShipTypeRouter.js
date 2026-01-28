@@ -1,9 +1,12 @@
 const express = require("express");
 const router = express.Router();
-const { verifyToken } = require("../middleware/auth");
 const ShipTypeController = require("../controllers/ShipTypeController");
+const { verifyToken, verifyRole } = require("../middleware/auth");
 
-// ✅ Checkout lấy shiptype
+// Public routes
 router.get("/", ShipTypeController.getAll);
+
+// Admin only routes
+router.post("/", verifyToken, verifyRole([1]), ShipTypeController.create);
 
 module.exports = router;
