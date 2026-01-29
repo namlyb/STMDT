@@ -191,6 +191,26 @@ updateProduct: async (req, res) => {
   }
 },
 
+getRelatedProducts: async (req, res) => {
+  try {
+    const { id } = req.params;
+    const relatedProducts = await Product.getRelatedProducts(id);
+    
+    // Format image URL
+    const productsWithImages = relatedProducts.map(product => ({
+      ...product,
+      Image: product.Image 
+        ? `${req.protocol}://${req.get("host")}/uploads/ProductImage/${product.Image}`
+        : `${req.protocol}://${req.get("host")}/uploads/ProductImage/default.png`
+    }));
+    
+    res.json(productsWithImages);
+  } catch (error) {
+    console.error("Error in getRelatedProducts:", error);
+    res.status(500).json({ message: "Lỗi server" });
+  }
+},
+
 
 };
 

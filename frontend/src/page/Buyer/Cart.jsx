@@ -179,14 +179,14 @@ export default function Cart() {
                         onChange={(e) => handleSelectAll(e.target.checked)}
                         className="hidden"
                       />
-                      <span className="font-semibold text-gray-700">
+                      <span className="font-semibold cursor-pointer text-gray-700">
                         Chọn tất cả ({items.length} sản phẩm)
                       </span>
                     </label>
                   </div>
                   <button
                     onClick={() => handleSelectAll(!isAllSelected)}
-                    className="text-sm text-orange-600 hover:text-orange-700 font-medium"
+                    className="text-sm cursor-pointer text-orange-600 hover:text-orange-700 cursor-pointer font-medium"
                   >
                     {isAllSelected ? "Bỏ chọn" : "Chọn tất cả"}
                   </button>

@@ -74,3 +74,43 @@ select::-webkit-scrollbar-thumb {
 select::-webkit-scrollbar-thumb:hover {
   background: #9ca3af;
 }
+
+/* Animation cho ảnh sản phẩm */
+.product-image-container {
+  position: relative;
+  overflow: hidden;
+}
+
+.product-image-blur {
+  position: absolute;
+  inset: 0;
+  filter: blur(20px);
+  transform: scale(1.1);
+  opacity: 0.5;
+}
+
+.product-image-main {
+  position: relative;
+  z-index: 10;
+  transition: transform 0.3s ease;
+}
+
+.product-image-main:hover {
+  transform: scale(1.05);
+}
+
+/* Loading skeleton cho ảnh */
+.image-loading {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}

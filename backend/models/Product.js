@@ -146,6 +146,42 @@ update: async (id, data) => {
     id
   ]);
 },
+  getRelatedProducts: async (productId) => {
+  try {
+    // Lấy category của sản phẩm hiện tại
+    const [categoryRows] = await pool.query(
+      `SELECT CategoryId FROM ProductCategory WHERE ProductId = ?`,
+      [productId]
+    );
+    
+    if (categoryRows.length === 0) return [];
+    
+    const categoryId = categoryRows[0].CategoryId;
+    
+    // Lấy sản phẩm cùng category (trừ sản phẩm hiện tại) với số lượng đã bán
+    const [products] = await pool.query(
+      `SELECT DISTINCT 
+        p.*,
+        IFNULL(SUM(od.Quantity), 0) AS SoldCount
+       FROM Products p
+       JOIN ProductCategory pc ON p.ProductId = pc.ProductId
+       LEFT JOIN OrderDetails od ON p.ProductId = od.ProductId
+       WHERE pc.CategoryId = ? 
+         AND p.ProductId != ? 
+         AND p.IsActive = 1
+         AND p.Status = 1
+       GROUP BY p.ProductId
+       ORDER BY RAND()
+       LIMIT 10`,
+      [categoryId, productId]
+    );
+    
+    return products;
+  } catch (error) {
+    console.error("Error in getRelatedProducts:", error);
+    throw error;
+  }
+},
 
 };
 

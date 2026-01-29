@@ -14,29 +14,30 @@ export default function ProductDetail() {
 
   const [data, setData] = useState(null);
   const [quantity, setQuantity] = useState(1);
-  const [showChat, setShowChat] = useState(false); // state kiểm soát popup ProductDetail
+  const [showChat, setShowChat] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const PRODUCT_IMAGE_BASE = `${API_URL}/uploads/ProductImage`;
   const AVATAR_BASE = `${API_URL}/uploads/AccountAvatar`;
 
   /* ================= LOAD PRODUCT ================= */
   useEffect(() => {
-    axios.get(`/products/${id}`)
-      .then(res => setData(res.data))
-      .catch(console.error);
-  }, [id]);
+    const fetchProduct = async () => {
+      try {
+        setLoading(true);
+        const res = await axios.get(`/products/${id}`);
+        setData(res.data);
+      } catch (error) {
+        console.error("Error loading product:", error);
+        alert("Không thể tải thông tin sản phẩm");
+        navigate("/");
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  if (!data) return null;
-
-  const { product, stall, feedbacks, avgScore } = data;
-
-  const productImage = product.Image
-    ? `${PRODUCT_IMAGE_BASE}/${product.Image}`
-    : `${PRODUCT_IMAGE_BASE}/default.png`;
-
-  const stallAvatar = stall?.Avt
-    ? `${AVATAR_BASE}/${stall.Avt}`
-    : `${AVATAR_BASE}/avtDf.png`;
+    fetchProduct();
+  }, [id, navigate]);
 
   /* ================= QUANTITY ================= */
   const increase = () => setQuantity(q => q + 1);
@@ -51,34 +52,106 @@ export default function ProductDetail() {
   /* ================= CHAT PERMISSION ================= */
   const canChat = () => {
     if (!currentAccountId) return false;
-    if (!stall?.AccountId) return false;
-    return currentAccountId !== stall.AccountId;
+    if (!data?.stall?.AccountId) return false;
+    return currentAccountId !== data.stall.AccountId;
   };
 
   /* ================= CART ================= */
   const addToCart = async () => {
     try {
+      if (!account) {
+        alert("Vui lòng đăng nhập để thêm vào giỏ hàng");
+        navigate("/login");
+        return;
+      }
+
       await axios.post(
         "/carts",
-        { productId: product.ProductId, quantity },
-        { headers: { Authorization: `Bearer ${sessionStorage.getItem("token")}` } }
+        { productId: data.product.ProductId, quantity },
+        { 
+          headers: { 
+            Authorization: `Bearer ${sessionStorage.getItem("token")}` 
+          } 
+        }
       );
       alert("Đã thêm vào giỏ hàng");
-    } catch {
-      alert("Vui lòng đăng nhập");
+    } catch (error) {
+      console.error("Add to cart error:", error);
+      if (error.response?.status === 401) {
+        alert("Vui lòng đăng nhập");
+        navigate("/login");
+      } else {
+        alert(error.response?.data?.message || "Không thể thêm vào giỏ hàng");
+      }
     }
   };
 
+  /* ================= BUY NOW ================= */
   const buyNow = () => {
-  navigate("/checkout", {
-    state: {
-      buyNow: true,
-      productId: product.ProductId,
-      quantity
+    if (!account) {
+      alert("Vui lòng đăng nhập để mua hàng");
+      navigate("/login");
+      return;
     }
-  });
-};
 
+    // Lưu thông tin mua ngay vào localStorage
+    const buyNowData = {
+      productId: data.product.ProductId,
+      quantity: quantity,
+      buyNow: true
+    };
+    
+    localStorage.setItem("buyNowData", JSON.stringify(buyNowData));
+    
+    // Xóa cartIds cũ nếu có
+    sessionStorage.removeItem("checkoutCartIds");
+    
+    // Chuyển hướng đến trang thanh toán
+    navigate("/checkout");
+  };
+
+  /* ================= LOADING STATE ================= */
+  if (loading) {
+    return (
+      <>
+        <Header />
+        <main className="max-w-5xl mx-auto p-4">
+          <div className="bg-white p-8 rounded shadow text-center">
+            <p className="text-gray-600">Đang tải sản phẩm...</p>
+          </div>
+        </main>
+      </>
+    );
+  }
+
+  if (!data || !data.product) {
+    return (
+      <>
+        <Header />
+        <main className="max-w-5xl mx-auto p-4">
+          <div className="bg-white p-8 rounded shadow text-center">
+            <p className="text-gray-600">Sản phẩm không tồn tại</p>
+            <button
+              onClick={() => navigate("/")}
+              className="mt-4 px-4 py-2 bg-orange-500 text-white rounded cursor-pointer"
+            >
+              Quay lại trang chủ
+            </button>
+          </div>
+        </main>
+      </>
+    );
+  }
+
+  const { product, stall, feedbacks, avgScore } = data;
+
+  const productImage = product.Image
+    ? `${PRODUCT_IMAGE_BASE}/${product.Image}`
+    : `${PRODUCT_IMAGE_BASE}/default.png`;
+
+  const stallAvatar = stall?.Avt
+    ? `${AVATAR_BASE}/${stall.Avt}`
+    : `${AVATAR_BASE}/avtDf.png`;
 
   return (
     <>
@@ -118,11 +191,11 @@ export default function ProductDetail() {
 
             <div className="flex gap-3">
               <button
-  onClick={buyNow}
-  className="px-6 py-2 bg-orange-500 text-white rounded cursor-pointer"
->
-  Mua ngay
-</button>
+                onClick={buyNow}
+                className="px-6 py-2 bg-orange-500 text-white rounded cursor-pointer"
+              >
+                Mua ngay
+              </button>
 
               <button onClick={addToCart} className="px-6 py-2 border rounded cursor-pointer">
                 Thêm vào giỏ
@@ -144,7 +217,7 @@ export default function ProductDetail() {
           <div className="flex gap-2">
             {canChat() && (
               <button
-                onClick={() => setShowChat(true)} // bật popup ProductDetail
+                onClick={() => setShowChat(true)}
                 className="px-4 py-2 bg-orange-500 text-white rounded cursor-pointer"
               >
                 Chat
@@ -164,14 +237,12 @@ export default function ProductDetail() {
       {/* CHAT BUBBLE + POPUP */}
       {canChat() && (
         <>
-          {/* Bubble sẽ ẩn khi popup ProductDetail mở */}
           <ChatBubble
             sellerId={stall?.AccountId}
             visible={!showChat}
             onOpen={() => setShowChat(true)}
           />
 
-          {/* Popup chat */}
           {showChat && (
             <BuyerChat
               sellerId={stall?.AccountId}

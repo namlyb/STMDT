@@ -1,16 +1,12 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import axios from "../../components/lib/axios";
 import Header from "../../components/Guest/Header";
 import Footer from "../../components/Guest/footer";
-import { CreditCard, Package, Truck, MapPin, Ticket, CheckCircle, AlertCircle } from "lucide-react";
+import { CreditCard, Package, Truck, MapPin, Ticket, CheckCircle, AlertCircle, ArrowLeft } from "lucide-react";
 
 export default function Order() {
   const navigate = useNavigate();
-  const location = useLocation();
-
-  /* ================= INIT ================= */
-  const cartIds = JSON.parse(sessionStorage.getItem("checkoutCartIds")) || [];
 
   /* ================= STATE ================= */
   const [items, setItems] = useState([]);
@@ -21,6 +17,7 @@ export default function Order() {
   const [selectedAddress, setSelectedAddress] = useState(null);
   const [selectedOrderVoucher, setSelectedOrderVoucher] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isBuyNow, setIsBuyNow] = useState(false);
   
   // Track used voucher UsageIds
   const [usedVoucherUsageIds, setUsedVoucherUsageIds] = useState(new Set());
@@ -28,30 +25,65 @@ export default function Order() {
   /* ================= FORMAT ================= */
   const fmt = n => Number(n || 0).toLocaleString("vi-VN");
 
+  /* ================= INITIAL CHECK ================= */
+  useEffect(() => {
+    // Kiểm tra đăng nhập
+    const account = JSON.parse(sessionStorage.getItem("account"));
+    if (!account) {
+      navigate("/login", { replace: true });
+      return;
+    }
+    
+    // Kiểm tra xem có dữ liệu mua ngay không
+    const buyNowData = localStorage.getItem("buyNowData");
+    const cartIds = JSON.parse(sessionStorage.getItem("checkoutCartIds")) || [];
+    
+    if (buyNowData && !cartIds.length) {
+      setIsBuyNow(true);
+    } else {
+      setIsBuyNow(false);
+    }
+  }, [navigate]);
+
   /* ================= FETCH DATA ================= */
   useEffect(() => {
     const fetchData = async () => {
       try {
         const account = JSON.parse(sessionStorage.getItem("account"));
-        if (!account) {
-          navigate("/login", { replace: true });
-          return;
+        if (!account) return;
+
+        setLoading(true);
+
+        // Kiểm tra mode mua hàng
+        const buyNowData = JSON.parse(localStorage.getItem("buyNowData"));
+        const cartIds = JSON.parse(sessionStorage.getItem("checkoutCartIds")) || [];
+
+        let checkoutRes;
+        
+        if (buyNowData && buyNowData.buyNow && !cartIds.length) {
+          // Mua ngay từ ProductDetail
+          checkoutRes = await axios.post("/orders/checkout/buynow", {
+            productId: buyNowData.productId,
+            quantity: buyNowData.quantity || 1
+          });
+        } else {
+          // Mua từ giỏ hàng
+          checkoutRes = await axios.post("/orders/checkout", { cartIds });
         }
 
-        // Fetch all data in parallel
-        const [checkoutRes, addrRes, shipRes] = await Promise.all([
-          axios.post("/orders/checkout", { cartIds }),
+        console.log("Checkout data:", checkoutRes.data);
+
+        // Lấy các dữ liệu khác
+        const [addrRes, shipRes] = await Promise.all([
           axios.get(`/addresses/account/${account.AccountId}`),
           axios.get("/orders/shiptypes")
         ]);
 
-        console.log("Checkout data:", checkoutRes.data);
-
-        // Process items with default values
+        // Process items
         const processedItems = checkoutRes.data.items.map((item, index) => ({
           ...item,
           itemId: item.CartId || `buynow_${item.ProductId}_${index}`,
-          selectedShipType: shipRes.data[0] || null,
+          selectedShipType: shipRes.data?.[0] || null,
           selectedVoucher: null
         }));
 
@@ -70,6 +102,9 @@ export default function Order() {
       } catch (err) {
         console.error("Fetch error:", err);
         alert("Không thể tải dữ liệu checkout");
+        
+        // Clean up và redirect
+        localStorage.removeItem("buyNowData");
         navigate("/cart");
       }
     };
@@ -84,10 +119,8 @@ export default function Order() {
         let selectedVoucher = null;
         
         if (usageId) {
-          // Find the voucher
           const voucher = item.vouchers.find(v => v.UsageId === Number(usageId));
           
-          // Check if voucher is already used by another item OR by order voucher
           if (voucher && usedVoucherUsageIds.has(voucher.UsageId) && 
               (!item.selectedVoucher || item.selectedVoucher.UsageId !== voucher.UsageId)) {
             alert("Voucher này đã được sử dụng cho sản phẩm khác hoặc voucher toàn đơn");
@@ -96,24 +129,19 @@ export default function Order() {
           
           selectedVoucher = voucher || null;
           
-          // Update used voucher tracking
           if (selectedVoucher) {
             const newUsedIds = new Set(usedVoucherUsageIds);
-            // Remove old voucher from tracking
             if (item.selectedVoucher) {
               newUsedIds.delete(item.selectedVoucher.UsageId);
             }
-            // Add new voucher to tracking
             newUsedIds.add(selectedVoucher.UsageId);
             setUsedVoucherUsageIds(newUsedIds);
           } else if (item.selectedVoucher) {
-            // Remove old voucher from tracking
             const newUsedIds = new Set(usedVoucherUsageIds);
             newUsedIds.delete(item.selectedVoucher.UsageId);
             setUsedVoucherUsageIds(newUsedIds);
           }
         } else if (item.selectedVoucher) {
-          // Remove old voucher from tracking
           const newUsedIds = new Set(usedVoucherUsageIds);
           newUsedIds.delete(item.selectedVoucher.UsageId);
           setUsedVoucherUsageIds(newUsedIds);
@@ -135,12 +163,10 @@ export default function Order() {
     }));
   };
 
-  /* ================= HANDLE ORDER VOUCHER CHANGE ================= */
   const handleOrderVoucherChange = (usageId) => {
     if (usageId) {
       const voucher = orderVouchers.find(v => v.UsageId === Number(usageId));
       
-      // Check if voucher is already used by any product voucher
       if (voucher && usedVoucherUsageIds.has(voucher.UsageId)) {
         alert("Voucher này đã được sử dụng cho sản phẩm");
         return;
@@ -148,19 +174,15 @@ export default function Order() {
       
       setSelectedOrderVoucher(voucher || null);
       
-      // Add to used voucher tracking
       if (voucher) {
         const newUsedIds = new Set(usedVoucherUsageIds);
-        // Remove old order voucher from tracking
         if (selectedOrderVoucher) {
           newUsedIds.delete(selectedOrderVoucher.UsageId);
         }
-        // Add new order voucher to tracking
         newUsedIds.add(voucher.UsageId);
         setUsedVoucherUsageIds(newUsedIds);
       }
     } else if (selectedOrderVoucher) {
-      // Remove old order voucher from tracking
       const newUsedIds = new Set(usedVoucherUsageIds);
       newUsedIds.delete(selectedOrderVoucher.UsageId);
       setUsedVoucherUsageIds(newUsedIds);
@@ -172,17 +194,14 @@ export default function Order() {
 
   /* ================= CHECK VOUCHER AVAILABILITY ================= */
   const getProductVoucherAvailabilityStatus = (voucher, currentItem) => {
-    // Nếu voucher này đã được chọn cho sản phẩm này, luôn available
     if (currentItem.selectedVoucher?.UsageId === voucher.UsageId) {
       return "selected";
     }
     
-    // Kiểm tra nếu voucher đã được sử dụng bởi sản phẩm khác hoặc order voucher
     if (usedVoucherUsageIds.has(voucher.UsageId)) {
       return "used_by_other";
     }
     
-    // Kiểm tra điều kiện giá tối thiểu
     if (currentItem.totalPrice < voucher.MinOrderValue) {
       return "min_order_not_met";
     }
@@ -191,12 +210,10 @@ export default function Order() {
   };
 
   const getOrderVoucherAvailabilityStatus = (voucher) => {
-    // Kiểm tra nếu voucher đã được sử dụng bởi sản phẩm
     if (usedVoucherUsageIds.has(voucher.UsageId)) {
       return "used_by_product";
     }
     
-    // Kiểm tra điều kiện giá tối thiểu (sẽ kiểm tra sau khi có tổng tiền)
     return "available";
   };
 
@@ -234,7 +251,6 @@ export default function Order() {
       (sum, item) => sum + (item.selectedShipType?.ShipFee || 0), 0
     );
 
-    // Check min order value cho order voucher
     if (productTotalAfterItemDiscount < selectedOrderVoucher.MinOrderValue) {
       return { product: 0, ship: 0 };
     }
@@ -280,16 +296,91 @@ export default function Order() {
     (productTotalAfterItemDiscount - orderVoucherDiscount.product) +
     (totalShip - orderVoucherDiscount.ship);
 
+  /* ================= HANDLE BACK ================= */
+  const handleBack = () => {
+    if (isBuyNow) {
+      const buyNowData = JSON.parse(localStorage.getItem("buyNowData"));
+      if (buyNowData?.productId) {
+        navigate(`/product/${buyNowData.productId}`);
+      } else {
+        navigate("/");
+      }
+      localStorage.removeItem("buyNowData");
+    } else {
+      navigate("/cart");
+    }
+  };
+
+  /* ================= HANDLE CHECKOUT ================= */
+  const handleCheckout = async () => {
+    if (!selectedAddress) {
+      alert("Vui lòng chọn địa chỉ nhận hàng");
+      return;
+    }
+    
+    if (items.some(item => !item.selectedShipType)) {
+      alert("Vui lòng chọn phương thức vận chuyển cho tất cả sản phẩm");
+      return;
+    }
+    
+    // Kiểm tra voucher trùng
+    const allSelectedVoucherIds = new Set();
+    items.forEach(item => {
+      if (item.selectedVoucher) {
+        allSelectedVoucherIds.add(item.selectedVoucher.UsageId);
+      }
+    });
+    
+    if (selectedOrderVoucher && allSelectedVoucherIds.has(selectedOrderVoucher.UsageId)) {
+      alert("Có voucher đang được sử dụng ở cả sản phẩm và đơn hàng. Vui lòng kiểm tra lại.");
+      return;
+    }
+    
+    try {
+      // Chuẩn bị dữ liệu đơn hàng
+      const orderData = {
+        addressId: selectedAddress.AddressId,
+        items: items.map(item => ({
+          productId: item.ProductId,
+          quantity: item.Quantity,
+          selectedVoucherId: item.selectedVoucher?.UsageId || null,
+          selectedShipTypeId: item.selectedShipType?.ShipTypeId
+        })),
+        orderVoucherId: selectedOrderVoucher?.UsageId || null,
+        paymentMethodId: 1 // TODO: Thêm chọn phương thức thanh toán
+      };
+      
+      // Gọi API tạo đơn hàng
+      const response = await axios.post("/orders", orderData);
+      
+      alert("Đặt hàng thành công! Mã đơn hàng: #" + response.data.orderId);
+      
+      // Xóa dữ liệu tạm
+      localStorage.removeItem("buyNowData");
+      sessionStorage.removeItem("checkoutCartIds");
+      
+      // Chuyển hướng đến trang chi tiết đơn hàng hoặc trang chủ
+      navigate("/profile?tab=orders");
+      
+    } catch (error) {
+      console.error("Order error:", error);
+      alert(error.response?.data?.message || "Đặt hàng thất bại. Vui lòng thử lại.");
+    }
+  };
+
   /* ================= RENDER ================= */
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-gray-50 to-white">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-orange-500 mx-auto mb-4"></div>
-          <p className="text-gray-600 text-lg font-medium">Đang tải đơn hàng...</p>
-          <p className="text-gray-400 text-sm mt-2">Vui lòng chờ trong giây lát</p>
+      <>
+        <Header />
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-gray-50 to-white">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-orange-500 mx-auto mb-4"></div>
+            <p className="text-gray-600 text-lg font-medium">Đang tải đơn hàng...</p>
+            <p className="text-gray-400 text-sm mt-2">Vui lòng chờ trong giây lát</p>
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
@@ -302,8 +393,22 @@ export default function Order() {
           {/* Header */}
           <div className="flex items-center justify-between mb-8">
             <div>
+              <button
+                onClick={handleBack}
+                className="flex items-center gap-2 text-gray-600 hover:text-orange-500 mb-2 transition"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                {isBuyNow ? "Quay lại sản phẩm" : "Quay lại giỏ hàng"}
+              </button>
               <h1 className="text-3xl font-bold text-gray-800">Thanh toán</h1>
-              <p className="text-gray-500 mt-2">Hoàn tất đơn hàng của bạn</p>
+              <p className="text-gray-500 mt-2">
+                {isBuyNow ? "Mua ngay - Hoàn tất đơn hàng" : "Hoàn tất đơn hàng của bạn"}
+                {isBuyNow && (
+                  <span className="ml-2 px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
+                    Mua ngay
+                  </span>
+                )}
+              </p>
             </div>
             <div className="flex items-center space-x-2">
               <div className="flex items-center justify-center w-10 h-10 rounded-full bg-orange-100 text-orange-600">
@@ -745,32 +850,7 @@ export default function Order() {
 
                 <div className="p-6 bg-gradient-to-r from-gray-50 to-gray-100">
                   <button
-                    onClick={() => {
-                      if (!selectedAddress) {
-                        alert("Vui lòng chọn địa chỉ nhận hàng");
-                        return;
-                      }
-                      if (items.some(item => !item.selectedShipType)) {
-                        alert("Vui lòng chọn phương thức vận chuyển cho tất cả sản phẩm");
-                        return;
-                      }
-                      
-                      // Kiểm tra xem có voucher nào bị trùng không
-                      const allSelectedVoucherIds = new Set();
-                      items.forEach(item => {
-                        if (item.selectedVoucher) {
-                          allSelectedVoucherIds.add(item.selectedVoucher.UsageId);
-                        }
-                      });
-                      if (selectedOrderVoucher) {
-                        if (allSelectedVoucherIds.has(selectedOrderVoucher.UsageId)) {
-                          alert("Có voucher đang được sử dụng ở cả sản phẩm và đơn hàng. Vui lòng kiểm tra lại.");
-                          return;
-                        }
-                      }
-                      
-                      alert("Chức năng đặt hàng đang được phát triển");
-                    }}
+                    onClick={handleCheckout}
                     disabled={!selectedAddress || items.length === 0}
                     className={`w-full py-4 px-6 rounded-xl font-semibold text-lg transition-all duration-300 transform hover:scale-[1.02] ${
                       !selectedAddress || items.length === 0
