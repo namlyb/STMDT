@@ -24,6 +24,7 @@ const voucherRouter = require("./routes/VoucherRouter");
 const VoucherUsageRouter = require("./routes/VoucherUsageRouter");
 const shipTypeRouter = require("./routes/ShipTypeRouter");
 const platformFeeRouter = require("./routes/PlatFormFeeRouter");
+const paymentMethodRouter = require('./routes/PaymentMethodRouter');
 
 const app = express();
 const server = http.createServer(app);
@@ -53,6 +54,7 @@ app.use("/api/vouchers", voucherRouter);
 app.use("/api/voucher-usage", VoucherUsageRouter);
 app.use("/api/shiptypes", shipTypeRouter);
 app.use("/api/platform-fees", platformFeeRouter);
+app.use('/api/payment-methods', paymentMethodRouter);
 
 // Avatar images
 app.use(
