@@ -171,33 +171,33 @@ export default function Order() {
   };
 
   /* ================= CHECK VOUCHER AVAILABILITY ================= */
-  const isProductVoucherAvailable = (voucher, currentItem) => {
-    // If this item already selected this voucher, it's available
+  const getProductVoucherAvailabilityStatus = (voucher, currentItem) => {
+    // Nếu voucher này đã được chọn cho sản phẩm này, luôn available
     if (currentItem.selectedVoucher?.UsageId === voucher.UsageId) {
-      return true;
+      return "selected";
     }
     
-    // Check if voucher is already used by another item OR by order voucher
+    // Kiểm tra nếu voucher đã được sử dụng bởi sản phẩm khác hoặc order voucher
     if (usedVoucherUsageIds.has(voucher.UsageId)) {
-      return false;
+      return "used_by_other";
     }
     
-    // Check min order value
+    // Kiểm tra điều kiện giá tối thiểu
     if (currentItem.totalPrice < voucher.MinOrderValue) {
-      return false;
+      return "min_order_not_met";
     }
     
-    return true;
+    return "available";
   };
 
-  const isOrderVoucherAvailable = (voucher) => {
-    // Check if voucher is already used by any product
+  const getOrderVoucherAvailabilityStatus = (voucher) => {
+    // Kiểm tra nếu voucher đã được sử dụng bởi sản phẩm
     if (usedVoucherUsageIds.has(voucher.UsageId)) {
-      return false;
+      return "used_by_product";
     }
     
-    // Check min order value (sẽ tính sau khi có tổng)
-    return true;
+    // Kiểm tra điều kiện giá tối thiểu (sẽ kiểm tra sau khi có tổng tiền)
+    return "available";
   };
 
   /* ================= CALCULATIONS ================= */
@@ -493,23 +493,30 @@ export default function Order() {
                                     <option value="">Không sử dụng</option>
                                     {item.vouchers && item.vouchers.length > 0 ? (
                                       item.vouchers.map(v => {
-                                        const isAvailable = isProductVoucherAvailable(v, item);
-                                        const isSelectedByOrder = selectedOrderVoucher?.UsageId === v.UsageId;
+                                        const status = getProductVoucherAvailabilityStatus(v, item);
+                                        const isDisabled = status !== "selected" && status !== "available";
+                                        
+                                        let statusText = "";
+                                        if (status === "used_by_other") {
+                                          statusText = " - Đã sử dụng";
+                                        } else if (status === "min_order_not_met") {
+                                          statusText = " - Không đủ điều kiện";
+                                        }
+                                        
                                         return (
                                           <option
                                             key={v.UsageId}
                                             value={v.UsageId}
-                                            disabled={!isAvailable || isSelectedByOrder}
-                                            className={`${!isAvailable || isSelectedByOrder ? "text-gray-400 bg-gray-50" : ""}`}
+                                            disabled={isDisabled}
+                                            className={`${isDisabled ? "text-gray-400 bg-gray-50" : ""}`}
                                           >
                                             {v.VoucherName} - 
                                             {v.DiscountType === "percent"
-                                              ? ` Giảm ${v.DiscountValue}%`
+                                              ? ` Giảm ${v.DiscountValue}% ${v.MaxDiscount? ` - tối đa ${v.MaxDiscount}đ` : ""}`
                                               : ` Giảm ${fmt(v.DiscountValue)}đ`
                                             }
                                             {v.MinOrderValue > 0 && ` (Tối thiểu ${fmt(v.MinOrderValue)}đ)`}
-                                            {!isAvailable && " - Đã sử dụng"}
-                                            {isSelectedByOrder && " - Đang dùng cho đơn hàng"}
+                                            {statusText}
                                           </option>
                                         );
                                       })
@@ -613,28 +620,30 @@ export default function Order() {
                       <option value="">Không sử dụng voucher</option>
                       {orderVouchers.length > 0 ? (
                         orderVouchers.map(v => {
-                          const isAvailable = isOrderVoucherAvailable(v);
-                          const isUsedByProduct = Array.from(usedVoucherUsageIds).some(usedId => {
-                            const usedVoucher = allVouchers.find(av => av.UsageId === usedId);
-                            return usedVoucher && usedVoucher.VoucherId === v.VoucherId;
-                          });
+                          const status = getOrderVoucherAvailabilityStatus(v);
+                          const isDisabled = status !== "available";
+                          
+                          let statusText = "";
+                          if (status === "used_by_product") {
+                            statusText = " - Đang dùng cho sản phẩm";
+                          }
                           
                           return (
                             <option
                               key={v.UsageId}
                               value={v.UsageId}
-                              disabled={!isAvailable || isUsedByProduct}
-                              className={`${!isAvailable || isUsedByProduct ? "text-gray-400 bg-gray-50" : ""}`}
+                              disabled={isDisabled}
+                              className={`${isDisabled ? "text-gray-400 bg-gray-50" : ""}`}
                             >
                               {v.VoucherName} - 
                               {v.DiscountType === "ship"
                                 ? ` Giảm ship ${fmt(v.DiscountValue)}đ`
                                 : v.DiscountType === "percent"
-                                ? ` Giảm ${v.DiscountValue}% (tối đa ${fmt(v.MaxDiscount)}đ)`
+                                ? ` Giảm ${v.DiscountValue}% - tối đa ${fmt(v.MaxDiscount)}đ`
                                 : ` Giảm ${fmt(v.DiscountValue)}đ`
                               }
                               {v.MinOrderValue > 0 && ` - Đơn tối thiểu ${fmt(v.MinOrderValue)}đ`}
-                              {isUsedByProduct && " - Đang dùng cho sản phẩm"}
+                              {statusText}
                             </option>
                           );
                         })
