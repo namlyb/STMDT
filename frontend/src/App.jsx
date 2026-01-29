@@ -29,7 +29,7 @@ import ListVoucher from "./page/Admin/ListVoucher";
 import CreateVoucher from "./page/Admin/CreateVoucher";
 import MyVoucher from "./page/Buyer/MyVoucher";
 import UpdateAddress from "./page/Buyer/UpdateAddress";
-
+import PlatformFee from "./page/Admin/PlatformFee";
 
 function App() {
   return (
@@ -48,6 +48,7 @@ function App() {
         <Route path="/admin/accounts/:id" element={<UpdateAccount />} />
         <Route path="/admin/vouchers" element={<ListVoucher />} />
         <Route path="/admin/voucher/create" element={<CreateVoucher />} />
+        <Route path="/admin/platform-fee" element={<PlatformFee />} />
       </Route>
 
       {/* Seller */}

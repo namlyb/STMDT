@@ -242,7 +242,7 @@ export default function ListVoucher() {
                     </td>
 
                     <td className="px-4 py-3">
-                      {renderQuantityCell(v.TotalQuantity)}
+                      {renderQuantityCell(Number(v.TotalQuantity) + Number(v.UsedQuantity))}
                     </td>
 
                     <td className="px-4 py-3">

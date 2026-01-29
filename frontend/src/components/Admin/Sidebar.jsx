@@ -27,7 +27,7 @@ const AdminLayout = ({ children }) => {
     { name: "Quảng cáo", url: "/admin/ads", icon: <FiRss /> },
     { name: "Phiếu giảm giá", url: "/admin/vouchers", icon: <FiTag /> },
     { name: "Đơn hàng", url: "#", icon: <FiShoppingCart /> },
-    { name: "Hàng khuyến mãi", url: "#", icon: <FiZap /> },
+    { name: "Thuế sàn", url: "/admin/platform-fee", icon: <FiZap /> },
   ];
 
   // Logout: xóa sessionStorage và chuyển hướng về Home

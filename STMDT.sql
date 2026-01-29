@@ -88,7 +88,10 @@ CREATE TABLE ShipType (
 CREATE TABLE PlatformFees (
     FeeId INT AUTO_INCREMENT PRIMARY KEY,
     PercentValue INT NOT NULL,
-    ConditionText TEXT NOT NULL,
+    MinOrderValue INT NOT NULL DEFAULT 0,
+    MaxOrderValue INT,
+    Description TEXT,
+    Status TINYINT(1) NOT NULL DEFAULT 1,
     CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE TABLE Orders (
