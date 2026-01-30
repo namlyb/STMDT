@@ -1,4 +1,5 @@
 const { pool } = require("../config/db");
+const VoucherUsage = require("./VoucherUsage");
 
 const Order = {
   getByIds: async (accountId, cartIds) => {
@@ -22,7 +23,7 @@ const Order = {
     return rows;
   },
 
-   getCheckoutItems: async (accountId, cartIds) => {
+    getCheckoutItems: async (accountId, cartIds) => {
     try {
       // Lấy thông tin sản phẩm từ cart
       const placeholders = cartIds.map(() => "?").join(",");
@@ -52,7 +53,7 @@ const Order = {
 
       if (cartItems.length === 0) return [];
 
-      // Lấy voucher SẢN PHẨM của account (CHỈ LOẠI fixed, percent)
+      // Lấy voucher SẢN PHẨM của account (CHỈ LOẠI fixed, percent) và chỉ của Admin (CreatedBy=1) hoặc của chính Stall
       const [itemVouchers] = await pool.query(
         `
         SELECT 
@@ -73,13 +74,14 @@ const Order = {
           AND vu.IsUsed = 0
           AND v.EndTime >= CURDATE()
           AND v.DiscountType IN ('fixed', 'percent')
+          AND (v.CreatedBy = 1 OR s.StallId IN (${cartItems.map(item => item.StallId).join(',')}))
         `,
         [accountId]
       );
 
       // Gắn voucher sản phẩm phù hợp cho từng sản phẩm
       const itemsWithVouchers = cartItems.map(item => {
-        // Voucher sản phẩm: từ Admin (CreatedBy = 1) hoặc từ chính Stall
+        // Voucher sản phẩm: từ Admin (CreatedBy = 1) hoặc từ chính Stall (StallId trùng)
         const productVouchers = itemVouchers.filter(v => 
           v.CreatedBy === 1 || v.StallId === item.StallId
         );
@@ -172,7 +174,6 @@ const Order = {
   // Lấy voucher toàn đơn (chỉ của admin)
   getOrderVouchers: async (accountId) => {
     try {
-      // Lấy voucher TOÀN ĐƠN của account (TẤT CẢ LOẠI: fixed, percent, ship)
       const [rows] = await pool.query(
         `
         SELECT 
@@ -184,14 +185,14 @@ const Order = {
           v.MinOrderValue,
           v.MaxDiscount,
           v.EndTime,
-          v.CreatedBy,
-          'order' as voucherType  -- Đánh dấu là voucher toàn đơn
+          v.CreatedBy
         FROM VoucherUsage vu
         JOIN Vouchers v ON v.VoucherId = vu.VoucherId
         WHERE vu.AccountId = ?
           AND vu.IsUsed = 0
           AND v.EndTime >= CURDATE()
           AND v.CreatedBy = 1  -- Chỉ voucher của Admin
+          AND v.DiscountType IN ('fixed', 'percent', 'ship')
         ORDER BY v.EndTime ASC
         `,
         [accountId]
@@ -283,6 +284,342 @@ const Order = {
       [unitPrice, unitPrice]
     );
     return rows[0] ? rows[0].FeeId : null;
+  },
+
+  createOrderTransaction: async (connection, orderData) => {
+    const {
+      accountId,
+      addressId,
+      methodId,
+      orderVoucherId,
+      grandTotal,
+      orderDate,
+      orderItems
+    } = orderData;
+
+    // 1. Tạo đơn hàng chính
+    const [orderResult] = await connection.query(
+      `INSERT INTO Orders (AccountId, AddressId, MethodId, UsageId, FinalPrice, OrderDate, Status, CreatedAt, UpdatedAt)
+       VALUES (?, ?, ?, ?, ?, ?, 1, NOW(), NOW())`,
+      [accountId, addressId, methodId, orderVoucherId || null, grandTotal, orderDate]
+    );
+    const orderId = orderResult.insertId;
+
+    // 2. Tạo chi tiết đơn hàng và thu thập thông tin voucher sử dụng
+    const orderDetails = [];
+    const usedProductVouchers = new Map(); // Map<usageId, quantityUsed>
+
+    for (const item of orderItems) {
+      const [detailResult] = await connection.query(
+        `INSERT INTO OrderDetails (OrderId, ProductId, UsageId, UnitPrice, Quantity, ShipTypeId, ShipFee, FeeId, Status, CreatedAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, NOW())`,
+        [orderId, item.productId, item.voucherId || null, item.unitPrice, 
+         item.quantity, item.shipTypeId, item.shipFee, item.feeId]
+      );
+
+      // Thêm vào danh sách chi tiết đơn hàng
+      orderDetails.push({
+        orderDetailId: detailResult.insertId,
+        ...item
+      });
+
+      // Đếm số lần sử dụng voucher sản phẩm
+      if (item.voucherId) {
+        const currentCount = usedProductVouchers.get(item.voucherId) || 0;
+        usedProductVouchers.set(item.voucherId, currentCount + 1);
+      }
+    }
+
+    // 3. Xử lý voucher
+    const voucherResults = [];
+
+    // Xử lý voucher sản phẩm
+    for (const [usageId, quantityUsed] of usedProductVouchers) {
+      const result = await VoucherUsage.decrementVoucherQuantity(usageId, quantityUsed);
+      voucherResults.push({
+        type: 'product',
+        usageId,
+        quantityUsed,
+        result
+      });
+    }
+
+    // Xử lý voucher toàn đơn
+    if (orderVoucherId) {
+      const result = await VoucherUsage.decrementVoucherQuantity(orderVoucherId, 1);
+      voucherResults.push({
+        type: 'order',
+        usageId: orderVoucherId,
+        quantityUsed: 1,
+        result
+      });
+    }
+
+    // 4. Tạo lịch sử trạng thái đơn hàng
+    for (const detail of orderDetails) {
+      const trackingCode = `TRACK-${orderId}-${detail.orderDetailId}-${Date.now()}`;
+      await connection.query(
+        `INSERT INTO OrderStatusHistory (OrderDetailId, TrackingCode, Status, CreatedAt)
+         VALUES (?, ?, 'Đã đặt hàng', NOW())`,
+        [detail.orderDetailId, trackingCode]
+      );
+    }
+
+    // 5. Xóa cart items nếu cần
+    if (orderData.cartIds && orderData.cartIds.length > 0) {
+      await connection.query(
+        "UPDATE Carts SET Status = 0 WHERE CartId IN (?)",
+        [orderData.cartIds]
+      );
+    }
+
+    return {
+      orderId,
+      orderDetails,
+      voucherResults
+    };
+  },
+
+  // Hàm tạo đơn hàng với xử lý voucher trong cùng transaction
+  createOrderTransactionWithVouchers: async (connection, orderData, productVoucherUsage, orderVoucherIdParam) => {
+    const {
+      accountId,
+      addressId,
+      methodId,
+      orderVoucherId,
+      grandTotal,
+      orderDate,
+      orderItems,
+      cartIds
+    } = orderData;
+
+    // 1. Tạo đơn hàng chính
+    const [orderResult] = await connection.query(
+      `INSERT INTO Orders (AccountId, AddressId, MethodId, UsageId, FinalPrice, OrderDate, Status, CreatedAt, UpdatedAt)
+       VALUES (?, ?, ?, ?, ?, ?, 1, NOW(), NOW())`,
+      [accountId, addressId, methodId, orderVoucherId || null, grandTotal, orderDate]
+    );
+    const orderId = orderResult.insertId;
+
+    // 2. Tạo chi tiết đơn hàng
+    const orderDetails = [];
+    for (const item of orderItems) {
+      const [detailResult] = await connection.query(
+        `INSERT INTO OrderDetails (OrderId, ProductId, UsageId, UnitPrice, Quantity, ShipTypeId, ShipFee, FeeId, Status, CreatedAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, NOW())`,
+        [orderId, item.productId, item.voucherId || null, item.unitPrice, 
+         item.quantity, item.shipTypeId, item.shipFee, item.feeId]
+      );
+
+      orderDetails.push({
+        orderDetailId: detailResult.insertId,
+        ...item
+      });
+    }
+
+    // 3. Xử lý voucher sản phẩm TRONG CÙNG TRANSACTION
+    for (const [usageId, quantityUsed] of productVoucherUsage) {
+      // Kiểm tra voucher tồn tại và có đủ quantity không
+      const [voucherRows] = await connection.query(
+        `SELECT vu.* FROM VoucherUsage vu WHERE vu.UsageId = ? AND vu.Quantity >= ?`,
+        [usageId, quantityUsed]
+      );
+
+      if (!voucherRows.length) {
+        throw new Error(`Voucher không tồn tại hoặc không đủ quantity`);
+      }
+
+      const currentQuantity = voucherRows[0].Quantity;
+      const newQuantity = currentQuantity - quantityUsed;
+
+      // Cập nhật quantity và IsUsed
+      const [updateResult] = await connection.query(
+        `UPDATE VoucherUsage 
+         SET Quantity = ?,
+             IsUsed = CASE WHEN ? <= 0 THEN 1 ELSE IsUsed END
+         WHERE UsageId = ?`,
+        [newQuantity, newQuantity, usageId]
+      );
+
+      if (updateResult.affectedRows === 0) {
+        throw new Error(`Không thể cập nhật voucher ${usageId}`);
+      }
+    }
+
+    // 4. Xử lý voucher toàn đơn nếu có
+    if (orderVoucherIdParam) {
+      const [voucherRows] = await connection.query(
+        `SELECT vu.* FROM VoucherUsage vu WHERE vu.UsageId = ? AND vu.Quantity >= 1`,
+        [orderVoucherIdParam]
+      );
+
+      if (!voucherRows.length) {
+        throw new Error(`Voucher toàn đơn không tồn tại hoặc không đủ quantity`);
+      }
+
+      const currentQuantity = voucherRows[0].Quantity;
+      const newQuantity = currentQuantity - 1;
+
+      const [updateResult] = await connection.query(
+        `UPDATE VoucherUsage 
+         SET Quantity = ?,
+             IsUsed = CASE WHEN ? <= 0 THEN 1 ELSE IsUsed END
+         WHERE UsageId = ?`,
+        [newQuantity, newQuantity, orderVoucherIdParam]
+      );
+
+      if (updateResult.affectedRows === 0) {
+        throw new Error(`Không thể cập nhật voucher toàn đơn ${orderVoucherIdParam}`);
+      }
+    }
+
+    // 5. Tạo lịch sử trạng thái đơn hàng
+    for (const detail of orderDetails) {
+      const trackingCode = `TRACK-${orderId}-${detail.orderDetailId}-${Date.now()}`;
+      await connection.query(
+        `INSERT INTO OrderStatusHistory (OrderDetailId, TrackingCode, Status, CreatedAt)
+         VALUES (?, ?, 'Đã đặt hàng', NOW())`,
+        [detail.orderDetailId, trackingCode]
+      );
+    }
+
+    // 6. Xóa cart items nếu cần
+    if (cartIds && cartIds.length > 0) {
+      await connection.query(
+        "UPDATE Carts SET Status = 0 WHERE CartId IN (?)",
+        [cartIds]
+      );
+    }
+
+    return {
+      orderId,
+      orderDetails
+    };
+  },
+
+  // Lấy thông tin sản phẩm cho checkout với voucher tương ứng
+  getCheckoutData: async (accountId, cartIds) => {
+    try {
+      if (!cartIds.length) return { items: [] };
+
+      const placeholders = cartIds.map(() => "?").join(",");
+      const cartParams = [accountId, ...cartIds];
+      
+      // Lấy thông tin sản phẩm từ cart
+      const [cartItems] = await pool.query(
+        `
+        SELECT 
+          c.CartId,
+          c.Quantity,
+          c.UnitPrice,
+          (c.Quantity * c.UnitPrice) AS totalPrice,
+          p.ProductId,
+          p.ProductName,
+          p.Image,
+          s.StallId,
+          s.AccountId AS SellerAccountId
+        FROM Carts c
+        JOIN Products p ON p.ProductId = c.ProductId
+        JOIN Stalls s ON s.StallId = p.StallId
+        WHERE c.AccountId = ?
+          AND c.CartId IN (${placeholders})
+          AND c.Status = 1
+        `,
+        cartParams
+      );
+
+      if (cartItems.length === 0) return { items: [] };
+
+      // Lấy voucher cho từng sản phẩm theo stall
+      const itemsWithVouchers = [];
+      for (const item of cartItems) {
+        const productVouchers = await VoucherUsage.getProductVouchersForStall(accountId, item.StallId);
+        
+        itemsWithVouchers.push({
+          ...item,
+          vouchers: productVouchers,
+          selectedVoucher: null,
+          selectedShipType: null
+        });
+      }
+
+      // Lấy voucher toàn đơn
+      const orderVouchers = await VoucherUsage.getOrderVouchers(accountId);
+      const orderTotal = cartItems.reduce((sum, item) => sum + item.totalPrice, 0);
+
+      const validOrderVouchers = orderVouchers.filter(voucher => {
+        return orderTotal >= voucher.MinOrderValue;
+      });
+
+      return {
+        items: itemsWithVouchers,
+        orderVouchers: validOrderVouchers, // Chỉ trả về voucher hợp lệ
+        orderTotal: orderTotal
+      };
+
+    } catch (error) {
+      console.error("Error in getCheckoutData:", error);
+      throw error;
+    }
+  },
+
+  // Lấy thông tin buy now
+  getBuyNowData: async (accountId, productId, quantity) => {
+    try {
+      // Lấy thông tin sản phẩm
+      const [productRows] = await pool.query(
+        `
+        SELECT
+          p.ProductId,
+          p.ProductName,
+          p.Image,
+          p.Price AS UnitPrice,
+          s.StallId,
+          s.AccountId AS SellerAccountId
+        FROM Products p
+        JOIN Stalls s ON s.StallId = p.StallId
+        WHERE p.ProductId = ?
+          AND p.IsActive = 1
+          AND p.Status = 1
+        `,
+        [productId]
+      );
+
+      if (productRows.length === 0) {
+        throw new Error("Không tìm thấy sản phẩm");
+      }
+
+      const product = productRows[0];
+      const totalPrice = product.UnitPrice * quantity;
+
+      // Lấy voucher cho sản phẩm này
+      const productVouchers = await VoucherUsage.getProductVouchersForStall(accountId, product.StallId);
+
+      // Lấy voucher toàn đơn
+      const orderVouchers = await VoucherUsage.getOrderVouchers(accountId);
+
+      return {
+        items: [{
+          CartId: null,
+          ProductId: product.ProductId,
+          ProductName: product.ProductName,
+          Image: product.Image,
+          Quantity: quantity,
+          UnitPrice: product.UnitPrice,
+          totalPrice: totalPrice,
+          StallId: product.StallId,
+          SellerAccountId: product.SellerAccountId,
+          vouchers: productVouchers,
+          selectedVoucher: null,
+          selectedShipType: null
+        }],
+        orderVouchers
+      };
+
+    } catch (error) {
+      console.error("Error in getBuyNowData:", error);
+      throw error;
+    }
   }
 };
 

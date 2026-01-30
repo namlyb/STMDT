@@ -2,7 +2,7 @@ const Order = require("../models/Order");
 const ShipType = require("../models/ShipType");
 const VoucherUsage = require("../models/VoucherUsage");
 const OrderDetail = require("../models/OrderDetail");
-const { pool } = require("../config/db"); // THÊM DÒNG NÀY
+const { pool } = require("../config/db");
 
 const OrderController = {
   checkout: async (req, res) => {
@@ -10,25 +10,17 @@ const OrderController = {
       const { cartIds } = req.body;
       const accountId = req.user.AccountId;
 
-      // 1️⃣ Lấy sản phẩm checkout
-      const items = await Order.getCheckoutItems(accountId, cartIds);
+      const checkoutData = await Order.getCheckoutData(accountId, cartIds);
 
-      // 2️⃣ Lấy voucher toàn đơn (chỉ admin, tất cả loại)
-      const orderVouchers = await Order.getOrderVouchers(accountId);
-
-      // 3️⃣ Lấy tất cả voucher để kiểm tra trùng
-      const allVouchers = await Order.getAllVouchers(accountId);
-
-      // 4️⃣ Format image URL
-      const itemsWithImages = items.map(item => ({
+      // Format image URL
+      const itemsWithImages = checkoutData.items.map(item => ({
         ...item,
         Image: `${req.protocol}://${req.get("host")}/uploads/ProductImage/${item.Image}`
       }));
 
       res.json({ 
         items: itemsWithImages,
-        orderVouchers,
-        allVouchers // Gửi thêm để client có thể kiểm tra trùng
+        orderVouchers: checkoutData.orderVouchers
       });
 
     } catch (err) {
@@ -37,30 +29,27 @@ const OrderController = {
     }
   },
 
+  // Checkout buy now
   checkoutBuyNow: async (req, res) => {
     try {
       const accountId = req.user.AccountId;
       const { productId, quantity } = req.body;
 
-      // 1️⃣ Lấy sản phẩm
-      const items = await Order.checkoutBuyNow(accountId, productId, quantity);
+      const checkoutData = await Order.getBuyNowData(accountId, productId, quantity);
 
-      if (!items.length) {
+      if (!checkoutData.items.length) {
         return res.status(404).json({ message: "Không tìm thấy sản phẩm" });
       }
 
-      // 2️⃣ Lấy voucher toàn đơn
-      const orderVouchers = await Order.getOrderVouchers(accountId);
-
-      // 3️⃣ Format image URL
-      const itemsWithImages = items.map(item => ({
+      // Format image URL
+      const itemsWithImages = checkoutData.items.map(item => ({
         ...item,
         Image: `${req.protocol}://${req.get("host")}/uploads/ProductImage/${item.Image}`
       }));
 
       return res.json({ 
         items: itemsWithImages,
-        orderVouchers 
+        orderVouchers: checkoutData.orderVouchers
       });
 
     } catch (err) {
@@ -69,7 +58,7 @@ const OrderController = {
     }
   },
 
-  // API để lấy danh sách ship type
+  // Lấy danh sách ship type
   getShipTypes: async (req, res) => {
     try {
       const shipTypes = await ShipType.getAll();
@@ -80,6 +69,7 @@ const OrderController = {
     }
   },
 
+  // Tạo đơn hàng - chính logic
   createOrder: async (req, res) => {
     const connection = await pool.getConnection();
     
@@ -96,9 +86,7 @@ const OrderController = {
         isBuyNow = false
       } = req.body;
 
-      console.log("Order data received:", req.body);
-
-      // 1. Validate dữ liệu
+      // 1. Validate dữ liệu cơ bản
       if (!addressId || !items || !paymentMethodId || items.length === 0) {
         throw new Error("Thiếu thông tin cần thiết để tạo đơn hàng");
       }
@@ -121,23 +109,37 @@ const OrderController = {
         throw new Error("Phương thức thanh toán không hợp lệ");
       }
 
-      // 4. Validate và tính toán tổng giá trị đơn hàng
-      let grandTotal = 0;
-      const orderDetailsData = [];
-      const usedVoucherIds = new Set();
+      // 4. Validate voucher toàn đơn nếu có
+      let orderVoucher = null;
+      let orderTotal = 0;
+      
+      // Tính tổng giá trị đơn hàng trước khi giảm
+      for (const item of items) {
+        const product = await Order.getProductDetails(item.productId);
+        if (!product) {
+          throw new Error(`Sản phẩm ${item.productId} không khả dụng`);
+        }
+        orderTotal += product.Price * item.quantity;
+      }
 
-      // Validate voucher toàn đơn nếu có
       if (orderVoucherId) {
-        const orderVoucher = await VoucherUsage.validateVoucher(orderVoucherId, accountId);
+        orderVoucher = await VoucherUsage.validateVoucher(orderVoucherId, accountId);
         if (!orderVoucher) {
           throw new Error("Voucher toàn đơn không hợp lệ");
         }
-        usedVoucherIds.add(orderVoucherId);
+
+        // Kiểm tra điều kiện giá trị tối thiểu
+        if (orderTotal < orderVoucher.MinOrderValue) {
+          throw new Error(`Voucher toàn đơn yêu cầu đơn hàng tối thiểu ${orderVoucher.MinOrderValue}đ`);
+        }
       }
 
+      // 5. Tính toán và validate
+      let grandTotal = 0;
+      const orderItemsData = [];
+      const productVoucherUsage = new Map(); // Theo dõi voucher sản phẩm đã dùng
+
       for (const item of items) {
-        console.log("Processing item:", item);
-        
         // Validate sản phẩm
         const product = await Order.getProductDetails(item.productId);
         if (!product) {
@@ -161,15 +163,19 @@ const OrderController = {
         // Validate voucher sản phẩm nếu có
         let itemVoucher = null;
         if (item.selectedVoucherId) {
-          if (usedVoucherIds.has(item.selectedVoucherId)) {
-            throw new Error(`Voucher ${item.selectedVoucherId} đã được sử dụng`);
-          }
-          
-          itemVoucher = await VoucherUsage.validateVoucher(item.selectedVoucherId, accountId);
+          itemVoucher = await VoucherUsage.validateVoucherForProduct(item.selectedVoucherId, accountId, product.StallId);
           if (!itemVoucher) {
-            throw new Error(`Voucher sản phẩm ${item.selectedVoucherId} không hợp lệ`);
+            throw new Error(`Voucher sản phẩm ${item.selectedVoucherId} không hợp lệ hoặc không áp dụng cho sản phẩm này`);
           }
-          usedVoucherIds.add(item.selectedVoucherId);
+
+          // Kiểm tra số lượng voucher còn đủ không
+          const currentUsage = productVoucherUsage.get(item.selectedVoucherId) || 0;
+          if (currentUsage + 1 > itemVoucher.Quantity) {
+            throw new Error(`Voucher ${itemVoucher.VoucherName} không đủ số lượng (cần ${currentUsage + 1}, có ${itemVoucher.Quantity})`);
+          }
+
+          // Cập nhật số lần sử dụng
+          productVoucherUsage.set(item.selectedVoucherId, currentUsage + 1);
         }
 
         // Tính toán giá trị
@@ -201,102 +207,69 @@ const OrderController = {
         grandTotal += itemFinalPrice;
 
         // Lưu thông tin cho OrderDetails
-        orderDetailsData.push({
+        orderItemsData.push({
           productId: item.productId,
           quantity: item.quantity,
           unitPrice: unitPrice,
-          itemTotal: itemTotal,
-          itemDiscount: itemDiscount,
           shipTypeId: item.selectedShipTypeId,
           shipFee: shipFee,
           feeId: feeId,
-          voucherId: item.selectedVoucherId,
-          itemFinalPrice: itemFinalPrice
+          voucherId: item.selectedVoucherId || null,
+          itemDiscount: itemDiscount // Lưu discount để sử dụng sau
         });
       }
 
-      // 5. Tính discount cho voucher toàn đơn nếu có
-      let orderVoucherDiscount = 0;
-      let orderVoucher = null;
-      
-      if (orderVoucherId) {
-        orderVoucher = await VoucherUsage.validateVoucher(orderVoucherId, accountId);
-        
+      // 6. Tính discount cho voucher toàn đơn nếu có
+      if (orderVoucher) {
         // Tính tổng giá trị sản phẩm sau khi đã áp dụng voucher sản phẩm
-        const productTotalAfterItemDiscount = orderDetailsData.reduce(
-          (sum, item) => sum + (item.itemTotal - item.itemDiscount), 0
+        const productTotalAfterItemDiscount = orderItemsData.reduce(
+          (sum, item) => sum + (item.unitPrice * item.quantity - item.itemDiscount), 0
         );
 
-        if (productTotalAfterItemDiscount >= orderVoucher.MinOrderValue) {
-          if (orderVoucher.DiscountType === 'ship') {
-            // Tính tổng phí ship
-            const totalShip = orderDetailsData.reduce((sum, item) => sum + item.shipFee, 0);
-            orderVoucherDiscount = Math.min(totalShip, orderVoucher.DiscountValue);
-            grandTotal -= orderVoucherDiscount;
-          } else if (orderVoucher.DiscountType === 'percent') {
-            orderVoucherDiscount = Math.floor(productTotalAfterItemDiscount * orderVoucher.DiscountValue / 100);
-            if (orderVoucher.MaxDiscount) {
-              orderVoucherDiscount = Math.min(orderVoucherDiscount, orderVoucher.MaxDiscount);
-            }
-            grandTotal -= orderVoucherDiscount;
-          } else if (orderVoucher.DiscountType === 'fixed') {
-            orderVoucherDiscount = orderVoucher.DiscountValue;
-            grandTotal -= orderVoucherDiscount;
-          }
+        if (orderVoucher.DiscountType === 'ship') {
+          const totalShip = orderItemsData.reduce((sum, item) => sum + item.shipFee, 0);
+          const shipDiscount = Math.min(totalShip, orderVoucher.DiscountValue);
+          grandTotal -= shipDiscount;
+        } else if (orderVoucher.DiscountType === 'percent') {
+          const orderDiscount = Math.floor(productTotalAfterItemDiscount * orderVoucher.DiscountValue / 100);
+          const maxDiscount = orderVoucher.MaxDiscount || Infinity;
+          const finalDiscount = Math.min(orderDiscount, maxDiscount);
+          grandTotal -= finalDiscount;
+        } else if (orderVoucher.DiscountType === 'fixed') {
+          const fixedDiscount = orderVoucher.DiscountValue;
+          grandTotal -= fixedDiscount;
         }
       }
 
       // Đảm bảo grandTotal không âm
       grandTotal = Math.max(grandTotal, 0);
 
-      // 6. Tạo đơn hàng chính
-      const orderDate = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
-      const orderId = await Order.createOrder({
-        AccountId: accountId,
-        AddressId: addressId,
-        MethodId: paymentMethodId,
-        UsageId: orderVoucherId || null,
-        FinalPrice: grandTotal,
-        OrderDate: orderDate
-      });
+      // 7. Tạo đơn hàng
+      const orderDate = new Date().toISOString().split('T')[0];
+      const orderData = {
+        accountId,
+        addressId,
+        methodId: paymentMethodId,
+        orderVoucherId: orderVoucherId || null,
+        grandTotal,
+        orderDate,
+        orderItems: orderItemsData,
+        cartIds: isBuyNow ? [] : cartIds
+      };
 
-      // 7. Tạo các chi tiết đơn hàng
-      for (const itemData of orderDetailsData) {
-        await OrderDetail.create({
-          OrderId: orderId,
-          ProductId: itemData.productId,
-          UsageId: itemData.voucherId || null,
-          UnitPrice: itemData.unitPrice,
-          Quantity: itemData.quantity,
-          ShipTypeId: itemData.shipTypeId,
-          ShipFee: itemData.shipFee,
-          FeeId: itemData.feeId
-        });
-
-        // Đánh dấu voucher sản phẩm đã sử dụng
-        if (itemData.voucherId) {
-          await VoucherUsage.markAsUsed(itemData.voucherId);
-        }
-      }
-
-      // 8. Đánh dấu voucher toàn đơn đã sử dụng
-      if (orderVoucherId) {
-        await VoucherUsage.markAsUsed(orderVoucherId);
-      }
-
-      // 9. Xóa cart items nếu là mua từ giỏ hàng
-      if (!isBuyNow && cartIds.length > 0) {
-        await connection.query(
-          "UPDATE Carts SET Status = 0 WHERE CartId IN (?)",
-          [cartIds]
-        );
-      }
+      // Tạo đơn hàng với transaction (bao gồm cả xử lý voucher)
+      const result = await Order.createOrderTransactionWithVouchers(
+        connection, 
+        orderData, 
+        productVoucherUsage, 
+        orderVoucherId
+      );
 
       await connection.commit();
 
       res.json({ 
         message: "Đặt hàng thành công", 
-        orderId: orderId,
+        orderId: result.orderId,
         grandTotal: grandTotal
       });
 
