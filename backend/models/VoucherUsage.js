@@ -1,7 +1,6 @@
 const { pool } = require("../config/db");
 
 const VoucherUsage = {
-
   checkReceived: async (voucherId, accountId) => {
     const [rows] = await pool.query(
       `SELECT * FROM VoucherUsage WHERE VoucherId=? AND AccountId=?`,
@@ -60,60 +59,81 @@ const VoucherUsage = {
   },
 
   getByAccount: async (accountId) => {
-  const [rows] = await pool.query(
-    `
-    SELECT 
-      vu.UsageId,
-      v.VoucherId,
-      v.VoucherName,
-      v.DiscountType,
-      v.DiscountValue,
-      v.MinOrderValue,
-      v.MaxDiscount,
-      vu.Quantity,
-      v.EndTime,
-      v.CreatedBy
-    FROM VoucherUsage vu
-    JOIN Vouchers v ON v.VoucherId = vu.VoucherId
-    WHERE vu.AccountId = ?
-      AND vu.IsUsed = 0
-      AND v.EndTime >= CURDATE()
-    ORDER BY v.EndTime ASC
-    `,
-    [accountId]
-  );
-  return rows;
-},
-
+    const [rows] = await pool.query(
+      `
+      SELECT 
+        vu.UsageId,
+        v.VoucherId,
+        v.VoucherName,
+        v.DiscountType,
+        v.DiscountValue,
+        v.MinOrderValue,
+        v.MaxDiscount,
+        vu.Quantity,
+        v.EndTime,
+        v.CreatedBy
+      FROM VoucherUsage vu
+      JOIN Vouchers v ON v.VoucherId = vu.VoucherId
+      WHERE vu.AccountId = ?
+        AND vu.IsUsed = 0
+        AND v.EndTime >= CURDATE()
+      ORDER BY v.EndTime ASC
+      `,
+      [accountId]
+    );
+    return rows;
+  },
 
   getUnusedByAccount: async (accountId) => {
-  const [rows] = await pool.query(
-    `
-    SELECT 
-      vu.UsageId,
-      v.VoucherId,
-      v.VoucherName,
-      v.DiscountType,
-      v.DiscountValue,
-      v.MinOrderValue,
-      v.MaxDiscount,
-      v.EndTime,
-      v.CreatedBy,
-      s.StallId
-    FROM VoucherUsage vu
-    JOIN Vouchers v ON v.VoucherId = vu.VoucherId
-    LEFT JOIN Stalls s ON s.AccountId = v.CreatedBy
-    WHERE vu.AccountId = ?
-      AND vu.IsUsed = 0
-      AND v.EndTime >= CURDATE()
-    `,
-    [accountId]
-  );
-  return rows;
-},
+    const [rows] = await pool.query(
+      `
+      SELECT 
+        vu.UsageId,
+        v.VoucherId,
+        v.VoucherName,
+        v.DiscountType,
+        v.DiscountValue,
+        v.MinOrderValue,
+        v.MaxDiscount,
+        v.EndTime,
+        v.CreatedBy,
+        s.StallId
+      FROM VoucherUsage vu
+      JOIN Vouchers v ON v.VoucherId = vu.VoucherId
+      LEFT JOIN Stalls s ON s.AccountId = v.CreatedBy
+      WHERE vu.AccountId = ?
+        AND vu.IsUsed = 0
+        AND v.EndTime >= CURDATE()
+      `,
+      [accountId]
+    );
+    return rows;
+  },
 
+  // THÊM HAI HÀM NÀY:
+  
+  // Kiểm tra voucher có hợp lệ không
+  validateVoucher: async (usageId, accountId) => {
+    const [rows] = await pool.query(
+      `SELECT vu.*, v.* 
+       FROM VoucherUsage vu
+       JOIN Vouchers v ON vu.VoucherId = v.VoucherId
+       WHERE vu.UsageId = ? 
+         AND vu.AccountId = ?
+         AND vu.Quantity > 0
+         AND v.EndTime >= CURDATE()`,
+      [usageId, accountId]
+    );
+    return rows[0];
+  },
 
-
+  // Đánh dấu voucher đã sử dụng
+  markAsUsed: async (usageId) => {
+    await pool.query(
+      `UPDATE VoucherUsage SET IsUsed = 1 WHERE UsageId = ?`,
+      [usageId]
+    );
+  }
 };
 
 module.exports = VoucherUsage;

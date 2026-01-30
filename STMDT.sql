@@ -97,15 +97,15 @@ CREATE TABLE PlatformFees (
 CREATE TABLE Orders (
     OrderId INT AUTO_INCREMENT PRIMARY KEY,
     AccountId INT NOT NULL,
-    FeeId INT NOT NULL,
     AddressId INT NOT NULL,
     MethodId INT NOT NULL,
     UsageId INT,
+    FinalPrice INT NOT NULL,
     OrderDate DATE NOT NULL,
+    Status tinyint(1) NOT NULL default 1,
     CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UpdatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (AccountId) REFERENCES Accounts(AccountId),
-    FOREIGN KEY (FeeId) REFERENCES PlatformFees(FeeId),
     FOREIGN KEY (AddressId) REFERENCES Address(AddressId),
     FOREIGN KEY (MethodId) REFERENCES PaymentMethods(MethodId),
     FOREIGN KEY (UsageId) REFERENCES VoucherUsage(UsageId)
@@ -147,12 +147,15 @@ CREATE TABLE OrderDetails (
     UnitPrice INT NOT NULL,
     Quantity INT NOT NULL,
     CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    ShipType INT NOT NULL,
+    ShipTypeId INT NOT NULL,
     ShipFee INT NOT NULL,
+    FeeId INT NOT NULL,
+    Status tinyint(1) NOT NULL default 1,
     FOREIGN KEY (OrderId) REFERENCES Orders(OrderId),
     FOREIGN KEY (ProductId) REFERENCES Products(ProductId),
     FOREIGN KEY (UsageId) REFERENCES VoucherUsage(UsageId),
-    FOREIGN KEY (ShipType) REFERENCES ShipType(ShipTypeId)
+    FOREIGN KEY (ShipTypeId) REFERENCES ShipType(ShipTypeId),
+    FOREIGN KEY (FeeId) REFERENCES PlatformFees(FeeId)
 );
 CREATE TABLE Feedbacks (
     FeedbackId INT AUTO_INCREMENT PRIMARY KEY,

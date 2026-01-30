@@ -12,5 +12,11 @@ router.get("/shiptypes", OrderController.getShipTypes);
 
 // Tạo đơn hàng
 router.post("/", verifyToken, OrderController.createOrder);
+// Lấy thông tin đơn hàng của người dùng
+router.get("/my-orders", verifyToken, OrderController.getMyOrders);
+
+// Lấy chi tiết đơn hàng
+router.get("/:orderId", verifyToken, OrderController.getOrderDetail);
+
 
 module.exports = router;

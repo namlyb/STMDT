@@ -238,6 +238,51 @@ const Order = {
       console.error("Error in getAllVouchers:", error);
       throw error;
     }
+  },
+
+   createOrder: async (orderData) => {
+    const {
+      AccountId,
+      AddressId,
+      MethodId,
+      UsageId,
+      FinalPrice,
+      OrderDate
+    } = orderData;
+
+    const [result] = await pool.query(
+      `INSERT INTO Orders (AccountId, AddressId, MethodId, UsageId, FinalPrice, OrderDate, CreatedAt, UpdatedAt)
+       VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+      [AccountId, AddressId, MethodId, UsageId, FinalPrice, OrderDate]
+    );
+
+    return result.insertId;
+  },
+
+  // Kiểm tra và lấy thông tin sản phẩm
+  getProductDetails: async (productId) => {
+    const [rows] = await pool.query(
+      `SELECT p.ProductId, p.Price, p.StallId, s.AccountId as SellerAccountId
+       FROM Products p
+       JOIN Stalls s ON p.StallId = s.StallId
+       WHERE p.ProductId = ? AND p.IsActive = 1 AND p.Status = 1`,
+      [productId]
+    );
+    return rows[0];
+  },
+
+  // Lấy platform fee dựa trên giá sản phẩm
+  getApplicableFee: async (unitPrice) => {
+    const [rows] = await pool.query(
+      `SELECT FeeId FROM PlatformFees 
+       WHERE Status = 1 
+         AND MinOrderValue <= ?
+         AND (MaxOrderValue IS NULL OR MaxOrderValue >= ?)
+       ORDER BY MinOrderValue DESC
+       LIMIT 1`,
+      [unitPrice, unitPrice]
+    );
+    return rows[0] ? rows[0].FeeId : null;
   }
 };
 

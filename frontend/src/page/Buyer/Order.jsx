@@ -327,65 +327,71 @@ export default function Order() {
 
   /* ================= HANDLE CHECKOUT ================= */
   const handleCheckout = async () => {
-    if (!selectedAddress) {
-      alert("Vui lòng chọn địa chỉ nhận hàng");
-      return;
+  if (!selectedAddress) {
+    alert("Vui lòng chọn địa chỉ nhận hàng");
+    return;
+  }
+
+  if (items.some(item => !item.selectedShipType)) {
+    alert("Vui lòng chọn phương thức vận chuyển cho tất cả sản phẩm");
+    return;
+  }
+
+  if (!selectedPaymentMethod) {
+    alert("Vui lòng chọn phương thức thanh toán");
+    return;
+  }
+
+  // Kiểm tra voucher trùng
+  const allSelectedVoucherIds = new Set();
+  items.forEach(item => {
+    if (item.selectedVoucher) {
+      allSelectedVoucherIds.add(item.selectedVoucher.UsageId);
     }
+  });
 
-    if (items.some(item => !item.selectedShipType)) {
-      alert("Vui lòng chọn phương thức vận chuyển cho tất cả sản phẩm");
-      return;
-    }
+  if (selectedOrderVoucher && allSelectedVoucherIds.has(selectedOrderVoucher.UsageId)) {
+    alert("Có voucher đang được sử dụng ở cả sản phẩm và đơn hàng. Vui lòng kiểm tra lại.");
+    return;
+  }
 
-    if (!selectedPaymentMethod) {
-      alert("Vui lòng chọn phương thức thanh toán");
-      return;
-    }
+  try {
+    // Lấy cartIds từ sessionStorage
+    const cartIds = JSON.parse(sessionStorage.getItem("checkoutCartIds") || "[]");
+    // Chuẩn bị dữ liệu đơn hàng theo định dạng backend yêu cầu
+    
+    const orderData = {
+      addressId: selectedAddress.AddressId,
+      items: items.map(item => ({
+        productId: item.ProductId,
+        quantity: item.Quantity,
+        selectedVoucherId: item.selectedVoucher?.UsageId || null,
+        selectedShipTypeId: item.selectedShipType?.ShipTypeId
+      })),
+      orderVoucherId: selectedOrderVoucher?.UsageId || null,
+      paymentMethodId: selectedPaymentMethod.MethodId,
+      cartIds: isBuyNow ? [] : cartIds, // nếu là mua ngay thì gửi mảng rỗng
+      isBuyNow: isBuyNow
+    };
+    console.log("Sending order data:", orderData);
+    // Gọi API tạo đơn hàng
+    const response = await axios.post("/orders", orderData);
 
-    // Kiểm tra voucher trùng
-    const allSelectedVoucherIds = new Set();
-    items.forEach(item => {
-      if (item.selectedVoucher) {
-        allSelectedVoucherIds.add(item.selectedVoucher.UsageId);
-      }
-    });
+    alert(`Đặt hàng thành công! Mã đơn hàng: #${response.data.orderId}`);
 
-    if (selectedOrderVoucher && allSelectedVoucherIds.has(selectedOrderVoucher.UsageId)) {
-      alert("Có voucher đang được sử dụng ở cả sản phẩm và đơn hàng. Vui lòng kiểm tra lại.");
-      return;
-    }
+    // Xóa dữ liệu tạm
+    localStorage.removeItem("buyNowData");
+    sessionStorage.removeItem("checkoutCartIds");
 
-    try {
-      // Chuẩn bị dữ liệu đơn hàng
-      const orderData = {
-        addressId: selectedAddress.AddressId,
-        items: items.map(item => ({
-          productId: item.ProductId,
-          quantity: item.Quantity,
-          selectedVoucherId: item.selectedVoucher?.UsageId || null,
-          selectedShipTypeId: item.selectedShipType?.ShipTypeId
-        })),
-        orderVoucherId: selectedOrderVoucher?.UsageId || null,
-        paymentMethodId: selectedPaymentMethod.MethodId // Sử dụng selectedPaymentMethod
-      };
+    // Chuyển hướng đến trang chi tiết đơn hàng
+    navigate(`/profile/orders/${response.data.orderId}`);
 
-      // Gọi API tạo đơn hàng
-      const response = await axios.post("/orders", orderData);
-
-      alert("Đặt hàng thành công! Mã đơn hàng: #" + response.data.orderId);
-
-      // Xóa dữ liệu tạm
-      localStorage.removeItem("buyNowData");
-      sessionStorage.removeItem("checkoutCartIds");
-
-      // Chuyển hướng đến trang chi tiết đơn hàng hoặc trang chủ
-      navigate("/profile?tab=orders");
-
-    } catch (error) {
-      console.error("Order error:", error);
-      alert(error.response?.data?.message || "Đặt hàng thất bại. Vui lòng thử lại.");
-    }
-  };
+  } catch (error) {
+    console.error("Order error:", error);
+    console.error("Error response:", error.response?.data);
+    alert(error.response?.data?.message || "Đặt hàng thất bại. Vui lòng thử lại.");
+  }
+};
 
   /* ================= RENDER ================= */
   if (loading) {
