@@ -620,7 +620,193 @@ const Order = {
       console.error("Error in getBuyNowData:", error);
       throw error;
     }
-  }
+  },
+
+  getOrdersByAccountId: async (accountId) => {
+    const [orders] = await pool.query(
+      `SELECT 
+        o.OrderId,
+        o.OrderDate,
+        o.FinalPrice,
+        o.Status,
+        o.CreatedAt,
+        o.UpdatedAt,
+        a.Content as AddressContent,
+        a.Name as AddressName,
+        a.Phone as AddressPhone,
+        pm.MethodName,
+        COUNT(od.OrderDetailId) as itemCount
+       FROM Orders o
+       LEFT JOIN Address a ON o.AddressId = a.AddressId
+       LEFT JOIN PaymentMethods pm ON o.MethodId = pm.MethodId
+       LEFT JOIN OrderDetails od ON o.OrderId = od.OrderId
+       WHERE o.AccountId = ?
+       GROUP BY o.OrderId
+       ORDER BY o.CreatedAt DESC`,
+      [accountId]
+    );
+    return orders;
+  },
+
+  getOrderDetailById: async (orderId, accountId) => {
+    const [orderRows] = await pool.query(
+      `SELECT 
+        o.*,
+        a.Name as AddressName,
+        a.Phone as AddressPhone,
+        a.Content as AddressContent,
+        pm.MethodName
+       FROM Orders o
+       LEFT JOIN Address a ON o.AddressId = a.AddressId
+       LEFT JOIN PaymentMethods pm ON o.MethodId = pm.MethodId
+       WHERE o.OrderId = ? AND o.AccountId = ?`,
+      [orderId, accountId]
+    );
+
+    const [detailRows] = await pool.query(
+      `SELECT 
+        od.*,
+        p.ProductName,
+        p.Image,
+        st.Content as ShipTypeContent,
+        pf.PercentValue as PlatformFeePercent,
+        vu.UsageId,
+        v.VoucherName
+       FROM OrderDetails od
+       LEFT JOIN Products p ON od.ProductId = p.ProductId
+       LEFT JOIN ShipType st ON od.ShipTypeId = st.ShipTypeId
+       LEFT JOIN PlatformFees pf ON od.FeeId = pf.FeeId
+       LEFT JOIN VoucherUsage vu ON od.UsageId = vu.UsageId
+       LEFT JOIN Vouchers v ON vu.VoucherId = v.VoucherId
+       WHERE od.OrderId = ?`,
+      [orderId]
+    );
+
+    const [historyRows] = await pool.query(
+      `SELECT 
+        osh.*,
+        od.ProductId
+       FROM OrderStatusHistory osh
+       JOIN OrderDetails od ON osh.OrderDetailId = od.OrderDetailId
+       WHERE od.OrderId = ?
+       ORDER BY osh.CreatedAt DESC`,
+      [orderId]
+    );
+
+    const [paymentRows] = await pool.query(
+      `SELECT * FROM Payments 
+       WHERE OrderId = ? 
+       ORDER BY CreatedAt DESC`,
+      [orderId]
+    );
+
+    return {
+      order: orderRows[0],
+      details: detailRows,
+      history: historyRows,
+      payments: paymentRows
+    };
+  },
+
+
+  cancelOrderById: async (orderId, accountId) => {
+    const connection = await pool.getConnection();
+    try {
+      await connection.beginTransaction();
+      
+      const [orderRows] = await connection.query(
+        "SELECT Status FROM Orders WHERE OrderId = ? AND AccountId = ?",
+        [orderId, accountId]
+      );
+
+      if (!orderRows.length) {
+        throw new Error("Không tìm thấy đơn hàng");
+      }
+
+      if (orderRows[0].Status !== 1) {
+        throw new Error("Chỉ có thể hủy đơn hàng ở trạng thái chờ thanh toán");
+      }
+
+      await connection.query(
+        "UPDATE Orders SET Status = 5, UpdatedAt = NOW() WHERE OrderId = ?",
+        [orderId]
+      );
+
+      await connection.query(
+        "UPDATE OrderDetails SET Status = 5 WHERE OrderId = ?",
+        [orderId]
+      );
+
+      const [detailRows] = await connection.query(
+        "SELECT OrderDetailId FROM OrderDetails WHERE OrderId = ?",
+        [orderId]
+      );
+
+      for (const detail of detailRows) {
+        await connection.query(
+          `INSERT INTO OrderStatusHistory (OrderDetailId, TrackingCode, Status, CreatedAt)
+           VALUES (?, ?, 'Đã hủy', NOW())`,
+          [detail.OrderDetailId, `CANCEL-${Date.now()}`]
+        );
+      }
+
+      await connection.commit();
+      return true;
+
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  },
+
+  reorderById: async (orderId, accountId) => {
+    const [details] = await pool.query(
+      `SELECT 
+        od.ProductId,
+        od.UnitPrice,
+        od.Quantity
+       FROM Orders o
+       JOIN OrderDetails od ON o.OrderId = od.OrderId
+       WHERE o.OrderId = ? AND o.AccountId = ?
+         AND od.Status = 4`,
+      [orderId, accountId]
+    );
+
+    if (!details.length) {
+      throw new Error("Không tìm thấy đơn hàng để mua lại");
+    }
+
+    for (const detail of details) {
+      const [product] = await pool.query(
+        "SELECT ProductId FROM Products WHERE ProductId = ? AND IsActive = 1",
+        [detail.ProductId]
+      );
+
+      if (product.length) {
+        const [existing] = await pool.query(
+          "SELECT CartId, Quantity FROM Carts WHERE ProductId = ? AND AccountId = ? AND Status = 1",
+          [detail.ProductId, accountId]
+        );
+
+        if (existing.length) {
+          await pool.query(
+            "UPDATE Carts SET Quantity = Quantity + ?, UpdatedAt = NOW() WHERE CartId = ?",
+            [detail.Quantity, existing[0].CartId]
+          );
+        } else {
+          await pool.query(
+            `INSERT INTO Carts (ProductId, AccountId, Quantity, Status, UnitPrice, UpdatedAt)
+             VALUES (?, ?, ?, 1, ?, NOW())`,
+            [detail.ProductId, accountId, detail.Quantity, detail.UnitPrice]
+          );
+        }
+      }
+    }
+    
+    return true;
+  },
 };
 
 module.exports = Order;

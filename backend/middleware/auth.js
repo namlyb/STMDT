@@ -14,14 +14,30 @@ function verifyToken(req, res, next) {
     token = req.cookies.token;
   }
 
-  if (!token) return res.status(401).json({ message: "Chưa đăng nhập" });
+   // 3️⃣ Kiểm tra từ session/token trong body (cho mobile/API)
+  if (!token && req.body?.token) {
+    token = req.body.token;
+  }
+
+  if (!token) {
+    console.log("No token found in request");
+    return res.status(401).json({ 
+      message: "Chưa đăng nhập",
+      details: "Token không tồn tại trong request"
+    });
+  }
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.user = decoded; // lưu thông tin account vào req.user
+    console.log("Token verified successfully for user:", decoded);
     next();
   } catch (err) {
-    return res.status(401).json({ message: "Token không hợp lệ" });
+    console.error("Token verification error:", err.message);
+    return res.status(401).json({ 
+      message: "Token không hợp lệ hoặc đã hết hạn",
+      details: err.message 
+    });
   }
 }
 
@@ -29,7 +45,7 @@ function verifyRole(allowedRoles) {
   return (req, res, next) => {
     const roleId = req.user.RoleId;
     if (!allowedRoles.includes(roleId)) {
-      return res.status(403).json({ message: "Không có quyền truy cập" });
+      return res.status(403).json({ message: "Không có quyền truy cập", userRole: roleId, requiredRoles: allowedRoles });
     }
     next();
   };

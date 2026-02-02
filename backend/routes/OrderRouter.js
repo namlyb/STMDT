@@ -12,11 +12,17 @@ router.get("/shiptypes", OrderController.getShipTypes);
 
 // Tạo đơn hàng
 router.post("/", verifyToken, OrderController.createOrder);
-// Lấy thông tin đơn hàng của người dùng
+// Lấy danh sách đơn hàng của user
 router.get("/my-orders", verifyToken, OrderController.getMyOrders);
 
 // Lấy chi tiết đơn hàng
 router.get("/:orderId", verifyToken, OrderController.getOrderDetail);
+
+// Hủy đơn hàng
+router.put("/:orderId/cancel", verifyToken, OrderController.cancelOrder);
+
+// Mua lại đơn hàng
+router.post("/:orderId/reorder", verifyToken, OrderController.reorder);
 
 
 module.exports = router;

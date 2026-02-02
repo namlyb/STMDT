@@ -288,16 +288,8 @@ const OrderController = {
     try {
       const accountId = req.user.AccountId;
       
-      const [orders] = await pool.query(
-        `SELECT o.*, a.Content as AddressContent, pm.MethodName
-         FROM Orders o
-         LEFT JOIN Address a ON o.AddressId = a.AddressId
-         LEFT JOIN PaymentMethods pm ON o.MethodId = pm.MethodId
-         WHERE o.AccountId = ?
-         ORDER BY o.OrderId DESC`,
-        [accountId]
-      );
-
+      // Gọi model để lấy danh sách đơn hàng
+      const orders = await Order.getOrdersByAccountId(accountId);
       res.json(orders);
     } catch (error) {
       console.error("Get my orders error:", error);
@@ -305,39 +297,20 @@ const OrderController = {
     }
   },
 
-  // Lấy chi tiết đơn hàng
   getOrderDetail: async (req, res) => {
     try {
       const { orderId } = req.params;
       const accountId = req.user.AccountId;
 
-      // Lấy thông tin đơn hàng chính
-      const [orderRows] = await pool.query(
-        `SELECT o.*, a.*, pm.MethodName
-         FROM Orders o
-         LEFT JOIN Address a ON o.AddressId = a.AddressId
-         LEFT JOIN PaymentMethods pm ON o.MethodId = pm.MethodId
-         WHERE o.OrderId = ? AND o.AccountId = ?`,
-        [orderId, accountId]
-      );
-
-      if (!orderRows.length) {
+      // Gọi model để lấy chi tiết đơn hàng
+      const orderDetail = await Order.getOrderDetailById(orderId, accountId);
+      
+      if (!orderDetail.order) {
         return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
       }
 
-      // Lấy chi tiết đơn hàng
-      const [detailRows] = await pool.query(
-        `SELECT od.*, p.ProductName, p.Image, st.Content as ShipTypeContent, pf.PercentValue as PlatformFeePercent
-         FROM OrderDetails od
-         LEFT JOIN Products p ON od.ProductId = p.ProductId
-         LEFT JOIN ShipType st ON od.ShipTypeId = st.ShipTypeId
-         LEFT JOIN PlatformFees pf ON od.FeeId = pf.FeeId
-         WHERE od.OrderId = ?`,
-        [orderId]
-      );
-
-      // Format image URL
-      const detailsWithImages = detailRows.map(detail => ({
+      // Format image URL (logic xử lý view)
+      const detailsWithImages = orderDetail.details.map(detail => ({
         ...detail,
         Image: detail.Image 
           ? `${req.protocol}://${req.get("host")}/uploads/ProductImage/${detail.Image}`
@@ -345,15 +318,48 @@ const OrderController = {
       }));
 
       res.json({
-        order: orderRows[0],
-        details: detailsWithImages
+        order: orderDetail.order,
+        details: detailsWithImages,
+        history: orderDetail.history,
+        payments: orderDetail.payments
       });
 
     } catch (error) {
       console.error("Get order detail error:", error);
       res.status(500).json({ message: "Lỗi khi lấy chi tiết đơn hàng" });
     }
+  },
+
+  cancelOrder: async (req, res) => {
+    try {
+      const { orderId } = req.params;
+      const accountId = req.user.AccountId;
+
+      // Gọi model để hủy đơn hàng
+      await Order.cancelOrderById(orderId, accountId);
+      res.json({ message: "Đã hủy đơn hàng thành công" });
+
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  },
+
+  reorder: async (req, res) => {
+    try {
+      const { orderId } = req.params;
+      const accountId = req.user.AccountId;
+
+      // Gọi model để mua lại đơn hàng
+      await Order.reorderById(orderId, accountId);
+      res.json({ message: "Đã thêm sản phẩm vào giỏ hàng" });
+
+    } catch (error) {
+      console.error("Reorder error:", error);
+      res.status(500).json({ message: "Lỗi khi mua lại đơn hàng" });
+    }
   }
+
+
 };
 
 module.exports = OrderController;

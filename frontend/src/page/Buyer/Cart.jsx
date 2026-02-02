@@ -405,7 +405,7 @@ export default function Cart() {
                 {/* Continue Shopping */}
                 <button
                   onClick={() => navigate("/")}
-                  className="w-full mt-4 py-3 bg-white border-2 cursor-pointer border-gray-300 text-gray-700 font-semibold rounded-xl hover:border-orange-500 hover:text-orange-600 transition-all duration-300"
+                  className="w-full mt-4 py-3 bg-white border-2 cursor-pointer border-gray-300 text-gray-700 cursor-pointer font-semibold rounded-xl hover:border-orange-500 hover:text-orange-600 transition-all duration-300"
                 >
                   Tiếp tục mua sắm
                 </button>

@@ -30,6 +30,7 @@ import CreateVoucher from "./page/Admin/CreateVoucher";
 import MyVoucher from "./page/Buyer/MyVoucher";
 import UpdateAddress from "./page/Buyer/UpdateAddress";
 import PlatformFee from "./page/Admin/PlatformFee";
+import MyOrder from "./page/Buyer/MyOrder";
 
 function App() {
   return (
@@ -70,6 +71,7 @@ function App() {
         <Route path="/address/add" element={<AddAddress />} />
         <Route path="/address/update/:id" element={<UpdateAddress />} />
         <Route path="/my-voucher" element={<MyVoucher />} />
+        <Route path="/orders" element={<MyOrder />} />
       </Route>
         <Route path="/cart" element={<Cart />} />
         <Route path="/product/:id" element={<ProductDetail />} />

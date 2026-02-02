@@ -170,12 +170,13 @@ CREATE TABLE Feedbacks (
 );
 CREATE TABLE Payments (
     PaymentId INT AUTO_INCREMENT PRIMARY KEY,
-    OrderDetailId INT NOT NULL,
+    OrderId INT NOT NULL,
     Amount INT NOT NULL,
-    TransactionDate DATE NOT NULL,
-    TransactionCode VARCHAR(255) NOT NULL,
+    TransactionCode VARCHAR(255),
+    TransactionDate DATETIME,
     Status VARCHAR(50) NOT NULL,
-    FOREIGN KEY (OrderDetailId) REFERENCES OrderDetails(OrderDetailId)
+    CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (OrderId) REFERENCES Orders(OrderId)
 );
 CREATE TABLE OrderStatusHistory (
     HistoryId INT AUTO_INCREMENT PRIMARY KEY,

@@ -62,6 +62,40 @@ export default function Order() {
     }
   }, [navigate]);
 
+  const fetchOrders = async () => {
+  try {
+    const account = JSON.parse(sessionStorage.getItem("account"));
+    const token = sessionStorage.getItem("token");
+    
+    console.log("Account:", account);
+    console.log("Token:", token);
+    
+    if (!account || !token) {
+      console.log("No account or token found, redirecting to login");
+      navigate("/login");
+      return;
+    }
+
+    setLoading(true);
+    
+    // Thử gọi API với header Authorization
+    const response = await axios.get("/orders/my-orders", {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
+    
+    // ... rest of the code
+  } catch (error) {
+    console.error("Fetch orders error:", error);
+    console.error("Error response:", error.response?.data);
+    console.error("Error status:", error.response?.status);
+    alert("Không thể tải danh sách đơn hàng");
+  } finally {
+    setLoading(false);
+  }
+};
+
   /* ================= FETCH DATA ================= */
   useEffect(() => {
     const fetchData = async () => {

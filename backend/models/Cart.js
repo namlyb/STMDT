@@ -27,7 +27,7 @@ const Cart = {
       FROM Products p
       WHERE p.ProductId = ?
       ON DUPLICATE KEY UPDATE
-        Quantity = Quantity + VALUES(Quantity),
+        Quantity = VALUES(Quantity),
         UnitPrice = p.Price,
         Status = 1
     `;

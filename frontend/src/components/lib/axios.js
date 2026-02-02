@@ -6,6 +6,7 @@ const instance = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
+  withCredentials: true,
 });
 
 /* ===== OPTIONAL: interceptor ===== */
@@ -27,6 +28,13 @@ instance.interceptors.response.use(
   (response) => response,
   (error) => {
     console.error("API error:", error);
+
+    if (error.response?.status === 401) {
+      sessionStorage.removeItem("token");
+      sessionStorage.removeItem("account");
+      window.location.href = "/login";
+    }
+
     return Promise.reject(error);
   }
 );
