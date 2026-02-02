@@ -3,6 +3,14 @@ const ShipType = require("../models/ShipType");
 const VoucherUsage = require("../models/VoucherUsage");
 const OrderDetail = require("../models/OrderDetail");
 const { pool } = require("../config/db");
+const ORDER_STATUS = {
+  PENDING_PAYMENT: 1,
+  PROCESSING: 2,
+  SHIPPING: 3,
+  COMPLETED: 4,
+  CANCELLED: 5,
+  RETURNED: 6
+};
 
 const OrderController = {
   checkout: async (req, res) => {
@@ -297,36 +305,57 @@ const OrderController = {
     }
   },
 
-  getOrderDetail: async (req, res) => {
+  // backend/controllers/OrderController.js
+getOrderDetail: async (req, res) => {
     try {
+      console.log("=== GET ORDER DETAIL REQUEST ===");
+      console.log("Order ID:", req.params.orderId);
+      console.log("Account ID:", req.user.AccountId);
+      
       const { orderId } = req.params;
       const accountId = req.user.AccountId;
 
       // Gọi model để lấy chi tiết đơn hàng
       const orderDetail = await Order.getOrderDetailById(orderId, accountId);
       
+      console.log("Order detail result:", orderDetail);
+      
       if (!orderDetail.order) {
+        console.log("Order not found");
         return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
       }
 
-      // Format image URL (logic xử lý view)
+      // Lấy base URL cho ảnh
+      const baseUrl = `${req.protocol}://${req.get("host")}`;
+      
+      // Format image URL
       const detailsWithImages = orderDetail.details.map(detail => ({
         ...detail,
+        // Kiểm tra nếu Image đã là full URL thì giữ nguyên, nếu không thì thêm baseUrl
         Image: detail.Image 
-          ? `${req.protocol}://${req.get("host")}/uploads/ProductImage/${detail.Image}`
+          ? (detail.Image.startsWith('http') 
+              ? detail.Image 
+              : `${baseUrl}/uploads/ProductImage/${detail.Image}`)
           : null
       }));
 
+      console.log("Successfully fetched order detail");
+      
       res.json({
         order: orderDetail.order,
         details: detailsWithImages,
         history: orderDetail.history,
-        payments: orderDetail.payments
+        payments: orderDetail.payments,
+        itemCount: orderDetail.itemCount
       });
 
     } catch (error) {
       console.error("Get order detail error:", error);
-      res.status(500).json({ message: "Lỗi khi lấy chi tiết đơn hàng" });
+      console.error("Error stack:", error.stack);
+      res.status(500).json({ 
+        message: "Lỗi khi lấy chi tiết đơn hàng",
+        error: error.message 
+      });
     }
   },
 
@@ -340,7 +369,7 @@ const OrderController = {
       res.json({ message: "Đã hủy đơn hàng thành công" });
 
     } catch (error) {
-      res.status(400).json({ message: error.message });
+      res.status(400).json({ message: error.message || "Không thể huỷ đơn hàng ở trạng thái hiện tại!"});
     }
   },
 

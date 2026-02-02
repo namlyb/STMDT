@@ -4,26 +4,7 @@ import axios from "../../components/lib/axios";
 import Header from "../../components/Guest/Header";
 import Footer from "../../components/Guest/footer";
 import Sidebar from "../../components/Buyer/Sidebar";
-import {
-  Package,
-  CheckCircle,
-  Clock,
-  Truck,
-  Home,
-  RefreshCw,
-  AlertCircle,
-  ChevronRight,
-  Eye,
-  MessageCircle,
-  Star,
-  CreditCard,
-  XCircle,
-  RotateCcw,
-  ShoppingBag,
-  Calendar,
-  MapPin,
-  DollarSign,
-  Hash
+import { Package, CheckCircle, Clock, Truck, XCircle, RotateCcw, CreditCard, MessageCircle, Star, AlertCircle, Calendar, MapPin, Hash, Eye, RefreshCw, ShoppingBag, Ticket, Percent, Tag, Truck as TruckIcon
 } from "lucide-react";
 
 export default function MyOrder() {
@@ -38,7 +19,7 @@ export default function MyOrder() {
 
   // Định nghĩa các trạng thái
   const STATUS_MAP = {
-    1: { label: "Chờ xác nhận", color: "bg-yellow-100 text-yellow-800", icon: Clock },
+    1: { label: "Chờ thanh toán", color: "bg-yellow-100 text-yellow-800", icon: Clock },
     2: { label: "Đang xử lý", color: "bg-blue-100 text-blue-800", icon: RefreshCw },
     3: { label: "Đang giao", color: "bg-purple-100 text-purple-800", icon: Truck },
     4: { label: "Hoàn thành", color: "bg-green-100 text-green-800", icon: CheckCircle },
@@ -57,81 +38,192 @@ export default function MyOrder() {
     { id: "6", label: "Trả hàng", count: 0 }
   ];
 
+  // Hàm định dạng hiển thị voucher
+  const formatVoucherDisplay = (voucher) => {
+    if (!voucher || !voucher.VoucherName) return null;
+    
+    const { VoucherName, DiscountType, DiscountValue, MaxDiscount } = voucher;
+    
+    let discountText = "";
+    if (DiscountType === 'percent') {
+      discountText = `Giảm ${DiscountValue}%`;
+      if (MaxDiscount) {
+        discountText += ` (tối đa ${fmt(MaxDiscount)}đ)`;
+      }
+    } else if (DiscountType === 'fixed') {
+      discountText = `Giảm ${fmt(DiscountValue)}đ`;
+    } else if (DiscountType === 'ship') {
+      discountText = `Miễn phí ship ${fmt(DiscountValue)}đ`;
+    }
+    
+    return {
+      name: VoucherName,
+      text: discountText,
+      type: DiscountType
+    };
+  };
+
+  // Hàm tính discount thực tế cho từng sản phẩm
+  const calculateItemDiscount = (item) => {
+    if (!item.DiscountType || !item.DiscountValue) return 0;
+    
+    const itemTotal = item.UnitPrice * item.Quantity;
+    
+    if (item.DiscountType === 'percent') {
+      let discount = Math.floor(itemTotal * item.DiscountValue / 100);
+      if (item.MaxDiscount) {
+        discount = Math.min(discount, item.MaxDiscount);
+      }
+      return discount;
+    } else if (item.DiscountType === 'fixed') {
+      return Math.min(item.DiscountValue, itemTotal);
+    } else if (item.DiscountType === 'ship') {
+      // Giảm phí ship (hiển thị riêng)
+      return 0;
+    }
+    return 0;
+  };
+
   useEffect(() => {
     fetchOrders();
   }, []);
 
   const fetchOrders = async () => {
-  try {
-    const account = JSON.parse(sessionStorage.getItem("account"));
-    const token = sessionStorage.getItem("token"); // Lấy token
-    
-    if (!account || !token) {
-      navigate("/login");
-      return;
-    }
-
-    setLoading(true);
-    
-    // Thêm Authorization header
-    const response = await axios.get("/orders/my-orders", {
-      headers: {
-        Authorization: `Bearer ${token}`
+    try {
+      const account = JSON.parse(sessionStorage.getItem("account"));
+      const token = sessionStorage.getItem("token");
+      
+      if (!account || !token) {
+        navigate("/login");
+        return;
       }
-    });
-    
-    // Format dates
-    const formattedOrders = response.data.map(order => ({
-      ...order,
-      CreatedAt: new Date(order.CreatedAt).toLocaleDateString("vi-VN"),
-      UpdatedAt: new Date(order.UpdatedAt).toLocaleDateString("vi-VN"),
-      OrderDate: new Date(order.OrderDate).toLocaleDateString("vi-VN")
-    }));
-    
-    setOrders(formattedOrders);
-  } catch (error) {
-    console.error("Fetch orders error:", error);
-    if (error.response?.status === 401) {
-      sessionStorage.removeItem("token");
-      sessionStorage.removeItem("account");
-      navigate("/login");
-    } else {
-      alert("Không thể tải danh sách đơn hàng");
-    }
-  } finally {
-    setLoading(false);
-  }
-};
 
-const fetchOrderDetail = async (orderId) => {
-  try {
-    const token = sessionStorage.getItem("token"); // Lấy token
-    
-    const response = await axios.get(`/orders/${orderId}`, {
-      headers: {
-        Authorization: `Bearer ${token}`
+      setLoading(true);
+      
+      const response = await axios.get("/orders/my-orders", {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      
+      const formattedOrders = response.data.map(order => ({
+        ...order,
+        CreatedAt: new Date(order.CreatedAt).toLocaleDateString("vi-VN"),
+        UpdatedAt: new Date(order.UpdatedAt).toLocaleDateString("vi-VN"),
+        OrderDate: new Date(order.OrderDate).toLocaleDateString("vi-VN"),
+        itemCount: order.itemCount || 1
+      }));
+      
+      setOrders(formattedOrders);
+    } catch (error) {
+      console.error("Fetch orders error:", error);
+      if (error.response?.status === 401) {
+        sessionStorage.removeItem("token");
+        sessionStorage.removeItem("account");
+        navigate("/login");
+      } else {
+        alert("Không thể tải danh sách đơn hàng");
       }
-    });
-    setSelectedOrder(response.data);
-    setShowDetail(true);
-  } catch (error) {
-    console.error("Fetch order detail error:", error);
-    if (error.response?.status === 401) {
-      sessionStorage.removeItem("token");
-      sessionStorage.removeItem("account");
-      navigate("/login");
-    } else {
-      alert("Không thể tải chi tiết đơn hàng");
+    } finally {
+      setLoading(false);
     }
-  }
-};
+  };
+
+  const fetchOrderDetail = async (orderId) => {
+    try {
+      const token = sessionStorage.getItem("token");
+      
+      const response = await axios.get(`/orders/${orderId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      
+      // Format image URL và tính toán discount
+      const detailsWithCalculations = response.data.details.map(detail => {
+        const itemDiscount = calculateItemDiscount(detail);
+        const itemTotal = detail.UnitPrice * detail.Quantity;
+        const finalPrice = itemTotal - itemDiscount;
+        
+        return {
+          ...detail,
+          // Ảnh sẽ được trả về đầy đủ từ server
+          Image: detail.Image || "https://via.placeholder.com/80",
+          itemTotal: itemTotal,
+          itemDiscount: itemDiscount,
+          finalPrice: Math.max(finalPrice, 0),
+          voucherDisplay: formatVoucherDisplay(detail)
+        };
+      });
+      
+      // Tính toán tổng hợp
+      const productTotal = detailsWithCalculations.reduce((sum, item) => sum + item.itemTotal, 0);
+      const productDiscount = detailsWithCalculations.reduce((sum, item) => sum + item.itemDiscount, 0);
+      const totalShip = detailsWithCalculations.reduce((sum, item) => sum + item.ShipFee, 0);
+      
+      // Xử lý voucher toàn đơn
+      let orderVoucherDisplay = null;
+      let orderDiscount = 0;
+      let orderShipDiscount = 0;
+      
+      if (response.data.order.OrderVoucherId) {
+        const orderVoucher = {
+          VoucherName: response.data.order.OrderVoucherName,
+          DiscountType: response.data.order.OrderDiscountType,
+          DiscountValue: response.data.order.OrderDiscountValue,
+          MaxDiscount: response.data.order.OrderMaxDiscount
+        };
+        
+        orderVoucherDisplay = formatVoucherDisplay(orderVoucher);
+        
+        // Tính discount voucher toàn đơn
+        const productTotalAfterItemDiscount = productTotal - productDiscount;
+        
+        if (orderVoucher.DiscountType === 'ship') {
+          orderShipDiscount = Math.min(totalShip, orderVoucher.DiscountValue);
+        } else if (orderVoucher.DiscountType === 'percent') {
+          const percentDiscount = Math.floor(productTotalAfterItemDiscount * orderVoucher.DiscountValue / 100);
+          orderDiscount = orderVoucher.MaxDiscount 
+            ? Math.min(percentDiscount, orderVoucher.MaxDiscount)
+            : percentDiscount;
+        } else if (orderVoucher.DiscountType === 'fixed') {
+          orderDiscount = Math.min(orderVoucher.DiscountValue, productTotalAfterItemDiscount);
+        }
+      }
+      
+      setSelectedOrder({
+        ...response.data,
+        details: detailsWithCalculations,
+        summary: {
+          productTotal,
+          productDiscount,
+          totalShip,
+          orderDiscount,
+          orderShipDiscount,
+          grandTotal: response.data.order.FinalPrice
+        },
+        hasOrderVoucher: !!response.data.order.OrderVoucherId,
+        hasProductVouchers: detailsWithCalculations.some(d => d.voucherDisplay)
+      });
+      setShowDetail(true);
+    } catch (error) {
+      console.error("Fetch order detail error:", error);
+      console.error("Error response:", error.response?.data);
+      if (error.response?.status === 401) {
+        sessionStorage.removeItem("token");
+        sessionStorage.removeItem("account");
+        navigate("/login");
+      } else {
+        alert("Không thể tải chi tiết đơn hàng");
+      }
+    }
+  };
 
   const getFilteredOrders = () => {
     if (activeTab === "all") return orders;
     return orders.filter(order => order.Status === parseInt(activeTab));
   };
 
-  // Tính toán số lượng cho mỗi tab
   const calculateTabCounts = () => {
     const counts = { all: orders.length };
     TABS.forEach(tab => {
@@ -158,18 +250,23 @@ const fetchOrderDetail = async (orderId) => {
     const actions = [];
     
     switch (order.Status) {
-      case 1: // Chờ thanh toán
+      case 1:
         actions.push(
           { label: "Thanh toán", action: () => handlePay(order.OrderId), icon: CreditCard, color: "bg-green-600 cursor-pointer hover:bg-green-700" },
           { label: "Hủy đơn", action: () => handleCancel(order.OrderId), icon: XCircle, color: "bg-red-600 cursor-pointer hover:bg-red-700" }
         );
         break;
-      case 3: // Đang giao
+      case 2:
+        actions.push(
+          { label: "Hủy đơn", action: () => handleCancel(order.OrderId), icon: XCircle, color: "bg-red-600 cursor-pointer hover:bg-red-700" }
+        );
+        break;
+      case 3:
         actions.push(
           { label: "Liên hệ shop", action: () => handleContact(order.OrderId), icon: MessageCircle, color: "bg-blue-600 cursor-pointer hover:bg-blue-700" }
         );
         break;
-      case 4: // Hoàn thành
+      case 4:
         actions.push(
           { label: "Đánh giá", action: () => navigate(`/feedback/${order.OrderId}`), icon: Star, color: "bg-orange-600 cursor-pointer hover:bg-orange-700" },
           { label: "Mua lại", action: () => handleReorder(order.OrderId), icon: RotateCcw, color: "bg-purple-600 cursor-pointer hover:bg-purple-700" }
@@ -181,8 +278,8 @@ const fetchOrderDetail = async (orderId) => {
   };
 
   const handlePay = async (orderId) => {
-    // Implement payment logic
     console.log("Payment for order:", orderId);
+    alert("Chức năng thanh toán đang được phát triển");
   };
 
   const handleCancel = async (orderId) => {
@@ -192,19 +289,19 @@ const fetchOrderDetail = async (orderId) => {
         alert("Đã hủy đơn hàng thành công");
         fetchOrders();
       } catch (error) {
-        alert("Không thể hủy đơn hàng");
+        const errorMsg = error.response?.data?.message || "Không thể hủy đơn hàng ở trạng thái hiện tại";
+        alert(errorMsg);
       }
     }
   };
 
   const handleContact = (orderId) => {
-    // Navigate to chat with seller
     navigate(`/chat?order=${orderId}`);
   };
 
   const handleReorder = async (orderId) => {
     try {
-      const response = await axios.post(`/orders/${orderId}/reorder`);
+      await axios.post(`/orders/${orderId}/reorder`);
       alert("Đã thêm sản phẩm vào giỏ hàng");
       navigate("/cart");
     } catch (error) {
@@ -215,12 +312,20 @@ const fetchOrderDetail = async (orderId) => {
   const OrderDetailModal = () => {
     if (!selectedOrder) return null;
 
-    const { order, details } = selectedOrder;
+    const { order, details, itemCount, summary, hasOrderVoucher, hasProductVouchers } = selectedOrder;
     const StatusIcon = STATUS_MAP[order.Status]?.icon || AlertCircle;
+    
+    // Kiểm tra xem có voucher nào không
+    const hasAnyVoucher = hasOrderVoucher || hasProductVouchers;
 
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div 
+          className="absolute inset-0 bg-black/30"
+          onClick={() => setShowDetail(false)}
+        ></div>
+        
+        <div className="relative bg-white rounded-2xl max-w-6xl w-full max-h-[90vh] overflow-y-auto z-10">
           {/* Header */}
           <div className="sticky top-0 bg-white border-b p-6 flex justify-between items-center">
             <div>
@@ -239,7 +344,7 @@ const fetchOrderDetail = async (orderId) => {
             </div>
             <button
               onClick={() => setShowDetail(false)}
-              className="p-2 hover:bg-gray-100 rounded-lg"
+              className="p-2 cursor-pointer hover:bg-gray-100 rounded-lg transition"
             >
               <XCircle className="w-6 h-6 text-gray-500" />
             </button>
@@ -247,6 +352,98 @@ const fetchOrderDetail = async (orderId) => {
 
           {/* Body */}
           <div className="p-6 space-y-8">
+            {/* Voucher Section - CHỈ hiện khi có voucher */}
+            {hasAnyVoucher && (
+              <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-100 rounded-xl p-5">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                  <Ticket className="w-5 h-5 text-purple-600" />
+                  Voucher đã sử dụng
+                </h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Voucher toàn đơn */}
+                  {hasOrderVoucher && (
+                    <div className="bg-white p-4 rounded-lg border border-purple-200">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="p-2 bg-purple-100 rounded-lg">
+                          <Tag className="w-4 h-4 text-purple-600" />
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-gray-800">Voucher toàn đơn</h4>
+                          <p className="text-sm text-purple-600 font-medium">
+                            {order.OrderVoucherName}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm">
+                          {order.OrderDiscountType === 'percent' ? (
+                            <span className="flex items-center gap-1">
+                              <Percent className="w-4 h-4" />
+                              Giảm {order.OrderDiscountValue}%
+                              {order.OrderMaxDiscount && (
+                                <span className="text-gray-500 text-xs ml-2">
+                                  (tối đa {fmt(order.OrderMaxDiscount)}đ)
+                                </span>
+                              )}
+                            </span>
+                          ) : order.OrderDiscountType === 'ship' ? (
+                            <span className="flex items-center gap-1">
+                              <TruckIcon className="w-4 h-4" />
+                              Giảm ship {fmt(order.OrderDiscountValue)}đ
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1">
+                              <Tag className="w-4 h-4" />
+                              Giảm {fmt(order.OrderDiscountValue)}đ
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-sm font-semibold text-red-500">
+                          -{fmt(order.OrderDiscountType === 'ship' ? summary.orderShipDiscount : summary.orderDiscount)}đ
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Voucher sản phẩm */}
+                  {hasProductVouchers && (
+                    <div className="bg-white p-4 rounded-lg border border-purple-200">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="p-2 bg-blue-100 rounded-lg">
+                          <Package className="w-4 h-4 text-blue-600" />
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-gray-800">Voucher sản phẩm</h4>
+                          <p className="text-sm text-blue-600">
+                            {details.filter(d => d.voucherDisplay).length} sản phẩm được áp dụng
+                          </p>
+                        </div>
+                      </div>
+                      <div className="space-y-2 max-h-24 overflow-y-auto">
+                        {details
+                          .filter(d => d.voucherDisplay)
+                          .map((detail, idx) => (
+                            <div key={idx} className="flex justify-between items-center text-sm">
+                              <div className="truncate max-w-[180px]">
+                                <span className="text-gray-700">{detail.ProductName}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-blue-600">{detail.voucherDisplay.text}</span>
+                                <span className="font-medium text-red-500">
+                                  -{fmt(detail.itemDiscount)}đ
+                                </span>
+                              </div>
+                            </div>
+                          ))
+                        }
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Order Timeline */}
             <div className="bg-gray-50 rounded-xl p-6">
               <h3 className="text-lg font-semibold text-gray-800 mb-4">Trạng thái đơn hàng</h3>
@@ -305,17 +502,26 @@ const fetchOrderDetail = async (orderId) => {
             {/* Products List */}
             <div className="border rounded-xl overflow-hidden">
               <div className="bg-gray-50 p-4 border-b">
-                <h4 className="font-semibold text-gray-800">Sản phẩm</h4>
+                <div className="flex justify-between items-center">
+                  <h4 className="font-semibold text-gray-800">Sản phẩm ({itemCount})</h4>
+                  <span className="text-sm text-gray-500">{itemCount} sản phẩm</span>
+                </div>
               </div>
               <div className="divide-y">
                 {details?.map((detail, index) => (
                   <div key={index} className="p-4 hover:bg-gray-50">
                     <div className="flex gap-4">
-                      <img
-                        src={detail.Image || "https://via.placeholder.com/80"}
-                        alt={detail.ProductName}
-                        className="w-20 h-20 rounded-lg object-cover border"
-                      />
+                      <div className="flex-shrink-0">
+                        <img
+                          src={detail.Image}
+                          alt={detail.ProductName}
+                          className="w-20 h-20 rounded-lg object-cover border"
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = "https://via.placeholder.com/80";
+                          }}
+                        />
+                      </div>
                       <div className="flex-1">
                         <div className="flex justify-between">
                           <div>
@@ -325,15 +531,35 @@ const fetchOrderDetail = async (orderId) => {
                               <span>•</span>
                               <span>Số lượng: {detail.Quantity}</span>
                               <span>•</span>
-                              <span>Tổng: {fmt(detail.UnitPrice * detail.Quantity)}đ</span>
+                              <span>Tổng: {fmt(detail.itemTotal)}đ</span>
                             </div>
+                            
+                            {/* Hiển thị voucher sản phẩm nếu có */}
+                            {detail.voucherDisplay && (
+                              <div className="mt-2 flex items-center gap-2">
+                                <div className="flex items-center gap-1 text-sm bg-blue-50 text-blue-700 px-2 py-1 rounded">
+                                  <Ticket className="w-3 h-3" />
+                                  <span>{detail.voucherDisplay.name}:</span>
+                                  <span className="font-medium">{detail.voucherDisplay.text}</span>
+                                </div>
+                                <div className="text-sm text-red-500 font-medium">
+                                  -{fmt(detail.itemDiscount)}đ
+                                </div>
+                              </div>
+                            )}
+
                             <div className="flex items-center gap-4 mt-2 text-sm">
                               <span className="text-blue-600">Phí ship: {fmt(detail.ShipFee)}đ</span>
-                              <span className="text-purple-600">Phí sàn: {detail.PlatformFeePercent}%</span>
+                              {/* {detail.PlatformFeePercent && (
+                                <span className="text-purple-600">Phí sàn: {detail.PlatformFeePercent}%</span>
+                              )} */}
                             </div>
                           </div>
                           <div className="text-right">
-                            <div className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs ${STATUS_MAP[detail.Status]?.color || 'bg-gray-100 text-gray-800'}`}>
+                            <div className="text-lg font-bold text-red-500">
+                              {fmt(detail.finalPrice + detail.ShipFee)}đ
+                            </div>
+                            <div className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs mt-2 ${STATUS_MAP[detail.Status]?.color || 'bg-gray-100 text-gray-800'}`}>
                               {STATUS_MAP[detail.Status]?.label || 'Không xác định'}
                             </div>
                           </div>
@@ -345,25 +571,57 @@ const fetchOrderDetail = async (orderId) => {
               </div>
 
               {/* Order Summary */}
-              <div className="bg-gray-50 p-4 border-t">
+              <div className="bg-gray-50 p-6 border-t">
                 <div className="flex justify-end">
-                  <div className="w-64 space-y-2">
+                  <div className="w-80 space-y-3">
                     <div className="flex justify-between text-gray-600">
                       <span>Tổng tiền hàng:</span>
-                      <span>{fmt(details?.reduce((sum, d) => sum + d.UnitPrice * d.Quantity, 0) || 0)}đ</span>
+                      <span>{fmt(summary.productTotal)}đ</span>
                     </div>
+                    
+                    {/* Giảm giá voucher sản phẩm */}
+                    {summary.productDiscount > 0 && (
+                      <div className="flex justify-between text-blue-600">
+                        <span>Giảm voucher sản phẩm:</span>
+                        <span>- {fmt(summary.productDiscount)}đ</span>
+                      </div>
+                    )}
+                    
                     <div className="flex justify-between text-gray-600">
                       <span>Phí vận chuyển:</span>
-                      <span>{fmt(details?.reduce((sum, d) => sum + d.ShipFee, 0) || 0)}đ</span>
+                      <span>{fmt(summary.totalShip)}đ</span>
                     </div>
-                    <div className="flex justify-between text-gray-600">
-                      <span>Phí sàn:</span>
-                      <span>{fmt(details?.reduce((sum, d) => sum + Math.floor(d.UnitPrice * d.Quantity * (d.PlatformFeePercent || 0) / 100), 0) || 0)}đ</span>
-                    </div>
-                    <div className="border-t pt-2">
+                    
+                    {/* Giảm ship từ voucher toàn đơn */}
+                    {summary.orderShipDiscount > 0 && (
+                      <div className="flex justify-between text-purple-600">
+                        <span>Giảm phí vận chuyển:</span>
+                        <span>- {fmt(summary.orderShipDiscount)}đ</span>
+                      </div>
+                    )}
+                    
+                    {/* Giảm giá từ voucher toàn đơn (không phải ship) */}
+                    {summary.orderDiscount > 0 && (
+                      <div className="flex justify-between text-purple-600">
+                        <span>Giảm voucher toàn đơn:</span>
+                        <span>- {fmt(summary.orderDiscount)}đ</span>
+                      </div>
+                    )}
+                    
+                    {/* {details?.some(d => d.PlatformFeePercent) && (
+                      <div className="flex justify-between text-gray-600">
+                        <span>Phí sàn:</span>
+                        <span>
+                          {fmt(details?.reduce((sum, d) => 
+                            sum + Math.floor(d.UnitPrice * d.Quantity * (d.PlatformFeePercent || 0) / 100), 0) || 0)}đ
+                        </span>
+                      </div>
+                    )} */}
+                    
+                    <div className="border-t pt-3">
                       <div className="flex justify-between font-bold text-lg">
                         <span>Tổng thanh toán:</span>
-                        <span className="text-red-500">{fmt(order.FinalPrice)}đ</span>
+                        <span className="text-red-500">{fmt(summary.grandTotal)}đ</span>
                       </div>
                     </div>
                   </div>
@@ -375,7 +633,7 @@ const fetchOrderDetail = async (orderId) => {
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setShowDetail(false)}
-                className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                className="px-6 py-2 border border-gray-300 cursor-pointer text-gray-700 rounded-lg hover:bg-gray-50 transition"
               >
                 Đóng
               </button>
@@ -383,7 +641,7 @@ const fetchOrderDetail = async (orderId) => {
                 <button
                   key={idx}
                   onClick={action.action}
-                  className={`px-6 py-2 text-white rounded-lg flex items-center gap-2 ${action.color}`}
+                  className={`px-6 py-2 text-white rounded-lg cursor-pointer flex items-center gap-2 transition ${action.color}`}
                 >
                   <action.icon className="w-4 h-4" />
                   {action.label}
@@ -424,7 +682,7 @@ const fetchOrderDetail = async (orderId) => {
                     <button
                       key={tab.id}
                       onClick={() => setActiveTab(tab.id)}
-                      className={`flex-shrink-0 px-6 py-4 border-b-2 font-medium transition ${activeTab === tab.id
+                      className={`flex-shrink-0 cursor-pointer px-6 py-4 border-b-2 font-medium transition ${activeTab === tab.id
                           ? 'border-orange-500 text-orange-600 bg-orange-50'
                           : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
                         }`}
@@ -455,7 +713,7 @@ const fetchOrderDetail = async (orderId) => {
                   <p className="text-gray-500 mb-6">Bạn chưa có đơn hàng nào trong mục này</p>
                   <button
                     onClick={() => navigate("/")}
-                    className="px-6 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600"
+                    className="px-6 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition"
                   >
                     Mua sắm ngay
                   </button>
@@ -514,15 +772,20 @@ const fetchOrderDetail = async (orderId) => {
                               {/* Products Preview */}
                               <div className="flex items-center gap-3">
                                 <div className="flex -space-x-2">
-                                  {Array.from({ length: Math.min(3, 1) }).map((_, idx) => (
+                                  {Array.from({ length: Math.min(3, order.itemCount) }).map((_, idx) => (
                                     <div key={idx} className="w-10 h-10 rounded-full border-2 border-white bg-gray-100 flex items-center justify-center">
                                       <Package className="w-5 h-5 text-gray-400" />
                                     </div>
                                   ))}
+                                  {order.itemCount > 3 && (
+                                    <div className="w-10 h-10 rounded-full border-2 border-white bg-orange-100 flex items-center justify-center">
+                                      <span className="text-xs font-bold text-orange-700">+{order.itemCount - 3}</span>
+                                    </div>
+                                  )}
                                 </div>
                                 <div>
                                   <p className="text-sm text-gray-600">
-                                    {1} sản phẩm
+                                    {order.itemCount} sản phẩm
                                   </p>
                                   <p className="text-xs text-gray-500">
                                     {order.AddressContent?.split(',').slice(1).join(',').trim() || 'Đang cập nhật...'}
@@ -535,7 +798,7 @@ const fetchOrderDetail = async (orderId) => {
                             <div className="flex flex-col sm:flex-row lg:flex-col gap-3">
                               <button
                                 onClick={() => fetchOrderDetail(order.OrderId)}
-                                className="px-4 py-2 border border-gray-300 cursor-pointer text-gray-700 rounded-lg hover:bg-gray-50 flex items-center justify-center gap-2"
+                                className="px-4 py-2 border border-gray-300 cursor-pointer text-gray-700 rounded-lg hover:bg-gray-50 flex items-center justify-center gap-2 transition"
                               >
                                 <Eye className="w-4 h-4" />
                                 Xem chi tiết
@@ -545,7 +808,7 @@ const fetchOrderDetail = async (orderId) => {
                                 <button
                                   key={idx}
                                   onClick={action.action}
-                                  className={`px-4 py-2 text-white rounded-lg flex items-center justify-center gap-2 ${action.color}`}
+                                  className={`px-4 py-2 text-white rounded-lg flex items-center justify-center gap-2 transition ${action.color}`}
                                 >
                                   <action.icon className="w-4 h-4" />
                                   {action.label}
@@ -560,17 +823,17 @@ const fetchOrderDetail = async (orderId) => {
                 </div>
               )}
 
-              {/* Pagination (if needed) */}
+              {/* Pagination */}
               {getFilteredOrders().length > 0 && (
                 <div className="mt-8 flex justify-center">
                   <nav className="flex items-center gap-2">
-                    <button className="px-3 py-2 border rounded-lg text-gray-600 hover:bg-gray-50">
+                    <button className="px-3 py-2 border rounded-lg text-gray-600 hover:bg-gray-50 transition">
                       ← Trước
                     </button>
                     {[1, 2, 3].map(page => (
                       <button
                         key={page}
-                        className={`px-3 py-2 border rounded-lg ${page === 1
+                        className={`px-3 py-2 border rounded-lg transition ${page === 1
                             ? 'bg-orange-500 text-white border-orange-500'
                             : 'text-gray-600 hover:bg-gray-50'
                           }`}
@@ -578,7 +841,7 @@ const fetchOrderDetail = async (orderId) => {
                         {page}
                       </button>
                     ))}
-                    <button className="px-3 py-2 border rounded-lg text-gray-600 hover:bg-gray-50">
+                    <button className="px-3 py-2 border rounded-lg text-gray-600 hover:bg-gray-50 transition">
                       Sau →
                     </button>
                   </nav>

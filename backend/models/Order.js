@@ -1,6 +1,14 @@
 const { pool } = require("../config/db");
 const VoucherUsage = require("./VoucherUsage");
 
+const ORDER_STATUS = {
+  PENDING_PAYMENT: 1,      // Chờ thanh toán (cho online payment)
+  PROCESSING: 2,           // Đang xử lý/Chuẩn bị hàng
+  SHIPPING: 3,             // Đang giao
+  COMPLETED: 4,            // Hoàn thành
+  CANCELLED: 5,            // Đã hủy
+  RETURNED: 6              // Trả hàng
+};
 const Order = {
   getByIds: async (accountId, cartIds) => {
     const sql = `
@@ -393,11 +401,16 @@ const Order = {
       cartIds
     } = orderData;
 
+    // Xác định trạng thái ban đầu dựa trên payment method
+    // Nếu là COD (MethodId = 1) thì trạng thái là PROCESSING (2)
+    // Nếu là online payment thì trạng thái là PENDING_PAYMENT (1)
+    const initialStatus = methodId === 1 ? ORDER_STATUS.PROCESSING : ORDER_STATUS.PENDING_PAYMENT;
+
     // 1. Tạo đơn hàng chính
     const [orderResult] = await connection.query(
       `INSERT INTO Orders (AccountId, AddressId, MethodId, UsageId, FinalPrice, OrderDate, Status, CreatedAt, UpdatedAt)
-       VALUES (?, ?, ?, ?, ?, ?, 1, NOW(), NOW())`,
-      [accountId, addressId, methodId, orderVoucherId || null, grandTotal, orderDate]
+       VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+      [accountId, addressId, methodId, orderVoucherId || null, grandTotal, orderDate, initialStatus]
     );
     const orderId = orderResult.insertId;
 
@@ -406,9 +419,9 @@ const Order = {
     for (const item of orderItems) {
       const [detailResult] = await connection.query(
         `INSERT INTO OrderDetails (OrderId, ProductId, UsageId, UnitPrice, Quantity, ShipTypeId, ShipFee, FeeId, Status, CreatedAt)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, NOW())`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
         [orderId, item.productId, item.voucherId || null, item.unitPrice, 
-         item.quantity, item.shipTypeId, item.shipFee, item.feeId]
+         item.quantity, item.shipTypeId, item.shipFee, item.feeId, initialStatus]
       );
 
       orderDetails.push({
@@ -478,8 +491,8 @@ const Order = {
       const trackingCode = `TRACK-${orderId}-${detail.orderDetailId}-${Date.now()}`;
       await connection.query(
         `INSERT INTO OrderStatusHistory (OrderDetailId, TrackingCode, Status, CreatedAt)
-         VALUES (?, ?, 'Đã đặt hàng', NOW())`,
-        [detail.orderDetailId, trackingCode]
+         VALUES (?, ?, ?, NOW())`,
+        [detail.orderDetailId, trackingCode, initialStatus === ORDER_STATUS.PROCESSING ? 'Đang xử lý': 'Chờ thanh toán']
       );
     }
 
@@ -649,20 +662,40 @@ const Order = {
   },
 
   getOrderDetailById: async (orderId, accountId) => {
+  try {
+    console.log(`Getting order detail for orderId: ${orderId}, accountId: ${accountId}`);
+    
+    // Lấy thông tin đơn hàng
     const [orderRows] = await pool.query(
       `SELECT 
         o.*,
         a.Name as AddressName,
         a.Phone as AddressPhone,
         a.Content as AddressContent,
-        pm.MethodName
+        pm.MethodName,
+        vu_order.UsageId as OrderVoucherUsageId,
+        v_order.VoucherId as OrderVoucherId,
+        v_order.VoucherName as OrderVoucherName,
+        v_order.DiscountType as OrderDiscountType,
+        v_order.DiscountValue as OrderDiscountValue,
+        v_order.MinOrderValue as OrderMinOrderValue,
+        v_order.MaxDiscount as OrderMaxDiscount
        FROM Orders o
        LEFT JOIN Address a ON o.AddressId = a.AddressId
        LEFT JOIN PaymentMethods pm ON o.MethodId = pm.MethodId
+       LEFT JOIN VoucherUsage vu_order ON o.UsageId = vu_order.UsageId
+       LEFT JOIN Vouchers v_order ON vu_order.VoucherId = v_order.VoucherId
        WHERE o.OrderId = ? AND o.AccountId = ?`,
       [orderId, accountId]
     );
 
+    console.log("Order rows found:", orderRows.length);
+
+    if (!orderRows.length) {
+      return { order: null, details: [], history: [], payments: [], itemCount: 0 };
+    }
+
+    // Lấy chi tiết sản phẩm trong đơn với thông tin voucher
     const [detailRows] = await pool.query(
       `SELECT 
         od.*,
@@ -670,18 +703,31 @@ const Order = {
         p.Image,
         st.Content as ShipTypeContent,
         pf.PercentValue as PlatformFeePercent,
-        vu.UsageId,
-        v.VoucherName
+        vu.UsageId as VoucherUsageId,
+        v.VoucherId,
+        v.VoucherName,
+        v.DiscountType,
+        v.DiscountValue,
+        v.MinOrderValue,
+        v.MaxDiscount,
+        v.EndTime,
+        s.StallName,
+        s.StallId
        FROM OrderDetails od
        LEFT JOIN Products p ON od.ProductId = p.ProductId
        LEFT JOIN ShipType st ON od.ShipTypeId = st.ShipTypeId
        LEFT JOIN PlatformFees pf ON od.FeeId = pf.FeeId
        LEFT JOIN VoucherUsage vu ON od.UsageId = vu.UsageId
        LEFT JOIN Vouchers v ON vu.VoucherId = v.VoucherId
-       WHERE od.OrderId = ?`,
+       LEFT JOIN Stalls s ON p.StallId = s.StallId
+       WHERE od.OrderId = ?
+       ORDER BY od.CreatedAt ASC`,
       [orderId]
     );
 
+    console.log("Detail rows found:", detailRows.length);
+
+    // Lấy lịch sử trạng thái
     const [historyRows] = await pool.query(
       `SELECT 
         osh.*,
@@ -693,6 +739,7 @@ const Order = {
       [orderId]
     );
 
+    // Lấy thông tin thanh toán
     const [paymentRows] = await pool.query(
       `SELECT * FROM Payments 
        WHERE OrderId = ? 
@@ -700,13 +747,23 @@ const Order = {
       [orderId]
     );
 
+    // Đếm số sản phẩm
+    const itemCount = detailRows.length;
+
     return {
       order: orderRows[0],
       details: detailRows,
       history: historyRows,
-      payments: paymentRows
+      payments: paymentRows,
+      itemCount: itemCount
     };
-  },
+
+  } catch (error) {
+    console.error("Error in getOrderDetailById:", error);
+    console.error("SQL Error:", error.sqlMessage || error.message);
+    throw error;
+  }
+},
 
 
   cancelOrderById: async (orderId, accountId) => {
@@ -723,18 +780,21 @@ const Order = {
         throw new Error("Không tìm thấy đơn hàng");
       }
 
-      if (orderRows[0].Status !== 1) {
-        throw new Error("Chỉ có thể hủy đơn hàng ở trạng thái chờ thanh toán");
+      const currentStatus = orderRows[0].Status;
+      
+      // Chỉ cho phép hủy khi status là 1 (chờ thanh toán) hoặc 2 (đang xử lý)
+      if (![ORDER_STATUS.PENDING_PAYMENT, ORDER_STATUS.PROCESSING].includes(currentStatus)) {
+        throw new Error("Chỉ có thể hủy đơn hàng ở trạng thái chờ thanh toán hoặc đang xử lý");
       }
 
       await connection.query(
-        "UPDATE Orders SET Status = 5, UpdatedAt = NOW() WHERE OrderId = ?",
-        [orderId]
+        "UPDATE Orders SET Status = ?, UpdatedAt = NOW() WHERE OrderId = ?",
+        [ORDER_STATUS.CANCELLED, orderId]
       );
 
       await connection.query(
-        "UPDATE OrderDetails SET Status = 5 WHERE OrderId = ?",
-        [orderId]
+        "UPDATE OrderDetails SET Status = ? WHERE OrderId = ?",
+        [ORDER_STATUS.CANCELLED, orderId]
       );
 
       const [detailRows] = await connection.query(
@@ -745,8 +805,8 @@ const Order = {
       for (const detail of detailRows) {
         await connection.query(
           `INSERT INTO OrderStatusHistory (OrderDetailId, TrackingCode, Status, CreatedAt)
-           VALUES (?, ?, 'Đã hủy', NOW())`,
-          [detail.OrderDetailId, `CANCEL-${Date.now()}`]
+           VALUES (?, ?, ?, NOW())`,
+          [detail.OrderDetailId, `CANCEL-${Date.now()}`, 'Đã hủy']
         );
       }
 
@@ -759,6 +819,15 @@ const Order = {
     } finally {
       connection.release();
     }
+  },
+
+  // Thêm hàm đếm số sản phẩm trong đơn
+  getItemCountByOrderId: async (orderId) => {
+    const [rows] = await pool.query(
+      `SELECT COUNT(*) as count FROM OrderDetails WHERE OrderId = ?`,
+      [orderId]
+    );
+    return rows[0]?.count || 0;
   },
 
   reorderById: async (orderId, accountId) => {
