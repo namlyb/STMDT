@@ -475,36 +475,21 @@ export default function MyOrder() {
             <div className="bg-gray-50 rounded-xl p-6">
               <h3 className="text-lg font-semibold text-gray-800 mb-4">Trạng thái đơn hàng</h3>
               <div className="flex items-center justify-between">
-                const displayStatus = order.Status === 7 ? 2 : order.Status;
-
-{[1, 2, 3, 4, 7].map((step, index) => (
-  <Fragment key={step}>
-    <div className="flex flex-col items-center">
-      <div
-        className={`w-10 h-10 rounded-full flex items-center justify-center ${
-          displayStatus >= step
-            ? "bg-green-500 text-white"
-            : "bg-gray-200 text-gray-400"
-        }`}
-      >
-        {index + 1}
-      </div>
-
-      <span className="text-sm mt-2 text-gray-600">
-        {STATUS_MAP[step]?.label || `Bước ${step}`}
-      </span>
-    </div>
-
-    {index < 3 && (
-      <div
-        className={`flex-1 h-1 ${
-          displayStatus > step ? "bg-green-500" : "bg-gray-200"
-        }`}
-      />
-    )}
-  </Fragment>
-))}
-
+                {[1, 2, 3, 4].map((step, index) => (
+                  <Fragment key={step}>
+                    <div className="flex flex-col items-center">
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${order.Status >= step ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-400'}`}>
+                        {index + 1}
+                      </div>
+                      <span className="text-sm mt-2 text-gray-600">
+                        {STATUS_MAP[step]?.label || `Bước ${step}`}
+                      </span>
+                    </div>
+                    {index < 3 && (
+                      <div className={`flex-1 h-1 ${order.Status > step ? 'bg-green-500' : 'bg-gray-200'}`} />
+                    )}
+                  </Fragment>
+                ))}
               </div>
             </div>
 
