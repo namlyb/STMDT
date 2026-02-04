@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "../../components/lib/axios";
 import Header from "../../components/Guest/Header";
@@ -33,7 +33,8 @@ import {
 
 export default function ViewOrder() {
   const navigate = useNavigate();
-  const [orders, setOrders] = useState([]);
+  const [allOrders, setAllOrders] = useState([]); // Tất cả đơn hàng
+  const [displayedOrders, setDisplayedOrders] = useState([]); // Đơn hàng hiển thị sau khi filter
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showDetail, setShowDetail] = useState(false);
@@ -45,10 +46,11 @@ export default function ViewOrder() {
     dateTo: "",
     orderId: ""
   });
-  const [pagination, setPagination] = useState({
-    page: 1,
-    limit: 10
-  });
+  
+  // Phân trang đơn giản giống ListAccount
+  const [page, setPage] = useState(1);
+  const pageSize = 10; // Số đơn hàng mỗi trang
+  
   const [checkAll, setCheckAll] = useState(false);
 
   const fmt = n => Number(n || 0).toLocaleString("vi-VN");
@@ -65,19 +67,15 @@ export default function ViewOrder() {
     });
   };
 
-  // Hàm lấy URL ảnh đúng - FIXED không dùng process.env
+  // Hàm lấy URL ảnh đúng
   const getImageUrl = (imageName) => {
     if (!imageName) return "https://via.placeholder.com/80";
 
-    // Kiểm tra nếu đã là full URL
     if (imageName.startsWith('http')) {
       return imageName;
     }
 
-    // Sử dụng base URL từ axios instance hoặc window location
-    const baseUrl = "http://localhost:8080"; // URL backend của bạn
-
-    // Trả về URL đúng với đường dẫn uploads
+    const baseUrl = "http://localhost:8080";
     return `${baseUrl}/uploads/ProductImage/${imageName}`;
   };
 
@@ -131,15 +129,17 @@ export default function ViewOrder() {
       }
 
       setLoading(true);
+      
+      // KHÔNG gửi page và limit nữa, lấy tất cả đơn hàng
       const params = {
         status: filters.status === "all" ? "" : filters.status,
         search: filters.search,
         dateFrom: filters.dateFrom,
         dateTo: filters.dateTo,
-        orderId: filters.orderId,
-        page: pagination.page,
-        limit: pagination.limit
+        orderId: filters.orderId
       };
+
+      console.log("Fetching orders with params:", params);
 
       const response = await axios.get("/orders/seller/orders", {
         headers: {
@@ -148,24 +148,28 @@ export default function ViewOrder() {
         params
       });
 
+      console.log("API Response:", response.data);
+
       if (response.data && Array.isArray(response.data)) {
         const formattedOrders = response.data.map(order => {
           const details = order.details || [];
           const preparedCount = details.filter(d => d.Status === 3 || d.Status === 4).length;
           const totalItems = details.length;
 
-          // Lấy stallId của seller hiện tại
-          const sellerStallId = account.StallId; // Giả sử account có StallId
-          // Kiểm tra xem seller đã gửi hàng chưa
+          const sellerStallId = account.StallId;
           const sellerItems = details.filter(d => d.StallId === sellerStallId);
           const sellerShippedItems = sellerItems.filter(d => d.Status === 3 || d.Status === 4);
           const hasShipped = sellerItems.length > 0 && sellerItems.length === sellerShippedItems.length;
 
-          // Format image URLs for details
           const detailsWithImages = details.map(detail => ({
             ...detail,
             Image: getImageUrl(detail.Image)
           }));
+
+          let canShip = false;
+          if (order.OrderStatus === 2 || order.OrderStatus === 7) {
+            canShip = totalItems > 0 && preparedCount === totalItems && !hasShipped;
+          }
 
           return {
             ...order,
@@ -177,15 +181,18 @@ export default function ViewOrder() {
             totalItems: totalItems,
             preparedPercentage: totalItems > 0 ? Math.round((preparedCount / totalItems) * 100) : 0,
             allPrepared: totalItems > 0 && preparedCount === totalItems,
-            canShip: totalItems > 0 && preparedCount === totalItems &&
-              (order.OrderStatus === 2) && !hasShipped,
-            hasShipped: hasShipped // Thêm trường để biết seller đã gửi hàng chưa
+            canShip: canShip,
+            hasShipped: hasShipped
           };
         });
 
-        setOrders(formattedOrders);
+        // Lưu tất cả đơn hàng
+        setAllOrders(formattedOrders);
+        console.log("Total orders:", formattedOrders.length);
+
       } else {
-        setOrders([]);
+        console.log("No orders found or response is not array");
+        setAllOrders([]);
       }
 
     } catch (error) {
@@ -197,17 +204,69 @@ export default function ViewOrder() {
       } else {
         alert(error.response?.data?.message || "Không thể tải danh sách đơn hàng");
       }
-      setOrders([]);
+      setAllOrders([]);
     } finally {
       setLoading(false);
     }
-  }, [filters, pagination, navigate]);
+  }, [filters, navigate]);
 
   useEffect(() => {
     fetchOrders();
   }, [fetchOrders]);
 
-  // Thêm hàm xử lý gửi tất cả hàng
+  // Filter orders
+  const filteredOrders = useMemo(() => {
+    return allOrders.filter(order => {
+      // Filter by status
+      if (filters.status !== "all" && String(order.OrderStatus) !== filters.status) {
+        return false;
+      }
+      
+      // Filter by order ID
+      if (filters.orderId && !String(order.OrderId).includes(filters.orderId)) {
+        return false;
+      }
+      
+      // Filter by date range
+      if (filters.dateFrom || filters.dateTo) {
+        const orderDate = new Date(order.CreatedAt);
+        
+        if (filters.dateFrom) {
+          const fromDate = new Date(filters.dateFrom);
+          fromDate.setHours(0, 0, 0, 0);
+          if (orderDate < fromDate) return false;
+        }
+        
+        if (filters.dateTo) {
+          const toDate = new Date(filters.dateTo);
+          toDate.setHours(23, 59, 59, 999);
+          if (orderDate > toDate) return false;
+        }
+      }
+      
+      return true;
+    });
+  }, [allOrders, filters]);
+
+  // Paginate orders
+  const paginatedOrders = useMemo(() => {
+    const startIndex = (page - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    return filteredOrders.slice(startIndex, endIndex);
+  }, [filteredOrders, page, pageSize]);
+
+  const totalPages = Math.ceil(filteredOrders.length / pageSize);
+
+  useEffect(() => {
+    // Reset về trang 1 khi filter thay đổi
+    setPage(1);
+  }, [filters]);
+
+  useEffect(() => {
+    // Cập nhật displayedOrders
+    setDisplayedOrders(paginatedOrders);
+  }, [paginatedOrders]);
+
   const handleShipAll = async (orderId) => {
     if (!window.confirm("Xác nhận chuyển tất cả sản phẩm sang trạng thái đang giao?")) {
       return;
@@ -223,19 +282,6 @@ export default function ViewOrder() {
       });
 
       alert("Đã chuyển tất cả sản phẩm sang trạng thái đang giao");
-      setOrders(prevOrders =>
-        prevOrders.map(order =>
-          order.OrderId === orderId
-            ? {
-              ...order,
-              OrderStatus: newStatus,
-              canShip: false,
-              hasShipped: true
-            }
-            : order
-        )
-      );
-
       fetchOrders();
       setShowDetail(false);
 
@@ -259,7 +305,6 @@ export default function ViewOrder() {
         const order = response.data.order || {};
         const details = response.data.details || [];
 
-        // Tính toán tổng phí sàn và các giá trị khác
         let totalFeeAmount = 0;
         let totalProductValue = 0;
 
@@ -269,7 +314,6 @@ export default function ViewOrder() {
             ? Math.round(itemTotal * detail.PlatformFeePercent / 100)
             : 0;
 
-          // Cộng dồn cho tổng
           totalFeeAmount += feeAmount;
           totalProductValue += itemTotal;
 
@@ -283,10 +327,7 @@ export default function ViewOrder() {
           };
         });
 
-        // Tính toán revenue (doanh thu) = tổng tiền hàng - tổng phí sàn
         const revenue = totalProductValue - totalFeeAmount;
-
-        // Kiểm tra xem tất cả sản phẩm đã được chuẩn bị chưa
         const allPrepared = detailsWithCalculations.every(d => d.isPrepared);
 
         setSelectedOrder({
@@ -295,9 +336,9 @@ export default function ViewOrder() {
             CreatedAt: formatDate(order.CreatedAt),
             OrderDate: formatDate(order.OrderDate),
             canShip: order.OrderStatus === 2 && allPrepared,
-            SubTotal: totalProductValue, // Tổng tiền hàng
-            TotalFee: totalFeeAmount,    // Tổng phí sàn
-            Revenue: revenue            // Doanh thu
+            SubTotal: totalProductValue,
+            TotalFee: totalFeeAmount,
+            Revenue: revenue
           },
           details: detailsWithCalculations,
           itemCount: response.data.itemCount || 0,
@@ -314,7 +355,6 @@ export default function ViewOrder() {
 
   const handlePrepareItem = async (orderDetailId, isPrepared) => {
     try {
-      // Kiểm tra nếu seller đã gửi hàng thì không cho phép thay đổi
       const account = JSON.parse(sessionStorage.getItem("account"));
       const token = sessionStorage.getItem("token");
       const orderDetailResponse = await axios.get(`/orders/seller/order-details/${orderDetailId}/check`, {
@@ -323,12 +363,11 @@ export default function ViewOrder() {
 
       const orderDetail = orderDetailResponse.data;
 
-      // Nếu order đã ở trạng thái 3 (đang giao) hoặc 7 (chờ gian hàng khác) và seller đã gửi hàng
-      // thì không cho phép thay đổi
       if (orderDetail.orderStatus >= 3 && orderDetail.hasShipped) {
         alert("Không thể thay đổi trạng thái khi đã gửi hàng");
         return;
       }
+      
       await axios.put(`/orders/seller/order-details/${orderDetailId}/prepare`, {
         isPrepared: isPrepared
       }, {
@@ -337,8 +376,8 @@ export default function ViewOrder() {
         }
       });
 
-      // Update UI cho orders list
-      setOrders(prevOrders =>
+      // Update allOrders để giữ nguyên dữ liệu
+      setAllOrders(prevOrders =>
         prevOrders.map(order => ({
           ...order,
           details: order.details?.map(detail =>
@@ -349,7 +388,6 @@ export default function ViewOrder() {
         }))
       );
 
-      // Update selected order nếu đang mở
       if (selectedOrder) {
         const updatedDetails = selectedOrder.details.map(detail =>
           detail.OrderDetailId === orderDetailId
@@ -372,8 +410,6 @@ export default function ViewOrder() {
       }
 
       alert(isPrepared ? "Đã đánh dấu đã chuẩn bị hàng" : "Đã bỏ đánh dấu chuẩn bị hàng");
-
-      // Refresh danh sách đơn hàng
       setTimeout(() => fetchOrders(), 500);
 
     } catch (error) {
@@ -385,7 +421,6 @@ export default function ViewOrder() {
   const handlePrepareAll = async () => {
     if (!selectedOrder) return;
 
-    // Kiểm tra nếu seller đã gửi hàng thì không cho phép
     if (selectedOrder.order.OrderStatus >= 3 && selectedOrder.hasShipped) {
       alert("Không thể thay đổi trạng thái khi đã gửi hàng");
       return;
@@ -395,9 +430,8 @@ export default function ViewOrder() {
     const shouldPrepare = !checkAll;
 
     try {
-      // Gửi request cho từng sản phẩm
       const promises = selectedOrder.details
-        .filter(detail => detail.Status === 2) // Chỉ những sản phẩm đang xử lý
+        .filter(detail => detail.Status === 2)
         .map(detail =>
           axios.put(`/orders/seller/order-details/${detail.OrderDetailId}/prepare`, {
             isPrepared: shouldPrepare
@@ -408,7 +442,6 @@ export default function ViewOrder() {
 
       await Promise.all(promises);
 
-      // Cập nhật UI
       const updatedDetails = selectedOrder.details.map(detail => ({
         ...detail,
         Status: detail.Status === 2 ? (shouldPrepare ? 3 : 2) : detail.Status,
@@ -454,11 +487,16 @@ export default function ViewOrder() {
 
       alert("Đơn hàng đã được chuyển sang trạng thái đang giao");
 
-      // Cập nhật UI
-      setOrders(prevOrders =>
+      // Cập nhật allOrders
+      setAllOrders(prevOrders =>
         prevOrders.map(order =>
           order.OrderId === orderId
-            ? { ...order, OrderStatus: 3, canShip: false, hasShipped: true }
+            ? { 
+                ...order, 
+                OrderStatus: order.OrderStatus === 7 ? 3 : 3,
+                canShip: false, 
+                hasShipped: true 
+              }
             : order
         )
       );
@@ -466,10 +504,14 @@ export default function ViewOrder() {
       if (selectedOrder && selectedOrder.order.OrderId === orderId) {
         setSelectedOrder(prev => ({
           ...prev,
-          order: { ...prev.order, OrderStatus: 3, canShip: false },
+          order: { 
+            ...prev.order, 
+            OrderStatus: prev.order.OrderStatus === 7 ? 3 : 3, 
+            canShip: false 
+          },
           details: prev.details.map(detail => ({
             ...detail,
-            Status: detail.Status === 2 ? 3 : detail.Status // Chuyển status 2 thành 3
+            Status: detail.Status === 2 ? 3 : detail.Status
           }))
         }));
         setCheckAll(true);
@@ -553,7 +595,6 @@ export default function ViewOrder() {
       return;
     }
     setFilters(prev => ({ ...prev, [key]: value }));
-    setPagination(prev => ({ ...prev, page: 1 }));
   };
 
   const exportToCSV = () => {
@@ -569,7 +610,7 @@ export default function ViewOrder() {
       "Địa chỉ"
     ];
 
-    const data = orders.map(order => [
+    const data = displayedOrders.map(order => [
       order.OrderId,
       order.OrderDate,
       order.CustomerName,
@@ -600,10 +641,10 @@ export default function ViewOrder() {
 
   const StatsCards = () => {
     const stats = {
-      total: orders.length,
-      processing: orders.filter(o => o.OrderStatus === 2).length,
-      shipping: orders.filter(o => o.OrderStatus === 3).length,
-      completed: orders.filter(o => o.OrderStatus === 4).length
+      total: filteredOrders.length,
+      processing: filteredOrders.filter(o => o.OrderStatus === 2).length,
+      shipping: filteredOrders.filter(o => o.OrderStatus === 3).length,
+      completed: filteredOrders.filter(o => o.OrderStatus === 4).length
     };
 
     return (
@@ -612,7 +653,7 @@ export default function ViewOrder() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500">Tổng đơn hàng</p>
-              <p className="text-2xl font-bold text-gray-800">{stats.total}</p>
+              <p className="text-2xl font-bold text-gray-800">{fmt(stats.total)}</p>
             </div>
             <div className="p-3 bg-blue-100 rounded-lg">
               <ShoppingCart className="w-6 h-6 text-blue-600" />
@@ -662,14 +703,12 @@ export default function ViewOrder() {
   const OrderDetailModal = () => {
     if (!selectedOrder) return null;
 
-    const { order, details, itemCount, allPrepared } = selectedOrder;
+    const { order, details } = selectedOrder;
     const totalItems = details.length;
 
-    // Tính toán lại khi details thay đổi
     const preparedCount = details.filter(d => d.Status === 3 || d.Status === 4).length;
     const currentAllPrepared = preparedCount === totalItems && totalItems > 0;
 
-    // Tính toán lại tổng phí sàn và doanh thu
     const totalProductValue = details.reduce((sum, detail) => sum + detail.itemTotal, 0);
     const totalFeeAmount = details.reduce((sum, detail) => sum + (detail.feeAmount || 0), 0);
     const revenue = totalProductValue - totalFeeAmount;
@@ -719,7 +758,6 @@ export default function ViewOrder() {
           <div className="p-6 space-y-8">
             {/* Customer & Address Info */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
               <div className="border rounded-xl p-5">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="p-2 bg-green-100 rounded-lg">
@@ -744,9 +782,9 @@ export default function ViewOrder() {
                     {order.AddressContent}
                   </p>
                 </div>
-
               </div>
             </div>
+            
             {/* Products List */}
             <div className="border rounded-xl overflow-hidden">
               <div className="bg-gray-50 p-4 border-b flex justify-between items-center">
@@ -773,12 +811,10 @@ export default function ViewOrder() {
                       id="checkAll"
                       checked={checkAll}
                       onChange={handlePrepareAll}
-                      disabled={order.hasShipped} // Disable khi đã gửi hàng
-                      className={`w-5 h-5 text-blue-600 bg-gray-100 cursor-pointer border-gray-300 rounded focus:ring-blue-500 ${order.hasShipped ? 'opacity-50 cursor-not-allowed' : ''
-                        }`}
+                      disabled={order.hasShipped}
+                      className={`w-5 h-5 text-blue-600 bg-gray-100 cursor-pointer border-gray-300 rounded focus:ring-blue-500 ${order.hasShipped ? 'opacity-50 cursor-not-allowed' : ''}`}
                     />
-                    <label htmlFor="checkAll" className={`ml-2 text-sm font-medium ${order.hasShipped ? 'text-gray-400' : 'text-gray-900'
-                      }`}>
+                    <label htmlFor="checkAll" className={`ml-2 text-sm font-medium ${order.hasShipped ? 'text-gray-400' : 'text-gray-900'}`}>
                       {order.hasShipped ? 'Đã gửi hàng' :
                         `Chọn tất cả (${details.filter(d => d.Status === 2 || d.Status === 3).length} sản phẩm có thể chuẩn bị)`}
                     </label>
@@ -795,8 +831,8 @@ export default function ViewOrder() {
                           <button
                             onClick={() => handlePrepareItem(detail.OrderDetailId, detail.Status !== 3)}
                             className={`w-6 h-6 rounded border-2 cursor-pointer flex items-center justify-center transition ${detail.Status === 3
-                              ? 'bg-green-100 border-green-500'
-                              : 'border-gray-300 hover:border-green-500 hover:bg-green-50'
+                                ? 'bg-green-100 border-green-500'
+                                : 'border-gray-300 hover:border-green-500 hover:bg-green-50'
                               }`}
                             title={detail.Status === 3 ? "Đã chuẩn bị" : "Đánh dấu đã chuẩn bị"}
                           >
@@ -881,7 +917,7 @@ export default function ViewOrder() {
             <div className="bg-gray-50 rounded-xl p-6">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-600">{itemCount || 0}</div>
+                  <div className="text-2xl font-bold text-blue-600">{totalItems || 0}</div>
                   <p className="text-sm text-gray-600">Số sản phẩm</p>
                 </div>
                 <div className="text-center">
@@ -994,6 +1030,7 @@ export default function ViewOrder() {
                       <option value="3">Đang giao</option>
                       <option value="4">Hoàn thành</option>
                       <option value="5">Đã hủy</option>
+                      <option value="7">Chờ gian hàng khác</option>
                     </select>
                   </div>
 
@@ -1043,12 +1080,14 @@ export default function ViewOrder() {
                   <button
                     onClick={() => {
                       setFilters({ status: "all", search: "", dateFrom: "", dateTo: "", orderId: "" });
-                      setPagination(prev => ({ ...prev, page: 1 }));
                     }}
                     className="px-4 py-2 text-gray-600 cursor-pointer hover:text-gray-800 transition flex items-center gap-2"
                   >
                     <span>Xóa bộ lọc</span>
                   </button>
+                  <div className="text-sm text-gray-600">
+                    Tổng: <span className="font-semibold text-blue-500">{filteredOrders.length}</span> đơn hàng
+                  </div>
                 </div>
               </div>
 
@@ -1058,7 +1097,7 @@ export default function ViewOrder() {
                   <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
                   <p className="text-gray-600 mt-4">Đang tải đơn hàng...</p>
                 </div>
-              ) : orders.length === 0 ? (
+              ) : displayedOrders.length === 0 ? (
                 <div className="text-center py-12 bg-white rounded-xl border">
                   <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
                     <Package className="w-10 h-10 text-gray-400" />
@@ -1068,7 +1107,7 @@ export default function ViewOrder() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {orders.map(order => {
+                  {displayedOrders.map(order => {
                     const isExpanded = expandedOrders.has(order.OrderId);
 
                     return (
@@ -1226,64 +1265,59 @@ export default function ViewOrder() {
                 </div>
               )}
 
-              {/* Pagination */}
-              {orders.length > 0 && (
-                <div className="mt-8 flex flex-col sm:flex-row justify-between items-center gap-4">
-                  <div className="text-sm text-gray-600">
-                    Hiển thị {orders.length} đơn hàng
-                  </div>
+              {/* Phân trang đơn giản giống ListAccount */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between mt-6">
+                  {/* PREV */}
+                  <button
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                    className={`
+                      flex items-center gap-2 px-4 py-2 rounded-full border
+                      transition-all duration-200
+                      ${page === 1
+                        ? "bg-blue-100 text-blue-300 border-blue-200 cursor-not-allowed"
+                        : "bg-white text-blue-500 border-blue-300 hover:bg-blue-300 hover:text-white shadow-sm cursor-pointer"}
+                    `}
+                  >
+                    <span className="text-lg">←</span>
+                    <span className="text-sm font-medium">Trước</span>
+                  </button>
+
+                  {/* PAGE NUMBER */}
                   <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
-                      disabled={pagination.page === 1}
-                      className={`px-3 py-2 border rounded-lg flex items-center gap-2 transition ${pagination.page === 1
-                        ? 'text-gray-400 cursor-not-allowed'
-                        : 'text-gray-600 hover:bg-gray-50'
-                        }`}
-                    >
-                      <ArrowLeft className="w-4 h-4" />
-                      Trước
-                    </button>
-
-                    <div className="flex items-center gap-1">
+                    {Array.from({ length: totalPages }, (_, i) => (
                       <button
-                        onClick={() => setPagination(prev => ({ ...prev, page: 1 }))}
-                        className={`px-3 py-1 rounded ${pagination.page === 1
-                          ? 'bg-blue-500 text-white'
-                          : 'text-gray-600 hover:bg-gray-100'
-                          }`}
+                        key={i}
+                        onClick={() => setPage(i + 1)}
+                        className={`
+                          w-9 h-9 rounded-full text-sm font-semibold
+                          transition-all duration-200
+                          ${page === i + 1
+                            ? "bg-blue-500 text-white shadow"
+                            : "bg-blue-50 text-blue-500 hover:bg-blue-200 cursor-pointer"}
+                        `}
                       >
-                        1
+                        {i + 1}
                       </button>
-                      {pagination.page > 3 && <span className="px-2">...</span>}
-                      {pagination.page > 2 && (
-                        <button
-                          onClick={() => setPagination(prev => ({ ...prev, page: pagination.page - 1 }))}
-                          className="px-3 py-1 rounded text-gray-600 hover:bg-gray-100"
-                        >
-                          {pagination.page - 1}
-                        </button>
-                      )}
-                      {pagination.page > 1 && pagination.page < 100 && (
-                        <button
-                          className="px-3 py-1 rounded bg-blue-500 text-white"
-                        >
-                          {pagination.page}
-                        </button>
-                      )}
-                    </div>
-
-                    <button
-                      onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
-                      className={`px-3 py-2 border rounded-lg flex items-center gap-2 transition ${pagination.page >= 100
-                        ? 'text-gray-400 cursor-not-allowed'
-                        : 'text-gray-600 hover:bg-gray-50'
-                        }`}
-                    >
-                      Sau
-                      <ArrowRight className="w-4 h-4" />
-                    </button>
+                    ))}
                   </div>
+
+                  {/* NEXT */}
+                  <button
+                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                    disabled={page === totalPages || totalPages === 0}
+                    className={`
+                      flex items-center gap-2 px-4 py-2 rounded-full border
+                      transition-all duration-200
+                      ${page === totalPages || totalPages === 0
+                        ? "bg-blue-100 text-blue-300 border-blue-200 cursor-not-allowed"
+                        : "bg-white text-blue-500 border-blue-300 hover:bg-blue-300 hover:text-white shadow-sm cursor-pointer"}
+                    `}
+                  >
+                    <span className="text-sm font-medium">Sau</span>
+                    <span className="text-lg">→</span>
+                  </button>
                 </div>
               )}
             </div>
