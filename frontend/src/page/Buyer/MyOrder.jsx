@@ -1,4 +1,4 @@
-import { useState, useEffect, Fragment } from "react";
+import { useState, useEffect, Fragment, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "../../components/lib/axios";
 import Header from "../../components/Guest/Header";
@@ -9,11 +9,16 @@ import { Package, CheckCircle, Clock, Truck, XCircle, RotateCcw, CreditCard, Mes
 
 export default function MyOrder() {
   const navigate = useNavigate();
-  const [orders, setOrders] = useState([]);
+  const [allOrders, setAllOrders] = useState([]); // Tất cả đơn hàng
+  const [displayedOrders, setDisplayedOrders] = useState([]); // Đơn hàng hiển thị
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("all");
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showDetail, setShowDetail] = useState(false);
+  
+  // Phân trang
+  const [page, setPage] = useState(1);
+  const pageSize = 10; // Số đơn hàng mỗi trang
 
   const fmt = n => Number(n || 0).toLocaleString("vi-VN");
 
@@ -24,18 +29,19 @@ export default function MyOrder() {
     3: { label: "Đang giao", color: "bg-purple-100 text-purple-800", icon: Truck },
     4: { label: "Hoàn thành", color: "bg-green-100 text-green-800", icon: CheckCircle },
     5: { label: "Đã hủy", color: "bg-red-100 text-red-800", icon: XCircle },
-    6: { label: "Trả hàng", color: "bg-orange-100 text-orange-800", icon: RotateCcw }
+    6: { label: "Trả hàng", color: "bg-orange-100 text-orange-800", icon: RotateCcw },
+    7: { label: "Đang xử lý", color: "bg-blue-100 text-blue-800", icon: RefreshCw }
   };
 
   // Tab phân loại
   const TABS = [
-    { id: "all", label: "Tất cả", count: 0 },
-    { id: "1", label: "Chờ thanh toán", count: 0 },
-    { id: "2", label: "Đang xử lý", count: 0 },
-    { id: "3", label: "Đang giao", count: 0 },
-    { id: "4", label: "Hoàn thành", count: 0 },
-    { id: "5", label: "Đã hủy", count: 0 },
-    { id: "6", label: "Trả hàng", count: 0 }
+    { id: "all", label: "Tất cả" },
+    { id: "1", label: "Chờ thanh toán" },
+    { id: "2", label: "Đang xử lý" },
+    { id: "3", label: "Đang giao" },
+    { id: "4", label: "Hoàn thành" },
+    { id: "5", label: "Đã hủy" },
+    { id: "6", label: "Trả hàng" }
   ];
 
   // Hàm định dạng hiển thị voucher
@@ -114,7 +120,7 @@ export default function MyOrder() {
         itemCount: order.itemCount || 1
       }));
       
-      setOrders(formattedOrders);
+      setAllOrders(formattedOrders);
     } catch (error) {
       console.error("Fetch orders error:", error);
       if (error.response?.status === 401) {
@@ -128,6 +134,31 @@ export default function MyOrder() {
       setLoading(false);
     }
   };
+
+  // Filter orders based on active tab
+  const filteredOrders = useMemo(() => {
+    if (activeTab === "all") return allOrders;
+    return allOrders.filter(order => order.Status === parseInt(activeTab));
+  }, [allOrders, activeTab]);
+
+  // Paginate orders
+  const paginatedOrders = useMemo(() => {
+    const startIndex = (page - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    return filteredOrders.slice(startIndex, endIndex);
+  }, [filteredOrders, page, pageSize]);
+
+  const totalPages = Math.ceil(filteredOrders.length / pageSize);
+
+  // Update displayed orders when paginatedOrders changes
+  useEffect(() => {
+    setDisplayedOrders(paginatedOrders);
+  }, [paginatedOrders]);
+
+  // Reset to page 1 when tab changes
+  useEffect(() => {
+    setPage(1);
+  }, [activeTab]);
 
   const fetchOrderDetail = async (orderId) => {
     try {
@@ -219,20 +250,16 @@ export default function MyOrder() {
     }
   };
 
-  const getFilteredOrders = () => {
-    if (activeTab === "all") return orders;
-    return orders.filter(order => order.Status === parseInt(activeTab));
-  };
-
-  const calculateTabCounts = () => {
-    const counts = { all: orders.length };
+  // Calculate tab counts
+  const tabCounts = useMemo(() => {
+    const counts = { all: allOrders.length };
     TABS.forEach(tab => {
       if (tab.id !== "all") {
-        counts[tab.id] = orders.filter(order => order.Status === parseInt(tab.id)).length;
+        counts[tab.id] = allOrders.filter(order => order.Status === parseInt(tab.id)).length;
       }
     });
     return counts;
-  };
+  }, [allOrders]);
 
   const renderStatusBadge = (status) => {
     const statusInfo = STATUS_MAP[status] || { label: "Không xác định", color: "bg-gray-100 text-gray-800", icon: AlertCircle };
@@ -448,21 +475,36 @@ export default function MyOrder() {
             <div className="bg-gray-50 rounded-xl p-6">
               <h3 className="text-lg font-semibold text-gray-800 mb-4">Trạng thái đơn hàng</h3>
               <div className="flex items-center justify-between">
-                {[1, 2, 3, 4].map((step, index) => (
-                  <Fragment key={step}>
-                    <div className="flex flex-col items-center">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${order.Status >= step ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-400'}`}>
-                        {index + 1}
-                      </div>
-                      <span className="text-sm mt-2 text-gray-600">
-                        {STATUS_MAP[step]?.label || `Bước ${step}`}
-                      </span>
-                    </div>
-                    {index < 3 && (
-                      <div className={`flex-1 h-1 ${order.Status > step ? 'bg-green-500' : 'bg-gray-200'}`} />
-                    )}
-                  </Fragment>
-                ))}
+                const displayStatus = order.Status === 7 ? 2 : order.Status;
+
+{[1, 2, 3, 4, 7].map((step, index) => (
+  <Fragment key={step}>
+    <div className="flex flex-col items-center">
+      <div
+        className={`w-10 h-10 rounded-full flex items-center justify-center ${
+          displayStatus >= step
+            ? "bg-green-500 text-white"
+            : "bg-gray-200 text-gray-400"
+        }`}
+      >
+        {index + 1}
+      </div>
+
+      <span className="text-sm mt-2 text-gray-600">
+        {STATUS_MAP[step]?.label || `Bước ${step}`}
+      </span>
+    </div>
+
+    {index < 3 && (
+      <div
+        className={`flex-1 h-1 ${
+          displayStatus > step ? "bg-green-500" : "bg-gray-200"
+        }`}
+      />
+    )}
+  </Fragment>
+))}
+
               </div>
             </div>
 
@@ -550,9 +592,6 @@ export default function MyOrder() {
 
                             <div className="flex items-center gap-4 mt-2 text-sm">
                               <span className="text-blue-600">Phí ship: {fmt(detail.ShipFee)}đ</span>
-                              {/* {detail.PlatformFeePercent && (
-                                <span className="text-purple-600">Phí sàn: {detail.PlatformFeePercent}%</span>
-                              )} */}
                             </div>
                           </div>
                           <div className="text-right">
@@ -608,16 +647,6 @@ export default function MyOrder() {
                       </div>
                     )}
                     
-                    {/* {details?.some(d => d.PlatformFeePercent) && (
-                      <div className="flex justify-between text-gray-600">
-                        <span>Phí sàn:</span>
-                        <span>
-                          {fmt(details?.reduce((sum, d) => 
-                            sum + Math.floor(d.UnitPrice * d.Quantity * (d.PlatformFeePercent || 0) / 100), 0) || 0)}đ
-                        </span>
-                      </div>
-                    )} */}
-                    
                     <div className="border-t pt-3">
                       <div className="flex justify-between font-bold text-lg">
                         <span>Tổng thanh toán:</span>
@@ -653,8 +682,6 @@ export default function MyOrder() {
       </div>
     );
   };
-
-  const tabCounts = calculateTabCounts();
 
   return (
     <>
@@ -704,7 +731,7 @@ export default function MyOrder() {
                   <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-orange-500 mx-auto"></div>
                   <p className="text-gray-600 mt-4">Đang tải đơn hàng...</p>
                 </div>
-              ) : getFilteredOrders().length === 0 ? (
+              ) : displayedOrders.length === 0 ? (
                 <div className="text-center py-12 bg-white rounded-xl border">
                   <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
                     <Package className="w-10 h-10 text-gray-400" />
@@ -713,14 +740,14 @@ export default function MyOrder() {
                   <p className="text-gray-500 mb-6">Bạn chưa có đơn hàng nào trong mục này</p>
                   <button
                     onClick={() => navigate("/")}
-                    className="px-6 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition"
+                    className="px-6 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition cursor-pointer"
                   >
                     Mua sắm ngay
                   </button>
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {getFilteredOrders().map(order => {
+                  {displayedOrders.map(order => {
                     const actions = getOrderActions(order);
                     
                     return (
@@ -808,7 +835,7 @@ export default function MyOrder() {
                                 <button
                                   key={idx}
                                   onClick={action.action}
-                                  className={`px-4 py-2 text-white rounded-lg flex items-center justify-center gap-2 transition ${action.color}`}
+                                  className={`px-4 py-2 text-white rounded-lg flex items-center justify-center gap-2 transition cursor-pointer ${action.color}`}
                                 >
                                   <action.icon className="w-4 h-4" />
                                   {action.label}
@@ -823,28 +850,59 @@ export default function MyOrder() {
                 </div>
               )}
 
-              {/* Pagination */}
-              {getFilteredOrders().length > 0 && (
-                <div className="mt-8 flex justify-center">
-                  <nav className="flex items-center gap-2">
-                    <button className="px-3 py-2 border rounded-lg text-gray-600 hover:bg-gray-50 transition">
-                      ← Trước
-                    </button>
-                    {[1, 2, 3].map(page => (
+              {/* Pagination - Chỉ hiển thị khi có nhiều hơn 1 trang */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between mt-6">
+                  {/* PREV */}
+                  <button
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                    className={`
+                      flex items-center gap-2 px-4 py-2 rounded-full border
+                      transition-all duration-200
+                      ${page === 1
+                        ? "bg-orange-100 text-orange-300 border-orange-200 cursor-not-allowed"
+                        : "bg-white text-orange-500 border-orange-300 hover:bg-orange-300 hover:text-white shadow-sm cursor-pointer"}
+                    `}
+                  >
+                    <span className="text-lg">←</span>
+                    <span className="text-sm font-medium">Trước</span>
+                  </button>
+
+                  {/* PAGE NUMBER */}
+                  <div className="flex items-center gap-2">
+                    {Array.from({ length: totalPages }, (_, i) => (
                       <button
-                        key={page}
-                        className={`px-3 py-2 border rounded-lg transition ${page === 1
-                            ? 'bg-orange-500 text-white border-orange-500'
-                            : 'text-gray-600 hover:bg-gray-50'
-                          }`}
+                        key={i}
+                        onClick={() => setPage(i + 1)}
+                        className={`
+                          w-9 h-9 rounded-full text-sm font-semibold
+                          transition-all duration-200
+                          ${page === i + 1
+                            ? "bg-orange-500 text-white shadow"
+                            : "bg-orange-50 text-orange-500 hover:bg-orange-200 cursor-pointer"}
+                        `}
                       >
-                        {page}
+                        {i + 1}
                       </button>
                     ))}
-                    <button className="px-3 py-2 border rounded-lg text-gray-600 hover:bg-gray-50 transition">
-                      Sau →
-                    </button>
-                  </nav>
+                  </div>
+
+                  {/* NEXT */}
+                  <button
+                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                    disabled={page === totalPages || totalPages === 0}
+                    className={`
+                      flex items-center gap-2 px-4 py-2 rounded-full border
+                      transition-all duration-200
+                      ${page === totalPages || totalPages === 0
+                        ? "bg-orange-100 text-orange-300 border-orange-200 cursor-not-allowed"
+                        : "bg-white text-orange-500 border-orange-300 hover:bg-orange-300 hover:text-white shadow-sm cursor-pointer"}
+                    `}
+                  >
+                    <span className="text-sm font-medium">Sau</span>
+                    <span className="text-lg">→</span>
+                  </button>
                 </div>
               )}
             </div>
