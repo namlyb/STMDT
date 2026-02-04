@@ -12,7 +12,7 @@ export default function SellerSidebar() {
     { id: 1, label: "Thông tin cá nhân", path: "/seller/profile" },
     { id: 2, label: "Sản phẩm", path: "/seller/products" },
     { id: 3, label: "Tin nhắn", path: "/seller/chat" },
-    { id: 4, label: "Đơn hàng", path: "#" },
+    { id: 4, label: "Đơn hàng", path: "/seller/orders" },
     { id: 5, label: "Phiếu giảm giá", path: "/seller/voucher" },
     { id: 6, label: "Khuyến mãi", path: "#" },
   ];

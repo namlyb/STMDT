@@ -25,19 +25,19 @@ export default function Order() {
   // Sử dụng useMemo để tính toán các voucher đã được chọn
   const usedVoucherUsageIds = useMemo(() => {
     const usedIds = new Set();
-    
+
     // Thêm các voucher đã chọn cho sản phẩm
     items.forEach(item => {
       if (item.selectedVoucher) {
         usedIds.add(item.selectedVoucher.UsageId);
       }
     });
-    
+
     // Thêm voucher đã chọn cho đơn hàng
     if (selectedOrderVoucher) {
       usedIds.add(selectedOrderVoucher.UsageId);
     }
-    
+
     return usedIds;
   }, [items, selectedOrderVoucher]);
 
@@ -63,38 +63,38 @@ export default function Order() {
   }, [navigate]);
 
   const fetchOrders = async () => {
-  try {
-    const account = JSON.parse(sessionStorage.getItem("account"));
-    const token = sessionStorage.getItem("token");
-    
-    console.log("Account:", account);
-    console.log("Token:", token);
-    
-    if (!account || !token) {
-      console.log("No account or token found, redirecting to login");
-      navigate("/login");
-      return;
-    }
+    try {
+      const account = JSON.parse(sessionStorage.getItem("account"));
+      const token = sessionStorage.getItem("token");
 
-    setLoading(true);
-    
-    // Thử gọi API với header Authorization
-    const response = await axios.get("/orders/my-orders", {
-      headers: {
-        Authorization: `Bearer ${token}`
+      console.log("Account:", account);
+      console.log("Token:", token);
+
+      if (!account || !token) {
+        console.log("No account or token found, redirecting to login");
+        navigate("/login");
+        return;
       }
-    });
-    
-    // ... rest of the code
-  } catch (error) {
-    console.error("Fetch orders error:", error);
-    console.error("Error response:", error.response?.data);
-    console.error("Error status:", error.response?.status);
-    alert("Không thể tải danh sách đơn hàng");
-  } finally {
-    setLoading(false);
-  }
-};
+
+      setLoading(true);
+
+      // Thử gọi API với header Authorization
+      const response = await axios.get("/orders/my-orders", {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      // ... rest of the code
+    } catch (error) {
+      console.error("Fetch orders error:", error);
+      console.error("Error response:", error.response?.data);
+      console.error("Error status:", error.response?.status);
+      alert("Không thể tải danh sách đơn hàng");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   /* ================= FETCH DATA ================= */
   useEffect(() => {
@@ -173,7 +173,7 @@ export default function Order() {
 
         if (usageId) {
           const voucher = item.vouchers.find(v => v.UsageId === Number(usageId));
-          
+
           if (!voucher) {
             return item;
           }
@@ -192,7 +192,7 @@ export default function Order() {
 
           // Kiểm tra các điều kiện khác
           const status = getProductVoucherAvailabilityStatus(voucher, item);
-          
+
           if (status === "fully_used") {
             alert(`Voucher này chỉ còn ${voucher.Quantity} lượt và đã được sử dụng hết trong đơn này`);
             return item;
@@ -297,7 +297,7 @@ export default function Order() {
 
   const getOrderVoucherAvailabilityStatus = (voucher) => {
     // Kiểm tra xem voucher có đang được sản phẩm sử dụng không
-    const usedByProduct = items.some(item => 
+    const usedByProduct = items.some(item =>
       item.selectedVoucher?.UsageId === voucher.UsageId
     );
 
@@ -437,8 +437,8 @@ export default function Order() {
     );
 
     if (productTotalBeforeDiscount < selectedOrderVoucher.MinOrderValue) {
-      return { 
-        product: 0, 
+      return {
+        product: 0,
         ship: 0,
         isValid: false,
         requiredMin: selectedOrderVoucher.MinOrderValue
@@ -529,7 +529,7 @@ export default function Order() {
       const productTotalBeforeDiscount = items.reduce(
         (sum, item) => sum + item.totalPrice, 0
       );
-      
+
       if (productTotalBeforeDiscount < selectedOrderVoucher.MinOrderValue) {
         alert(`Voucher "${selectedOrderVoucher.VoucherName}" yêu cầu đơn hàng tối thiểu ${fmt(selectedOrderVoucher.MinOrderValue)}đ`);
         return;
@@ -538,7 +538,7 @@ export default function Order() {
 
     try {
       const cartIds = JSON.parse(sessionStorage.getItem("checkoutCartIds") || "[]");
-      
+
       const orderData = {
         addressId: selectedAddress.AddressId,
         items: items.map(item => ({
@@ -990,15 +990,15 @@ export default function Order() {
                           <div
                             key={method.MethodId}
                             className={`p-4 border-2 rounded-xl cursor-pointer transition-all duration-300 ${selectedPaymentMethod?.MethodId === method.MethodId
-                                ? "border-blue-500 bg-blue-50 shadow-sm"
-                                : "border-gray-100 hover:border-gray-300 hover:bg-gray-50"
+                              ? "border-blue-500 bg-blue-50 shadow-sm"
+                              : "border-gray-100 hover:border-gray-300 hover:bg-gray-50"
                               }`}
                             onClick={() => handlePaymentMethodChange(method.MethodId)}
                           >
                             <div className="flex items-center gap-4">
                               <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${selectedPaymentMethod?.MethodId === method.MethodId
-                                  ? "border-blue-500 bg-blue-500"
-                                  : "border-gray-300"
+                                ? "border-blue-500 bg-blue-500"
+                                : "border-gray-300"
                                 }`}>
                                 {selectedPaymentMethod?.MethodId === method.MethodId && (
                                   <div className="w-2 h-2 rounded-full bg-white"></div>
@@ -1029,7 +1029,7 @@ export default function Order() {
                         ))}
                       </div>
                     </>
-                  )}                  
+                  )}
                 </div>
               </div>
 
@@ -1087,8 +1087,8 @@ export default function Order() {
                     onClick={handleCheckout}
                     disabled={!selectedAddress || items.length === 0}
                     className={`w-full py-4 px-6 rounded-xl font-semibold text-lg transition-all duration-300 transform hover:scale-[1.02] ${!selectedAddress || items.length === 0
-                        ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                        : "bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white cursor-pointer shadow-lg hover:shadow-xl"
+                      ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                      : "bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white cursor-pointer shadow-lg hover:shadow-xl"
                       }`}
                   >
                     {!selectedAddress
