@@ -1,5 +1,16 @@
 const { pool } = require("../config/db");
 
+// Status cho OrderDetails
+const ORDER_DETAIL_STATUS = {
+  PENDING_PREPARED: 1,      // Chờ chuẩn bị
+  PREPARED: 2,             // Đã chuẩn bị xong
+  SHIPPING: 3,             // Đang giao
+  COMPLETED: 4,            // Hoàn thành
+  CANCELLED: 5,            // Đã hủy
+  RETURNED: 6              // Trả hàng
+};
+
+// Status cho Orders (chỉ để tham khảo, không dùng trong model)
 const ORDER_STATUS = {
   PENDING_PAYMENT: 1,
   PROCESSING: 2,
@@ -14,65 +25,230 @@ const OrderModel = {
   // ==================== BUYER FUNCTIONS ====================
   
   getCheckoutData: async (accountId, cartIds) => {
-    const [items] = await pool.query(`
-      SELECT p.ProductId, p.ProductName, p.Price, p.Image, 
-             c.Quantity, c.UnitPrice, s.StallId, s.StallName
-      FROM Carts c
-      JOIN Products p ON c.ProductId = p.ProductId
-      JOIN Stalls s ON p.StallId = s.StallId
-      WHERE c.AccountId = ? 
-        AND c.CartId IN (?)
-        AND c.Status = 1
-        AND p.IsActive = 1
-        AND p.Status = 1
-    `, [accountId, cartIds]);
-    
-    const [vouchers] = await pool.query(`
-      SELECT vu.*, v.* 
-      FROM VoucherUsage vu
-      JOIN Vouchers v ON vu.VoucherId = v.VoucherId
-      WHERE vu.AccountId = ? 
-        AND vu.IsUsed = 0
-        AND v.EndTime >= CURDATE()
-    `, [accountId]);
-    
-    return { items, orderVouchers: vouchers };
+    const connection = await pool.getConnection();
+    try {
+      await connection.beginTransaction();
+
+      // 1. Lấy thông tin sản phẩm trong giỏ hàng
+      const [items] = await connection.query(
+        `SELECT 
+          c.CartId,
+          c.ProductId,
+          c.Quantity,
+          c.UnitPrice,
+          p.ProductName,
+          p.Image,
+          p.Price AS ProductPrice,
+          p.StallId,
+          p.Description,
+          s.StallName,
+          (c.UnitPrice * c.Quantity) AS TotalPrice
+        FROM Carts c
+        JOIN Products p ON c.ProductId = p.ProductId
+        JOIN Stalls s ON p.StallId = s.StallId
+        WHERE c.AccountId = ? AND c.CartId IN (?) 
+          AND c.Status = 1 AND p.Status = 1 AND p.IsActive = 1`,
+        [accountId, cartIds]
+      );
+
+      if (items.length === 0) {
+        throw new Error("Không tìm thấy sản phẩm trong giỏ hàng");
+      }
+
+      // 2. Lấy tất cả voucher của user với điều kiện mới
+      const [allVouchers] = await connection.query(
+        `SELECT DISTINCT
+          vu.UsageId,
+          v.VoucherId,
+          v.VoucherName,
+          v.DiscountType,
+          v.DiscountValue,
+          v.MinOrderValue,
+          v.MaxDiscount,
+          v.CreatedBy,
+          st.StallId,
+          vu.Quantity AS AvailableQuantity,
+          vu.IsUsed,
+          v.EndTime
+        FROM VoucherUsage vu
+        JOIN Vouchers v ON vu.VoucherId = v.VoucherId
+        LEFT JOIN Stalls st ON st.AccountId = v.CreatedBy
+        WHERE vu.AccountId = ? 
+          AND vu.IsUsed = 0 
+          AND vu.Quantity > 0
+          AND v.EndTime >= CURDATE()
+          AND (v.DiscountType IN ('percent', 'fixed') 
+               OR st.StallId IS NULL)
+        `,
+        [accountId]
+      );
+
+      // 3. Phân loại voucher: toàn đơn (StallId = null)
+      const orderVouchers = allVouchers.filter(v => !v.StallId);
+      
+      // 4. Gán voucher cho từng sản phẩm theo logic mới
+      const itemsWithVouchers = items.map(item => {
+        // Lấy voucher áp dụng cho sản phẩm này
+        const productVouchers = allVouchers.filter(v => {
+          // Điều kiện 1: Voucher của cùng gian hàng
+          if (v.StallId === item.StallId) {
+            return v.DiscountType === 'percent' || v.DiscountType === 'fixed';
+          }
+          
+          // Điều kiện 2: Voucher của admin (CreatedBy=1)
+          if (v.CreatedBy === 1 && (v.DiscountType === 'percent' || v.DiscountType === 'fixed')) {
+            return true;
+          }
+          
+          return false;
+        });
+        
+        return {
+          ...item,
+          totalPrice: Number(item.TotalPrice) || (item.UnitPrice * item.Quantity),
+          vouchers: productVouchers
+        };
+      });
+
+      await connection.commit();
+      
+      return {
+        items: itemsWithVouchers,
+        orderVouchers: orderVouchers,
+        allVouchers: allVouchers
+      };
+
+    } catch (error) {
+      await connection.rollback();
+      console.error("Get checkout data error:", error);
+      throw error;
+    } finally {
+      connection.release();
+    }
   },
 
   getBuyNowData: async (accountId, productId, quantity) => {
-    const [items] = await pool.query(`
-      SELECT p.ProductId, p.ProductName, p.Price, p.Image, 
-             ? as Quantity, p.Price as UnitPrice, 
-             s.StallId, s.StallName
-      FROM Products p
-      JOIN Stalls s ON p.StallId = s.StallId
-      WHERE p.ProductId = ?
-        AND p.IsActive = 1
-        AND p.Status = 1
-    `, [quantity, productId]);
-    
-    const [vouchers] = await pool.query(`
-      SELECT vu.*, v.* 
-      FROM VoucherUsage vu
-      JOIN Vouchers v ON vu.VoucherId = v.VoucherId
-      WHERE vu.AccountId = ? 
-        AND vu.IsUsed = 0
-        AND v.EndTime >= CURDATE()
-    `, [accountId]);
-    
-    return { items, orderVouchers: vouchers };
+    const connection = await pool.getConnection();
+    try {
+      await connection.beginTransaction();
+
+      // 1. Lấy thông tin sản phẩm
+      const [products] = await connection.query(
+        `SELECT 
+          p.ProductId,
+          p.ProductName,
+          p.Image,
+          p.Price AS UnitPrice,
+          p.StallId,
+          p.Description,
+          s.StallName,
+          ? AS Quantity,
+          (p.Price * ?) AS TotalPrice
+        FROM Products p
+        JOIN Stalls s ON p.StallId = s.StallId
+        WHERE p.ProductId = ? 
+          AND p.Status = 1 
+          AND p.IsActive = 1`,
+        [quantity, quantity, productId]
+      );
+
+      if (products.length === 0) {
+        throw new Error("Sản phẩm không tồn tại hoặc đã ngừng bán");
+      }
+
+      const item = products[0];
+
+      // 2. Lấy voucher của user với điều kiện mới
+      const [allVouchers] = await connection.query(
+        `SELECT DISTINCT
+          vu.UsageId,
+          v.VoucherId,
+          v.VoucherName,
+          v.DiscountType,
+          v.DiscountValue,
+          v.MinOrderValue,
+          v.MaxDiscount,
+          v.CreatedBy,
+          st.StallId,
+          vu.Quantity AS AvailableQuantity,
+          vu.IsUsed,
+          v.EndTime
+        FROM VoucherUsage vu
+        JOIN Vouchers v ON vu.VoucherId = v.VoucherId
+        LEFT JOIN Stalls st ON st.AccountId = v.CreatedBy
+        WHERE vu.AccountId = ? 
+          AND vu.IsUsed = 0 
+          AND vu.Quantity > 0
+          AND v.EndTime >= CURDATE()
+          AND (v.DiscountType IN ('percent', 'fixed') 
+               OR st.StallId IS NULL)
+        `,
+        [accountId]
+      );
+
+      // 3. Phân loại voucher
+      const orderVouchers = allVouchers.filter(v => !v.StallId);
+      
+      // 4. Gán voucher cho sản phẩm theo logic mới
+      const productVouchers = allVouchers.filter(v => {
+        // Điều kiện 1: Voucher của cùng gian hàng
+        if (v.StallId === item.StallId) {
+          return v.DiscountType === 'percent' || v.DiscountType === 'fixed';
+        }
+        
+        // Điều kiện 2: Voucher của admin (CreatedBy=1)
+        if (v.CreatedBy === 1 && (v.DiscountType === 'percent' || v.DiscountType === 'fixed')) {
+          return true;
+        }
+        
+        return false;
+      });
+
+      const itemWithVoucher = {
+        ...item,
+        totalPrice: Number(item.TotalPrice) || (item.UnitPrice * quantity),
+        vouchers: productVouchers,
+        Quantity: quantity
+      };
+
+      await connection.commit();
+      
+      return {
+        items: [itemWithVoucher],
+        orderVouchers: orderVouchers,
+        allVouchers: allVouchers
+      };
+
+    } catch (error) {
+      await connection.rollback();
+      console.error("Get buy now data error:", error);
+      throw error;
+    } finally {
+      connection.release();
+    }
   },
 
   getProductDetails: async (productId) => {
-    const [rows] = await pool.query(`
-      SELECT p.*, s.StallId 
-      FROM Products p
-      JOIN Stalls s ON p.StallId = s.StallId
-      WHERE p.ProductId = ?
-        AND p.IsActive = 1
-        AND p.Status = 1
-    `, [productId]);
-    return rows[0] || null;
+    try {
+      const [rows] = await pool.query(
+        `SELECT 
+          p.ProductId,
+          p.ProductName,
+          p.Price,
+          p.StallId,
+          s.StallName
+        FROM Products p
+        JOIN Stalls s ON p.StallId = s.StallId
+        WHERE p.ProductId = ? 
+          AND p.Status = 1 
+          AND p.IsActive = 1`,
+        [productId]
+      );
+      return rows[0] || null;
+    } catch (error) {
+      console.error("Get product details error:", error);
+      throw error;
+    }
   },
 
   getApplicableFee: async (price) => {
@@ -99,12 +275,12 @@ const OrderModel = {
 
     const orderId = orderResult.insertId;
 
-    // Tạo chi tiết đơn hàng
+    // Tạo chi tiết đơn hàng với Status = 1 (PENDING_PREPARED)
     for (const item of orderItems) {
       const [detailResult] = await connection.query(`
         INSERT INTO OrderDetails (OrderId, ProductId, UsageId, UnitPrice, Quantity, ShipTypeId, ShipFee, FeeId, Status, CreatedAt)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
-      `, [orderId, item.productId, item.voucherId, item.unitPrice, item.quantity, item.shipTypeId, item.shipFee, item.feeId, initialStatus]);
+      `, [orderId, item.productId, item.voucherId, item.unitPrice, item.quantity, item.shipTypeId, item.shipFee, item.feeId, ORDER_DETAIL_STATUS.PENDING_PREPARED]);
       
       const orderDetailId = detailResult.insertId;
       
@@ -246,7 +422,7 @@ const OrderModel = {
         UPDATE OrderDetails 
         SET Status = ?, UpdatedAt = NOW()
         WHERE OrderId = ?
-      `, [ORDER_STATUS.CANCELLED, orderId]);
+      `, [ORDER_DETAIL_STATUS.CANCELLED, orderId]);
 
       await connection.commit();
     } catch (error) {
@@ -263,13 +439,14 @@ const OrderModel = {
       await connection.beginTransaction();
 
       // Lấy chi tiết đơn hàng cũ
-      const [detailRows] = await connection.query(`
-        SELECT od.ProductId, od.UnitPrice, od.Quantity
+      const [detailRows] = await connection.query(
+        `SELECT od.ProductId, od.UnitPrice, od.Quantity
         FROM OrderDetails od
         JOIN Orders o ON od.OrderId = o.OrderId
         WHERE o.OrderId = ? AND o.AccountId = ?
-          AND od.Status = ?
-      `, [orderId, accountId, ORDER_STATUS.COMPLETED]);
+          AND od.Status = ?`,
+        [orderId, accountId, ORDER_DETAIL_STATUS.COMPLETED]
+      );
 
       if (!detailRows.length) {
         throw new Error("Không tìm thấy đơn hàng hoặc đơn hàng chưa hoàn thành");
@@ -355,8 +532,17 @@ const OrderModel = {
             AND od2.ProductId IN (
               SELECT ProductId FROM Products WHERE StallId = ?
             )
-            AND od2.Status IN (2,3,4,5,7)
+            AND od2.Status IN (1,2,3,4,5,6)
         ) as itemCount,
+        (
+          SELECT COUNT(*) 
+          FROM OrderDetails od2 
+          WHERE od2.OrderId = o.OrderId 
+            AND od2.ProductId IN (
+              SELECT ProductId FROM Products WHERE StallId = ?
+            )
+            AND od2.Status = 2
+        ) as preparedCount,
         (
           SELECT SUM(od2.UnitPrice * od2.Quantity)
           FROM OrderDetails od2 
@@ -364,7 +550,7 @@ const OrderModel = {
             AND od2.ProductId IN (
               SELECT ProductId FROM Products WHERE StallId = ?
             )
-            AND od2.Status IN (2,3,4,5,7)
+            AND od2.Status IN (1,2,3,4,5,6)
         ) as SubTotal,
         (
           SELECT SUM(od2.ShipFee)
@@ -373,7 +559,7 @@ const OrderModel = {
             AND od2.ProductId IN (
               SELECT ProductId FROM Products WHERE StallId = ?
             )
-            AND od2.Status IN (2,3,4,5,7)
+            AND od2.Status IN (1,2,3,4,5,6)
         ) as ShipFee
       FROM Orders o
       JOIN Address a ON o.AddressId = a.AddressId
@@ -384,12 +570,12 @@ const OrderModel = {
         JOIN Products p ON od.ProductId = p.ProductId
         WHERE od.OrderId = o.OrderId
           AND p.StallId = ?
-          AND od.Status IN (2,3,4,5,7)
+          AND od.Status IN (1,2,3,4,5,6)
       )
-      AND o.Status IN (2,3,4,5,7)  -- THÊM TRẠNG THÁI 7 VÀO ĐÂY
+      AND o.Status IN (2,3,4,5,6,7)
     `;
 
-    const params = [stallId, stallId, stallId, stallId];
+    const params = [stallId, stallId, stallId, stallId, stallId];
 
     // Thêm điều kiện lọc
     const whereConditions = [];
@@ -452,7 +638,7 @@ const OrderModel = {
         JOIN Stalls s ON p.StallId = s.StallId
         WHERE od.OrderId = ?
           AND p.StallId = ?
-          AND od.Status IN (2,3,4,5,7)
+          AND od.Status IN (1,2,3,4,5,6)
         ORDER BY od.CreatedAt ASC
       `, [order.OrderId, stallId]);
 
@@ -497,13 +683,13 @@ const OrderModel = {
       JOIN Accounts acc ON o.AccountId = acc.AccountId
       LEFT JOIN PaymentMethods pm ON o.MethodId = pm.MethodId
       WHERE o.OrderId = ?
-        AND o.Status IN (2,3,4,5,7)  -- THÊM TRẠNG THÁI 7
+        AND o.Status IN (2,3,4,5,6,7)
         AND EXISTS (
           SELECT 1 FROM OrderDetails od
           JOIN Products p ON od.ProductId = p.ProductId
           WHERE od.OrderId = o.OrderId
             AND p.StallId = ?
-            AND od.Status IN (2,3,4,5,7)
+            AND od.Status IN (1,2,3,4,5,6)
         )
     `, [orderId, stallId]);
 
@@ -528,7 +714,7 @@ const OrderModel = {
       LEFT JOIN PlatformFees pf ON od.FeeId = pf.FeeId
       WHERE od.OrderId = ?
         AND p.StallId = ?
-        AND od.Status IN (2,3,4,5,7)
+        AND od.Status IN (1,2,3,4,5,6)
       ORDER BY od.CreatedAt ASC
     `, [orderId, stallId]);
 
@@ -539,18 +725,48 @@ const OrderModel = {
     };
   },
 
-  checkOrderDetailAccess: async (orderDetailId, sellerId) => {
-    const [rows] = await pool.query(`
-      SELECT od.*, o.Status as orderStatus, p.StallId, s.AccountId
+  checkOrderDetailStatus: async (orderDetailId, sellerId) => {
+  try {
+    const [accessRows] = await pool.query(
+      `SELECT 
+        od.OrderDetailId, 
+        od.Status, 
+        od.OrderId,
+        p.StallId
       FROM OrderDetails od
       JOIN Products p ON od.ProductId = p.ProductId
       JOIN Stalls s ON p.StallId = s.StallId
-      JOIN Orders o ON od.OrderId = o.OrderId
-      WHERE od.OrderDetailId = ?
-        AND s.AccountId = ?
-    `, [orderDetailId, sellerId]);
-    return rows[0] || null;
-  },
+      WHERE od.OrderDetailId = ? AND s.AccountId = ?`,
+      [orderDetailId, sellerId]
+    );
+
+    if (accessRows.length === 0) {
+      throw new Error("Không có quyền truy cập vào sản phẩm này");
+    }
+
+    const orderDetail = accessRows[0];
+    const isPrepared = orderDetail.Status === ORDER_DETAIL_STATUS.PREPARED;
+    const canPrepare = orderDetail.Status === ORDER_DETAIL_STATUS.PENDING_PREPARED;
+    const canCancelPrepare = orderDetail.Status === ORDER_DETAIL_STATUS.PREPARED;
+    const canShip = orderDetail.Status === ORDER_DETAIL_STATUS.PREPARED;
+    const canComplete = orderDetail.Status === ORDER_DETAIL_STATUS.SHIPPING;
+
+    return {
+      orderDetailId,
+      OrderId: orderDetail.OrderId,
+      currentStatus: orderDetail.Status,
+      isPrepared,
+      canPrepare,
+      canCancelPrepare,
+      canShip,
+      canComplete,
+      stallId: orderDetail.StallId
+    };
+  } catch (error) {
+    console.error("Check order detail status error:", error);
+    throw error;
+  }
+},
 
   prepareOrderItem: async (orderDetailId, sellerId, isPrepared) => {
     const connection = await pool.getConnection();
@@ -558,20 +774,31 @@ const OrderModel = {
       await connection.beginTransaction();
 
       // Kiểm tra quyền truy cập
-      const orderDetail = await OrderModel.checkOrderDetailAccess(orderDetailId, sellerId);
+      const orderDetail = await OrderModel.checkOrderDetailStatus(orderDetailId, sellerId);
       if (!orderDetail) {
         throw new Error("Không có quyền truy cập sản phẩm này");
       }
 
-      // Chỉ cho phép chuẩn bị khi trạng thái là PROCESSING (2) và order status là 2 hoặc 7
-      if (orderDetail.Status !== ORDER_STATUS.PROCESSING || 
-          (orderDetail.orderStatus !== ORDER_STATUS.PROCESSING && 
-           orderDetail.orderStatus !== ORDER_STATUS.WAITING_OTHER_SELLERS)) {
-        throw new Error("Chỉ có thể chuẩn bị hàng khi đơn hàng đang xử lý hoặc chờ gian hàng khác");
+      let newStatus;
+      let statusMessage;
+
+      if (isPrepared) {
+        // Chuẩn bị hàng: từ PENDING_PREPARED (1) -> PREPARED (2)
+        if (!orderDetail.canPrepare) {
+          throw new Error("Chỉ có thể chuẩn bị hàng khi đang ở trạng thái chờ chuẩn bị");
+        }
+        newStatus = ORDER_DETAIL_STATUS.PREPARED;
+        statusMessage = 'Đã chuẩn bị hàng';
+      } else {
+        // Bỏ chuẩn bị hàng: từ PREPARED (2) -> PENDING_PREPARED (1)
+        if (!orderDetail.canCancelPrepare) {
+          throw new Error("Chỉ có thể bỏ đánh dấu chuẩn bị khi đã chuẩn bị");
+        }
+        newStatus = ORDER_DETAIL_STATUS.PENDING_PREPARED;
+        statusMessage = 'Bỏ đánh dấu chuẩn bị hàng';
       }
 
-      const newStatus = isPrepared ? ORDER_STATUS.SHIPPING : ORDER_STATUS.PROCESSING;
-
+      // Cập nhật trạng thái
       await connection.query(
         `UPDATE OrderDetails SET Status = ?, UpdatedAt = NOW() WHERE OrderDetailId = ?`,
         [newStatus, orderDetailId]
@@ -579,25 +806,24 @@ const OrderModel = {
 
       // Tạo lịch sử trạng thái
       const trackingCode = `PREPARE-${orderDetailId}-${Date.now()}`;
-      const statusText = isPrepared ? 'Đã chuẩn bị hàng' : 'Bỏ chuẩn bị hàng';
-
       await connection.query(
         `INSERT INTO OrderStatusHistory (OrderDetailId, TrackingCode, Status, CreatedAt)
          VALUES (?, ?, ?, NOW())`,
-        [orderDetailId, trackingCode, statusText]
+        [orderDetailId, trackingCode, statusMessage]
       );
 
-      // Kiểm tra nếu tất cả sản phẩm của seller đã được chuẩn bị
+      // Kiểm tra xem tất cả sản phẩm của seller trong đơn hàng đã chuẩn bị chưa
       const [allItems] = await connection.query(
-        `SELECT COUNT(*) as total,
-                SUM(CASE WHEN od.Status = ${ORDER_STATUS.SHIPPING} THEN 1 ELSE 0 END) as prepared
+        `SELECT 
+          COUNT(*) as total,
+          SUM(CASE WHEN od.Status = ? THEN 1 ELSE 0 END) as prepared
          FROM OrderDetails od
          JOIN Products p ON od.ProductId = p.ProductId
          JOIN Stalls s ON p.StallId = s.StallId
          WHERE od.OrderId = ?
            AND s.AccountId = ?
-           AND od.Status IN (${ORDER_STATUS.PROCESSING}, ${ORDER_STATUS.SHIPPING})`,
-        [orderDetail.OrderId, sellerId]
+           AND od.Status IN (?, ?)`,
+        [ORDER_DETAIL_STATUS.PREPARED, orderDetail.OrderId, sellerId, ORDER_DETAIL_STATUS.PENDING_PREPARED, ORDER_DETAIL_STATUS.PREPARED]
       );
 
       await connection.commit();
@@ -605,7 +831,7 @@ const OrderModel = {
       return {
         orderDetailId,
         newStatus,
-        allPrepared: allItems[0].total === allItems[0].prepared && allItems[0].total > 0
+        allPrepared: allItems[0].prepared === allItems[0].total && allItems[0].total > 0
       };
 
     } catch (error) {
@@ -617,220 +843,134 @@ const OrderModel = {
   },
 
   shipSellerOrder: async (orderId, sellerId) => {
-    const connection = await pool.getConnection();
-    try {
-      await connection.beginTransaction();
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
 
-      // Lấy stallId của seller
-      const [stallRows] = await connection.query(
-        "SELECT StallId FROM Stalls WHERE AccountId = ?",
-        [sellerId]
+    // Lấy stallId của seller
+    const [stallRows] = await connection.query(
+      "SELECT StallId FROM Stalls WHERE AccountId = ?",
+      [sellerId]
+    );
+
+    if (!stallRows.length) {
+      throw new Error("Không tìm thấy cửa hàng");
+    }
+
+    const stallId = stallRows[0].StallId;
+
+    // 1. Kiểm tra xem có sản phẩm nào còn ở trạng thái chờ chuẩn bị (status = 1) không
+    const [pendingRows] = await connection.query(
+      `SELECT COUNT(*) as pendingItems
+       FROM OrderDetails od
+       JOIN Products p ON od.ProductId = p.ProductId
+       WHERE od.OrderId = ?
+         AND p.StallId = ?
+         AND od.Status = ?`,
+      [orderId, stallId, ORDER_DETAIL_STATUS.PENDING_PREPARED]
+    );
+
+    if (pendingRows[0].pendingItems > 0) {
+      throw new Error("Vẫn còn sản phẩm chưa được chuẩn bị");
+    }
+
+    // 2. Lấy tất cả sản phẩm có thể gửi của seller (status = 2 - đã chuẩn bị)
+    const [preparedItems] = await connection.query(
+      `SELECT od.OrderDetailId 
+       FROM OrderDetails od
+       JOIN Products p ON od.ProductId = p.ProductId
+       WHERE od.OrderId = ?
+         AND p.StallId = ?
+         AND od.Status = ?`,
+      [orderId, stallId, ORDER_DETAIL_STATUS.PREPARED]
+    );
+
+    if (preparedItems.length === 0) {
+      throw new Error("Không có sản phẩm nào sẵn sàng để gửi");
+    }
+
+    // 3. Cập nhật các sản phẩm đã chuẩn bị sang trạng thái đang giao
+    const orderDetailIds = preparedItems.map(item => item.OrderDetailId);
+    await connection.query(
+      `UPDATE OrderDetails 
+       SET Status = ?, UpdatedAt = NOW()
+       WHERE OrderDetailId IN (?)`,
+      [ORDER_DETAIL_STATUS.SHIPPING, orderDetailIds]
+    );
+
+    // 4. Tạo lịch sử trạng thái cho từng sản phẩm
+    for (const item of preparedItems) {
+      const trackingCode = `SHIP-${orderId}-${item.OrderDetailId}-${Date.now()}`;
+      await connection.query(
+        `INSERT INTO OrderStatusHistory (OrderDetailId, TrackingCode, Status, CreatedAt)
+         VALUES (?, ?, 'Đang giao hàng', NOW())`,
+        [item.OrderDetailId, trackingCode]
       );
+    }
 
-      if (!stallRows.length) {
-        throw new Error("Không tìm thấy cửa hàng");
-      }
+    // 5. Kiểm tra xem có seller khác trong đơn hàng vẫn còn sản phẩm chưa gửi không
+    const [otherSellersItems] = await connection.query(
+      `SELECT COUNT(DISTINCT p.StallId) as otherStalls
+       FROM OrderDetails od
+       JOIN Products p ON od.ProductId = p.ProductId
+       WHERE od.OrderId = ?
+         AND p.StallId != ?
+         AND od.Status IN (?, ?)`,
+      [orderId, stallId, ORDER_DETAIL_STATUS.PENDING_PREPARED, ORDER_DETAIL_STATUS.PREPARED]
+    );
 
-      const stallId = stallRows[0].StallId;
-
-      // Kiểm tra xem tất cả sản phẩm của seller đã được chuẩn bị chưa
-      const [itemsRows] = await connection.query(
-        `SELECT od.* 
-         FROM OrderDetails od
-         JOIN Products p ON od.ProductId = p.ProductId
-         WHERE od.OrderId = ?
-           AND p.StallId = ?
-           AND od.Status = ${ORDER_STATUS.PROCESSING}`,
-        [orderId, stallId]
+    // 6. Xác định trạng thái đơn hàng mới
+    let newOrderStatus;
+    if (otherSellersItems[0].otherStalls > 0) {
+      // Còn seller khác chưa gửi hàng
+      newOrderStatus = ORDER_STATUS.WAITING_OTHER_SELLERS;
+      
+      // Kiểm tra nếu đơn hàng hiện đang ở trạng thái 2 (PROCESSING) thì cập nhật sang 7
+      const [currentOrder] = await connection.query(
+        `SELECT Status FROM Orders WHERE OrderId = ?`,
+        [orderId]
       );
-
-      if (itemsRows.length > 0) {
-        throw new Error("Vẫn còn sản phẩm chưa được chuẩn bị");
-      }
-
-      // Cập nhật tất cả order details của seller sang SHIPPING
-      const [updateResult] = await connection.query(
-        `UPDATE OrderDetails od
-         JOIN Products p ON od.ProductId = p.ProductId
-         SET od.Status = ${ORDER_STATUS.SHIPPING}, od.UpdatedAt = NOW()
-         WHERE od.OrderId = ?
-           AND p.StallId = ?
-           AND od.Status = ${ORDER_STATUS.PROCESSING}`,
-        [orderId, stallId]
-      );
-
-      if (updateResult.affectedRows === 0) {
-        throw new Error("Không có sản phẩm nào để chuyển trạng thái");
-      }
-
-      // Tạo lịch sử trạng thái
-      const [detailRows] = await connection.query(
-        `SELECT od.OrderDetailId 
-         FROM OrderDetails od
-         JOIN Products p ON od.ProductId = p.ProductId
-         WHERE od.OrderId = ?
-           AND p.StallId = ?`,
-        [orderId, stallId]
-      );
-
-      for (const detail of detailRows) {
-        const trackingCode = `SHIP-${orderId}-${detail.OrderDetailId}-${Date.now()}`;
+      
+      if (currentOrder[0].Status === ORDER_STATUS.PROCESSING) {
         await connection.query(
-          `INSERT INTO OrderStatusHistory (OrderDetailId, TrackingCode, Status, CreatedAt)
-           VALUES (?, ?, 'Đang giao hàng', NOW())`,
-          [detail.OrderDetailId, trackingCode]
+          `UPDATE Orders SET Status = ?, UpdatedAt = NOW() WHERE OrderId = ?`,
+          [ORDER_STATUS.WAITING_OTHER_SELLERS, orderId]
         );
       }
-
-      // Kiểm tra xem có seller khác chưa gửi hàng không
-      const [otherSellersItems] = await connection.query(
-        `SELECT COUNT(DISTINCT p.StallId) as otherStalls
-         FROM OrderDetails od
-         JOIN Products p ON od.ProductId = p.ProductId
-         WHERE od.OrderId = ?
-           AND p.StallId != ?
-           AND od.Status = ${ORDER_STATUS.PROCESSING}`,
-        [orderId, stallId]
+    } else {
+      // Tất cả seller đã gửi hàng
+      newOrderStatus = ORDER_STATUS.SHIPPING;
+      
+      // Cập nhật tất cả order details khác còn đang chờ chuẩn bị hoặc đã chuẩn bị sang đang giao
+      await connection.query(
+        `UPDATE OrderDetails 
+         SET Status = ?, UpdatedAt = NOW()
+         WHERE OrderId = ? AND Status IN (?, ?)`,
+        [ORDER_DETAIL_STATUS.SHIPPING, orderId, ORDER_DETAIL_STATUS.PENDING_PREPARED, ORDER_DETAIL_STATUS.PREPARED]
       );
-
-      // Xác định trạng thái đơn hàng mới
-      let newOrderStatus;
-      if (otherSellersItems[0].otherStalls > 0) {
-        newOrderStatus = ORDER_STATUS.WAITING_OTHER_SELLERS;
-      } else {
-        newOrderStatus = ORDER_STATUS.SHIPPING;
-        
-        // Cập nhật tất cả order details khác còn đang xử lý
-        await connection.query(
-          `UPDATE OrderDetails 
-           SET Status = ${ORDER_STATUS.SHIPPING}, UpdatedAt = NOW()
-           WHERE OrderId = ? AND Status = ${ORDER_STATUS.PROCESSING}`,
-          [orderId]
-        );
-      }
-
-      // Cập nhật trạng thái đơn hàng
+      
+      // Cập nhật trạng thái đơn hàng chính
       await connection.query(
         `UPDATE Orders SET Status = ?, UpdatedAt = NOW() WHERE OrderId = ?`,
         [newOrderStatus, orderId]
       );
-
-      await connection.commit();
-
-      return {
-        orderId,
-        newOrderStatus,
-        updatedItems: updateResult.affectedRows
-      };
-
-    } catch (error) {
-      await connection.rollback();
-      throw error;
-    } finally {
-      connection.release();
     }
-  },
 
-  shipAllItemsForSeller: async (orderId, sellerId) => {
-    const connection = await pool.getConnection();
-    try {
-      await connection.beginTransaction();
+    await connection.commit();
 
-      // Lấy stallId của seller
-      const [stallRows] = await connection.query(
-        "SELECT StallId FROM Stalls WHERE AccountId = ?",
-        [sellerId]
-      );
+    return {
+      orderId,
+      newOrderStatus,
+      updatedItems: preparedItems.length
+    };
 
-      if (!stallRows.length) {
-        throw new Error("Không tìm thấy cửa hàng");
-      }
-
-      const stallId = stallRows[0].StallId;
-
-      // Cập nhật tất cả order details của seller sang SHIPPING
-      const [updateResult] = await connection.query(
-        `UPDATE OrderDetails od
-         JOIN Products p ON od.ProductId = p.ProductId
-         SET od.Status = ?, od.UpdatedAt = NOW()
-         WHERE od.OrderId = ?
-           AND p.StallId = ?
-           AND od.Status = ?`,
-        [ORDER_STATUS.SHIPPING, orderId, stallId, ORDER_STATUS.PROCESSING]
-      );
-
-      if (updateResult.affectedRows === 0) {
-        throw new Error("Không có sản phẩm nào để chuyển trạng thái");
-      }
-
-      // Tạo lịch sử trạng thái
-      const [detailRows] = await connection.query(
-        `SELECT od.OrderDetailId 
-         FROM OrderDetails od
-         JOIN Products p ON od.ProductId = p.ProductId
-         WHERE od.OrderId = ?
-           AND p.StallId = ?
-           AND od.Status = ?`,
-        [orderId, stallId, ORDER_STATUS.SHIPPING]
-      );
-
-      for (const detail of detailRows) {
-        const trackingCode = `SHIP-ALL-${orderId}-${detail.OrderDetailId}-${Date.now()}`;
-        await connection.query(
-          `INSERT INTO OrderStatusHistory (OrderDetailId, TrackingCode, Status, CreatedAt)
-           VALUES (?, ?, 'Đang giao hàng', NOW())`,
-          [detail.OrderDetailId, trackingCode]
-        );
-      }
-
-      // Kiểm tra xem có seller khác chưa gửi hàng không
-      const [otherSellersItems] = await connection.query(
-        `SELECT COUNT(DISTINCT p.StallId) as otherStalls
-         FROM OrderDetails od
-         JOIN Products p ON od.ProductId = p.ProductId
-         WHERE od.OrderId = ?
-           AND p.StallId != ?
-           AND od.Status = ${ORDER_STATUS.PROCESSING}`,
-        [orderId, stallId]
-      );
-
-      // Xác định trạng thái đơn hàng mới
-      let newOrderStatus;
-      if (otherSellersItems[0].otherStalls > 0) {
-        newOrderStatus = ORDER_STATUS.WAITING_OTHER_SELLERS;
-      } else {
-        newOrderStatus = ORDER_STATUS.SHIPPING;
-        
-        // Cập nhật tất cả order details khác còn đang xử lý
-        await connection.query(
-          `UPDATE OrderDetails 
-           SET Status = ${ORDER_STATUS.SHIPPING}, UpdatedAt = NOW()
-           WHERE OrderId = ? AND Status = ${ORDER_STATUS.PROCESSING}`,
-          [orderId]
-        );
-      }
-
-      // Cập nhật trạng thái đơn hàng
-      await connection.query(
-        `UPDATE Orders SET Status = ?, UpdatedAt = NOW() WHERE OrderId = ?`,
-        [newOrderStatus, orderId]
-      );
-
-      await connection.commit();
-
-      return {
-        orderId,
-        newOrderStatus,
-        updatedItems: updateResult.affectedRows
-      };
-
-    } catch (error) {
-      await connection.rollback();
-      throw error;
-    } finally {
-      connection.release();
-    }
-  },
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+},
 
   completeSellerOrder: async (orderDetailId, sellerId) => {
     const connection = await pool.getConnection();
@@ -838,20 +978,20 @@ const OrderModel = {
       await connection.beginTransaction();
 
       // Kiểm tra quyền truy cập
-      const orderDetail = await OrderModel.checkOrderDetailAccess(orderDetailId, sellerId);
+      const orderDetail = await OrderModel.checkOrderDetailStatus(orderDetailId, sellerId);
       if (!orderDetail) {
         throw new Error("Không có quyền truy cập sản phẩm này");
       }
 
       // Chỉ cho phép hoàn thành khi trạng thái là SHIPPING (3)
-      if (orderDetail.Status !== ORDER_STATUS.SHIPPING) {
+      if (orderDetail.currentStatus !== ORDER_DETAIL_STATUS.SHIPPING) {
         throw new Error("Chỉ có thể xác nhận hoàn thành khi đơn hàng đang ở trạng thái đang giao");
       }
 
-      // Cập nhật trạng thái sang COMPLETED
+      // Cập nhật trạng thái sang COMPLETED (4)
       await connection.query(
         `UPDATE OrderDetails SET Status = ?, UpdatedAt = NOW() WHERE OrderDetailId = ?`,
-        [ORDER_STATUS.COMPLETED, orderDetailId]
+        [ORDER_DETAIL_STATUS.COMPLETED, orderDetailId]
       );
 
       // Tạo lịch sử trạng thái
@@ -866,7 +1006,7 @@ const OrderModel = {
 
       return {
         orderDetailId,
-        newStatus: ORDER_STATUS.COMPLETED
+        newStatus: ORDER_DETAIL_STATUS.COMPLETED
       };
 
     } catch (error) {
@@ -877,18 +1017,6 @@ const OrderModel = {
     }
   },
 
-  checkOrderDetailStatus: async (orderDetailId, sellerId) => {
-    const rows = await OrderModel.checkOrderDetailAccess(orderDetailId, sellerId);
-    if (!rows) {
-      throw new Error("Không tìm thấy");
-    }
-
-    return {
-      orderDetailId,
-      orderStatus: rows.orderStatus,
-      hasShipped: rows.Status >= 3
-    };
-  }
 };
 
 module.exports = OrderModel;

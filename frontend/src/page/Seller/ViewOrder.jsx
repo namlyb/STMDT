@@ -16,14 +16,11 @@ import {
   Eye,
   Check,
   AlertCircle,
-  Filter,
   Download,
   User,
   Phone,
   ShoppingBag,
   RefreshCw,
-  ArrowLeft,
-  ArrowRight,
   ChevronDown,
   ChevronUp,
   MessageSquare,
@@ -33,8 +30,8 @@ import {
 
 export default function ViewOrder() {
   const navigate = useNavigate();
-  const [allOrders, setAllOrders] = useState([]); // Tất cả đơn hàng
-  const [displayedOrders, setDisplayedOrders] = useState([]); // Đơn hàng hiển thị sau khi filter
+  const [allOrders, setAllOrders] = useState([]);
+  const [displayedOrders, setDisplayedOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showDetail, setShowDetail] = useState(false);
@@ -47,10 +44,8 @@ export default function ViewOrder() {
     orderId: ""
   });
   
-  // Phân trang đơn giản giống ListAccount
   const [page, setPage] = useState(1);
-  const pageSize = 10; // Số đơn hàng mỗi trang
-  
+  const pageSize = 10;
   const [checkAll, setCheckAll] = useState(false);
 
   const fmt = n => Number(n || 0).toLocaleString("vi-VN");
@@ -67,30 +62,25 @@ export default function ViewOrder() {
     });
   };
 
-  // Hàm lấy URL ảnh đúng
   const getImageUrl = (imageName) => {
     if (!imageName) return "https://via.placeholder.com/80";
-
-    if (imageName.startsWith('http')) {
-      return imageName;
-    }
-
+    if (imageName.startsWith('http')) return imageName;
     const baseUrl = "http://localhost:8080";
     return `${baseUrl}/uploads/ProductImage/${imageName}`;
   };
 
   const STATUS_MAP = {
     1: {
-      label: "Chờ thanh toán",
-      color: "bg-yellow-100 text-yellow-800",
+      label: "Chờ chuẩn bị",
+      color: "bg-gray-100 text-gray-800",
       icon: Clock,
-      bgColor: "bg-yellow-50"
+      bgColor: "bg-gray-50"
     },
     2: {
-      label: "Đang xử lý",
-      color: "bg-blue-100 text-blue-800",
-      icon: Package,
-      bgColor: "bg-blue-50"
+      label: "Đã chuẩn bị",
+      color: "bg-green-100 text-green-800",
+      icon: CheckCircle,
+      bgColor: "bg-green-50"
     },
     3: {
       label: "Đang giao",
@@ -100,9 +90,9 @@ export default function ViewOrder() {
     },
     4: {
       label: "Hoàn thành",
-      color: "bg-green-100 text-green-800",
+      color: "bg-blue-100 text-blue-800",
       icon: CheckCircle,
-      bgColor: "bg-green-50"
+      bgColor: "bg-blue-50"
     },
     5: {
       label: "Đã hủy",
@@ -130,7 +120,6 @@ export default function ViewOrder() {
 
       setLoading(true);
       
-      // KHÔNG gửi page và limit nữa, lấy tất cả đơn hàng
       const params = {
         status: filters.status === "all" ? "" : filters.status,
         search: filters.search,
@@ -139,59 +128,35 @@ export default function ViewOrder() {
         orderId: filters.orderId
       };
 
-      console.log("Fetching orders with params:", params);
-
       const response = await axios.get("/orders/seller/orders", {
-        headers: {
-          Authorization: `Bearer ${token}`
-        },
+        headers: { Authorization: `Bearer ${token}` },
         params
       });
 
-      console.log("API Response:", response.data);
-
       if (response.data && Array.isArray(response.data)) {
         const formattedOrders = response.data.map(order => {
-          const details = order.details || [];
-          const preparedCount = details.filter(d => d.Status === 3 || d.Status === 4).length;
-          const totalItems = details.length;
-
-          const sellerStallId = account.StallId;
-          const sellerItems = details.filter(d => d.StallId === sellerStallId);
-          const sellerShippedItems = sellerItems.filter(d => d.Status === 3 || d.Status === 4);
-          const hasShipped = sellerItems.length > 0 && sellerItems.length === sellerShippedItems.length;
-
-          const detailsWithImages = details.map(detail => ({
-            ...detail,
-            Image: getImageUrl(detail.Image)
-          }));
-
-          let canShip = false;
-          if (order.OrderStatus === 2 || order.OrderStatus === 7) {
-            canShip = totalItems > 0 && preparedCount === totalItems && !hasShipped;
-          }
+          const preparedCount = order.preparedCount || 0;
+          const totalItems = order.itemCount || 0;
 
           return {
             ...order,
             CreatedAt: formatDate(order.CreatedAt),
             UpdatedAt: formatDate(order.UpdatedAt),
             OrderDate: formatDate(order.OrderDate),
-            details: detailsWithImages,
+            details: order.details?.map(detail => ({
+              ...detail,
+              Image: getImageUrl(detail.Image)
+            })) || [],
             preparedCount: preparedCount,
             totalItems: totalItems,
             preparedPercentage: totalItems > 0 ? Math.round((preparedCount / totalItems) * 100) : 0,
             allPrepared: totalItems > 0 && preparedCount === totalItems,
-            canShip: canShip,
-            hasShipped: hasShipped
+            canShip: (order.OrderStatus === 2 || order.OrderStatus === 7) && preparedCount === totalItems && totalItems > 0
           };
         });
 
-        // Lưu tất cả đơn hàng
         setAllOrders(formattedOrders);
-        console.log("Total orders:", formattedOrders.length);
-
       } else {
-        console.log("No orders found or response is not array");
         setAllOrders([]);
       }
 
@@ -214,20 +179,16 @@ export default function ViewOrder() {
     fetchOrders();
   }, [fetchOrders]);
 
-  // Filter orders
   const filteredOrders = useMemo(() => {
     return allOrders.filter(order => {
-      // Filter by status
       if (filters.status !== "all" && String(order.OrderStatus) !== filters.status) {
         return false;
       }
       
-      // Filter by order ID
       if (filters.orderId && !String(order.OrderId).includes(filters.orderId)) {
         return false;
       }
       
-      // Filter by date range
       if (filters.dateFrom || filters.dateTo) {
         const orderDate = new Date(order.CreatedAt);
         
@@ -248,7 +209,6 @@ export default function ViewOrder() {
     });
   }, [allOrders, filters]);
 
-  // Paginate orders
   const paginatedOrders = useMemo(() => {
     const startIndex = (page - 1) * pageSize;
     const endIndex = startIndex + pageSize;
@@ -258,16 +218,14 @@ export default function ViewOrder() {
   const totalPages = Math.ceil(filteredOrders.length / pageSize);
 
   useEffect(() => {
-    // Reset về trang 1 khi filter thay đổi
     setPage(1);
   }, [filters]);
 
   useEffect(() => {
-    // Cập nhật displayedOrders
     setDisplayedOrders(paginatedOrders);
   }, [paginatedOrders]);
 
-  const handleShipAll = async (orderId) => {
+  const handleShipping = async (orderId) => {
     if (!window.confirm("Xác nhận chuyển tất cả sản phẩm sang trạng thái đang giao?")) {
       return;
     }
@@ -275,19 +233,52 @@ export default function ViewOrder() {
     try {
       const token = sessionStorage.getItem("token");
 
-      await axios.put(`/orders/seller/orders/${orderId}/ship-all`, {}, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
+      const response = await axios.put(`/orders/seller/orders/${orderId}/ship`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
       });
 
-      alert("Đã chuyển tất cả sản phẩm sang trạng thái đang giao");
-      fetchOrders();
-      setShowDetail(false);
+      const newStatus = response.data.newOrderStatus;
+      
+      if (newStatus === 3) {
+        alert("Đơn hàng đã được chuyển sang trạng thái đang giao");
+      } else if (newStatus === 7) {
+        alert("Đã gửi hàng thành công. Đang chờ gian hàng khác vận chuyển...");
+      }
 
+      setAllOrders(prevOrders =>
+        prevOrders.map(order =>
+          order.OrderId === orderId
+            ? { 
+                ...order, 
+                OrderStatus: newStatus,
+                canShip: false
+              }
+            : order
+        )
+      );
+
+      if (selectedOrder && selectedOrder.order.OrderId === orderId) {
+        setSelectedOrder(prev => ({
+          ...prev,
+          order: { 
+            ...prev.order, 
+            OrderStatus: newStatus, 
+            canShip: false 
+          },
+          details: prev.details.map(detail => ({
+            ...detail,
+            Status: detail.Status === 2 ? 3 : detail.Status
+          }))
+        }));
+        setCheckAll(false);
+      }
+      
+      setTimeout(() => fetchOrders(), 1000);
+      setShowDetail(false);
+      
     } catch (error) {
-      console.error("Ship all error:", error);
-      alert(error.response?.data?.message || "Không thể chuyển trạng thái");
+      console.error("Shipping error:", error);
+      alert(error.response?.data?.message || "Không thể chuyển trạng thái đơn hàng");
     }
   };
 
@@ -296,9 +287,7 @@ export default function ViewOrder() {
       const token = sessionStorage.getItem("token");
 
       const response = await axios.get(`/orders/seller/orders/${orderId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
+        headers: { Authorization: `Bearer ${token}` }
       });
 
       if (response.data) {
@@ -323,19 +312,20 @@ export default function ViewOrder() {
             itemTotal: itemTotal,
             feeAmount: feeAmount,
             finalPrice: itemTotal + detail.ShipFee,
-            isPrepared: detail.Status === 3 || detail.Status === 4
+            isPrepared: detail.Status === 2
           };
         });
 
         const revenue = totalProductValue - totalFeeAmount;
-        const allPrepared = detailsWithCalculations.every(d => d.isPrepared);
+        const preparedCount = detailsWithCalculations.filter(d => d.Status === 2).length;
+        const allPrepared = preparedCount === detailsWithCalculations.length && detailsWithCalculations.length > 0;
 
         setSelectedOrder({
           order: {
             ...order,
             CreatedAt: formatDate(order.CreatedAt),
             OrderDate: formatDate(order.OrderDate),
-            canShip: order.OrderStatus === 2 && allPrepared,
+            canShip: (order.OrderStatus === 2 || order.OrderStatus === 7) && allPrepared,
             SubTotal: totalProductValue,
             TotalFee: totalFeeAmount,
             Revenue: revenue
@@ -353,36 +343,39 @@ export default function ViewOrder() {
     }
   };
 
-  const handlePrepareItem = async (orderDetailId, isPrepared) => {
+  const handlePrepareItem = async (orderDetailId, currentStatus) => {
     try {
-      const account = JSON.parse(sessionStorage.getItem("account"));
       const token = sessionStorage.getItem("token");
+      
+      // Kiểm tra trạng thái hiện tại
       const orderDetailResponse = await axios.get(`/orders/seller/order-details/${orderDetailId}/check`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
       const orderDetail = orderDetailResponse.data;
-
-      if (orderDetail.orderStatus >= 3 && orderDetail.hasShipped) {
-        alert("Không thể thay đổi trạng thái khi đã gửi hàng");
+      
+      // Chỉ cho phép thay đổi khi status = 1 hoặc 2
+      if (orderDetail.currentStatus >= 3) {
+        alert("Không thể thay đổi trạng thái khi đã bắt đầu vận chuyển");
         return;
       }
+
+      // Xác định trạng thái mới
+      const isPrepared = currentStatus === 1; // Nếu đang là 1 thì chuyển sang 2, nếu đang là 2 thì chuyển về 1
       
       await axios.put(`/orders/seller/order-details/${orderDetailId}/prepare`, {
         isPrepared: isPrepared
       }, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
+        headers: { Authorization: `Bearer ${token}` }
       });
 
-      // Update allOrders để giữ nguyên dữ liệu
+      // Cập nhật state
       setAllOrders(prevOrders =>
         prevOrders.map(order => ({
           ...order,
           details: order.details?.map(detail =>
             detail.OrderDetailId === orderDetailId
-              ? { ...detail, Status: isPrepared ? 3 : 2 }
+              ? { ...detail, Status: isPrepared ? 2 : 1 }
               : detail
           )
         }))
@@ -391,11 +384,17 @@ export default function ViewOrder() {
       if (selectedOrder) {
         const updatedDetails = selectedOrder.details.map(detail =>
           detail.OrderDetailId === orderDetailId
-            ? { ...detail, Status: isPrepared ? 3 : 2, isPrepared: isPrepared }
+            ? { 
+                ...detail, 
+                Status: isPrepared ? 2 : 1, 
+                isPrepared: isPrepared 
+              }
             : detail
         );
 
-        const allPrepared = updatedDetails.every(d => d.Status === 3 || d.Status === 4);
+        const preparedCount = updatedDetails.filter(d => d.Status === 2).length;
+        const totalItems = updatedDetails.length;
+        const allPrepared = preparedCount === totalItems && totalItems > 0;
 
         setSelectedOrder(prev => ({
           ...prev,
@@ -403,7 +402,7 @@ export default function ViewOrder() {
           allPrepared: allPrepared,
           order: {
             ...prev.order,
-            canShip: prev.order.OrderStatus === 2 && allPrepared
+            canShip: (prev.order.OrderStatus === 2 || prev.order.OrderStatus === 7) && allPrepared
           }
         }));
         setCheckAll(allPrepared);
@@ -419,110 +418,77 @@ export default function ViewOrder() {
   };
 
   const handlePrepareAll = async () => {
-    if (!selectedOrder) return;
+  if (!selectedOrder) return;
 
-    if (selectedOrder.order.OrderStatus >= 3 && selectedOrder.hasShipped) {
-      alert("Không thể thay đổi trạng thái khi đã gửi hàng");
-      return;
-    }
+  const token = sessionStorage.getItem("token");
+  const shouldPrepare = !checkAll;
 
-    const token = sessionStorage.getItem("token");
-    const shouldPrepare = !checkAll;
-
-    try {
-      const promises = selectedOrder.details
-        .filter(detail => detail.Status === 2)
-        .map(detail =>
-          axios.put(`/orders/seller/order-details/${detail.OrderDetailId}/prepare`, {
-            isPrepared: shouldPrepare
-          }, {
-            headers: { Authorization: `Bearer ${token}` }
-          })
-        );
-
-      await Promise.all(promises);
-
-      const updatedDetails = selectedOrder.details.map(detail => ({
-        ...detail,
-        Status: detail.Status === 2 ? (shouldPrepare ? 3 : 2) : detail.Status,
-        isPrepared: detail.Status === 2 ? shouldPrepare : detail.isPrepared
-      }));
-
-      const allPrepared = updatedDetails.every(d => d.Status === 3 || d.Status === 4);
-
-      setSelectedOrder(prev => ({
-        ...prev,
-        details: updatedDetails,
-        allPrepared: allPrepared,
-        order: {
-          ...prev.order,
-          canShip: (prev.order.OrderStatus === 2) && allPrepared && !prev.hasShipped
+  try {
+    // Lọc những sản phẩm có thể chuẩn bị
+    const detailsToUpdate = selectedOrder.details.filter(detail => {
+      // Chỉ xử lý sản phẩm có status 1 hoặc 2
+      if (detail.Status === 1 || detail.Status === 2) {
+        if (shouldPrepare) {
+          // Chỉ chuẩn bị những sản phẩm đang chờ chuẩn bị (status = 1)
+          return detail.Status === 1;
+        } else {
+          // Chỉ bỏ chuẩn bị những sản phẩm đã chuẩn bị (status = 2)
+          return detail.Status === 2;
         }
-      }));
-
-      setCheckAll(shouldPrepare);
-
-      alert(shouldPrepare ? "Đã đánh dấu tất cả sản phẩm đã chuẩn bị" : "Đã bỏ đánh dấu tất cả sản phẩm");
-      setTimeout(() => fetchOrders(), 500);
-
-    } catch (error) {
-      console.error("Prepare all error:", error);
-      alert(error.response?.data?.message || "Không thể cập nhật trạng thái");
-    }
-  };
-
-  const handleShipping = async (orderId) => {
-    if (!window.confirm("Xác nhận chuyển đơn hàng sang trạng thái đang giao?")) {
-      return;
-    }
-
-    try {
-      const token = sessionStorage.getItem("token");
-
-      await axios.put(`/orders/seller/orders/${orderId}/ship`, {}, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
-
-      alert("Đơn hàng đã được chuyển sang trạng thái đang giao");
-
-      // Cập nhật allOrders
-      setAllOrders(prevOrders =>
-        prevOrders.map(order =>
-          order.OrderId === orderId
-            ? { 
-                ...order, 
-                OrderStatus: order.OrderStatus === 7 ? 3 : 3,
-                canShip: false, 
-                hasShipped: true 
-              }
-            : order
-        )
-      );
-
-      if (selectedOrder && selectedOrder.order.OrderId === orderId) {
-        setSelectedOrder(prev => ({
-          ...prev,
-          order: { 
-            ...prev.order, 
-            OrderStatus: prev.order.OrderStatus === 7 ? 3 : 3, 
-            canShip: false 
-          },
-          details: prev.details.map(detail => ({
-            ...detail,
-            Status: detail.Status === 2 ? 3 : detail.Status
-          }))
-        }));
-        setCheckAll(true);
       }
-      setTimeout(() => fetchOrders(), 1000);
-      setShowDetail(false);
-    } catch (error) {
-      console.error("Shipping error:", error);
-      alert(error.response?.data?.message || "Không thể chuyển trạng thái đơn hàng");
+      return false;
+    });
+
+    if (detailsToUpdate.length === 0) {
+      alert(shouldPrepare ? "Không có sản phẩm nào đang chờ chuẩn bị" : "Không có sản phẩm nào đã chuẩn bị");
+      return;
     }
-  };
+
+    const promises = detailsToUpdate.map(detail =>
+      axios.put(`/orders/seller/order-details/${detail.OrderDetailId}/prepare`, {
+        isPrepared: shouldPrepare
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+    );
+
+    await Promise.all(promises);
+
+    const updatedDetails = selectedOrder.details.map(detail => {
+      if (detailsToUpdate.some(d => d.OrderDetailId === detail.OrderDetailId)) {
+        return {
+          ...detail,
+          Status: shouldPrepare ? 2 : 1,
+          isPrepared: shouldPrepare
+        };
+      }
+      return detail;
+    });
+
+    const preparedCount = updatedDetails.filter(d => d.Status === 2).length;
+    const totalItems = updatedDetails.filter(d => d.Status === 1 || d.Status === 2).length;
+    const allPrepared = preparedCount === totalItems && totalItems > 0;
+
+    setSelectedOrder(prev => ({
+      ...prev,
+      details: updatedDetails,
+      allPrepared: allPrepared,
+      order: {
+        ...prev.order,
+        canShip: (prev.order.OrderStatus === 2 || prev.order.OrderStatus === 7) && allPrepared
+      }
+    }));
+
+    setCheckAll(allPrepared);
+
+    alert(shouldPrepare ? "Đã đánh dấu tất cả sản phẩm đã chuẩn bị" : "Đã bỏ đánh dấu tất cả sản phẩm");
+    setTimeout(() => fetchOrders(), 500);
+
+  } catch (error) {
+    console.error("Prepare all error:", error);
+    alert(error.response?.data?.message || "Không thể cập nhật trạng thái");
+  }
+};
 
   const handleComplete = async (orderDetailId) => {
     if (!window.confirm("Xác nhận đã giao hàng thành công?")) {
@@ -533,9 +499,7 @@ export default function ViewOrder() {
       const token = sessionStorage.getItem("token");
 
       await axios.put(`/orders/seller/order-details/${orderDetailId}/complete`, {}, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
+        headers: { Authorization: `Bearer ${token}` }
       });
 
       alert("Đã xác nhận giao hàng thành công");
@@ -576,24 +540,7 @@ export default function ViewOrder() {
     );
   };
 
-  const validateDateRange = () => {
-    if (filters.dateFrom && filters.dateTo) {
-      const from = new Date(filters.dateFrom);
-      const to = new Date(filters.dateTo);
-
-      if (to < from) {
-        alert("Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu");
-        setFilters(prev => ({ ...prev, dateTo: "" }));
-        return false;
-      }
-    }
-    return true;
-  };
-
   const handleFilterChange = (key, value) => {
-    if ((key === "dateFrom" || key === "dateTo") && !validateDateRange()) {
-      return;
-    }
     setFilters(prev => ({ ...prev, [key]: value }));
   };
 
@@ -644,11 +591,12 @@ export default function ViewOrder() {
       total: filteredOrders.length,
       processing: filteredOrders.filter(o => o.OrderStatus === 2).length,
       shipping: filteredOrders.filter(o => o.OrderStatus === 3).length,
-      completed: filteredOrders.filter(o => o.OrderStatus === 4).length
+      completed: filteredOrders.filter(o => o.OrderStatus === 4).length,
+      waiting: filteredOrders.filter(o => o.OrderStatus === 7).length
     };
 
     return (
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
         <div className="bg-white border rounded-xl p-4">
           <div className="flex items-center justify-between">
             <div>
@@ -669,6 +617,18 @@ export default function ViewOrder() {
             </div>
             <div className="p-3 bg-blue-50 rounded-lg">
               <Package className="w-6 h-6 text-blue-500" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white border rounded-xl p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">Chờ gian hàng khác</p>
+              <p className="text-2xl font-bold text-orange-600">{stats.waiting}</p>
+            </div>
+            <div className="p-3 bg-orange-50 rounded-lg">
+              <Clock className="w-6 h-6 text-orange-500" />
             </div>
           </div>
         </div>
@@ -706,7 +666,7 @@ export default function ViewOrder() {
     const { order, details } = selectedOrder;
     const totalItems = details.length;
 
-    const preparedCount = details.filter(d => d.Status === 3 || d.Status === 4).length;
+    const preparedCount = details.filter(d => d.Status === 2).length;
     const currentAllPrepared = preparedCount === totalItems && totalItems > 0;
 
     const totalProductValue = details.reduce((sum, detail) => sum + detail.itemTotal, 0);
@@ -721,7 +681,6 @@ export default function ViewOrder() {
         ></div>
 
         <div className="relative bg-white rounded-2xl max-w-6xl w-full max-h-[90vh] overflow-y-auto z-10">
-          {/* Header */}
           <div className="sticky top-0 bg-white border-b p-6 flex justify-between items-center">
             <div>
               <h2 className="text-2xl font-bold text-gray-800">Chi tiết đơn hàng</h2>
@@ -754,9 +713,7 @@ export default function ViewOrder() {
             </div>
           </div>
 
-          {/* Body */}
           <div className="p-6 space-y-8">
-            {/* Customer & Address Info */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="border rounded-xl p-5">
                 <div className="flex items-center gap-3 mb-4">
@@ -785,7 +742,6 @@ export default function ViewOrder() {
               </div>
             </div>
             
-            {/* Products List */}
             <div className="border rounded-xl overflow-hidden">
               <div className="bg-gray-50 p-4 border-b flex justify-between items-center">
                 <div className="flex items-center gap-3">
@@ -802,8 +758,7 @@ export default function ViewOrder() {
                 </div>
               </div>
 
-              {/* Check All Button */}
-              {order.OrderStatus === 2 && !order.hasShipped && (
+              {(order.OrderStatus === 2 || order.OrderStatus === 7) && (
                 <div className="px-4 py-3 border-b bg-gray-50 flex items-center gap-3">
                   <div className="flex items-center">
                     <input
@@ -811,12 +766,10 @@ export default function ViewOrder() {
                       id="checkAll"
                       checked={checkAll}
                       onChange={handlePrepareAll}
-                      disabled={order.hasShipped}
-                      className={`w-5 h-5 text-blue-600 bg-gray-100 cursor-pointer border-gray-300 rounded focus:ring-blue-500 ${order.hasShipped ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      className="w-5 h-5 text-blue-600 bg-gray-100 cursor-pointer border-gray-300 rounded focus:ring-blue-500"
                     />
-                    <label htmlFor="checkAll" className={`ml-2 text-sm font-medium ${order.hasShipped ? 'text-gray-400' : 'text-gray-900'}`}>
-                      {order.hasShipped ? 'Đã gửi hàng' :
-                        `Chọn tất cả (${details.filter(d => d.Status === 2 || d.Status === 3).length} sản phẩm có thể chuẩn bị)`}
+                    <label htmlFor="checkAll" className="ml-2 text-sm font-medium text-gray-900">
+                      {`Chọn tất cả (${details.filter(d => d.Status === 1).length} sản phẩm có thể chuẩn bị)`}
                     </label>
                   </div>
                 </div>
@@ -825,30 +778,41 @@ export default function ViewOrder() {
                 {details.map((detail, index) => (
                   <div key={index} className="p-4 hover:bg-gray-50">
                     <div className="flex gap-4 items-start">
-                      {/* Checkbox for preparation */}
                       <div className="flex-shrink-0 pt-2">
-                        {order.OrderStatus === 2 && (detail.Status === 2 || detail.Status === 3) && (
+                        {/* Hiển thị checkbox chỉ cho sản phẩm chưa vận chuyển */}
+                        {(order.OrderStatus === 2 || order.OrderStatus === 7) && 
+                         (detail.Status === 1 || detail.Status === 2) && (
                           <button
-                            onClick={() => handlePrepareItem(detail.OrderDetailId, detail.Status !== 3)}
-                            className={`w-6 h-6 rounded border-2 cursor-pointer flex items-center justify-center transition ${detail.Status === 3
+                            onClick={() => handlePrepareItem(detail.OrderDetailId, detail.Status)}
+                            className={`w-6 h-6 rounded border-2 cursor-pointer flex items-center justify-center transition ${detail.Status === 2
                                 ? 'bg-green-100 border-green-500'
                                 : 'border-gray-300 hover:border-green-500 hover:bg-green-50'
                               }`}
-                            title={detail.Status === 3 ? "Đã chuẩn bị" : "Đánh dấu đã chuẩn bị"}
+                            title={detail.Status === 2 ? "Đã chuẩn bị - Nhấn để bỏ" : "Chưa chuẩn bị - Nhấn để đánh dấu"}
                           >
-                            {detail.Status === 3 && (
+                            {detail.Status === 2 && (
                               <Check className="w-4 h-4 text-green-600" />
                             )}
                           </button>
+                        )}
+                        {/* Hiển thị icon cho các trạng thái khác */}
+                        {detail.Status === 3 && (
+                          <div className="w-6 h-6 rounded bg-purple-100 border-2 border-purple-500 flex items-center justify-center">
+                            <Truck className="w-4 h-4 text-purple-600" />
+                          </div>
                         )}
                         {detail.Status === 4 && (
                           <div className="w-6 h-6 rounded bg-blue-100 border-2 border-blue-500 flex items-center justify-center">
                             <CheckCircle className="w-4 h-4 text-blue-600" />
                           </div>
                         )}
+                        {detail.Status === 5 && (
+                          <div className="w-6 h-6 rounded bg-red-100 border-2 border-red-500 flex items-center justify-center">
+                            <XCircle className="w-4 h-4 text-red-600" />
+                          </div>
+                        )}
                       </div>
 
-                      {/* Product Image */}
                       <div className="flex-shrink-0">
                         <img
                           src={detail.Image}
@@ -861,7 +825,6 @@ export default function ViewOrder() {
                         />
                       </div>
 
-                      {/* Product Info */}
                       <div className="flex-1">
                         <div className="flex justify-between">
                           <div>
@@ -874,7 +837,6 @@ export default function ViewOrder() {
                               <span>Tổng: {fmt(detail.itemTotal)}đ</span>
                             </div>
 
-                            {/* Additional Info */}
                             <div className="flex items-center gap-4 mt-2 text-sm">
                               <span className="text-blue-600">
                                 Phí ship: {fmt(detail.ShipFee)}đ
@@ -894,9 +856,14 @@ export default function ViewOrder() {
                             <div className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs mt-2 ${STATUS_MAP[detail.Status]?.color || 'bg-gray-100 text-gray-800'}`}>
                               {STATUS_MAP[detail.Status]?.label || 'Không xác định'}
                             </div>
-                            {detail.Status === 3 && (
+                            {detail.Status === 2 && (
                               <div className="text-xs text-green-600 mt-1">
                                 ✓ Đã chuẩn bị
+                              </div>
+                            )}
+                            {detail.Status === 3 && (
+                              <div className="text-xs text-purple-600 mt-1">
+                                ✓ Đang giao hàng
                               </div>
                             )}
                             {detail.Status === 4 && (
@@ -913,7 +880,6 @@ export default function ViewOrder() {
               </div>
             </div>
 
-            {/* Order Summary */}
             <div className="bg-gray-50 rounded-xl p-6">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="text-center">
@@ -935,13 +901,12 @@ export default function ViewOrder() {
               </div>
             </div>
 
-            {/* Actions */}
             <div className="flex justify-between items-center">
               <div className="text-sm text-gray-500">
-                {order.OrderStatus === 2 && (
+                {(order.OrderStatus === 2 || order.OrderStatus === 7) && (
                   <div className="flex items-center gap-2">
                     <AlertCircle className="w-4 h-4" />
-                    <span>Click vào ô vuông để đánh dấu sản phẩm đã chuẩn bị xong</span>
+                    <span>Click vào ô vuông để đánh dấu/bỏ đánh dấu sản phẩm đã chuẩn bị xong</span>
                   </div>
                 )}
               </div>
@@ -954,7 +919,7 @@ export default function ViewOrder() {
                   Đóng
                 </button>
 
-                {order.OrderStatus === 2 && currentAllPrepared && !order.hasShipped && (
+                {(order.OrderStatus === 2 || order.OrderStatus === 7) && currentAllPrepared && (
                   <button
                     onClick={() => handleShipping(order.OrderId)}
                     className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-2"
@@ -978,14 +943,11 @@ export default function ViewOrder() {
       <div className="min-h-screen bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 py-8">
           <div className="flex gap-8">
-            {/* Sidebar */}
             <div className="hidden md:block w-64">
               <Sidebar />
             </div>
 
-            {/* Main Content */}
             <div className="flex-1">
-              {/* Header */}
               <div className="mb-8">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                   <div>
@@ -1011,13 +973,10 @@ export default function ViewOrder() {
                 </div>
               </div>
 
-              {/* Statistics */}
               <StatsCards />
 
-              {/* Filters */}
               <div className="bg-white rounded-xl border p-6 mb-6">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-                  {/* Status Filter */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Trạng thái</label>
                     <select
@@ -1027,14 +986,13 @@ export default function ViewOrder() {
                     >
                       <option value="all">Tất cả trạng thái</option>
                       <option value="2">Đang xử lý</option>
+                      <option value="7">Chờ gian hàng khác</option>
                       <option value="3">Đang giao</option>
                       <option value="4">Hoàn thành</option>
                       <option value="5">Đã hủy</option>
-                      <option value="7">Chờ gian hàng khác</option>
                     </select>
                   </div>
 
-                  {/* Search Order ID */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Mã đơn hàng</label>
                     <div className="relative">
@@ -1049,7 +1007,6 @@ export default function ViewOrder() {
                     </div>
                   </div>
 
-                  {/* Date From */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Từ ngày</label>
                     <input
@@ -1061,7 +1018,6 @@ export default function ViewOrder() {
                     />
                   </div>
 
-                  {/* Date To */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Đến ngày</label>
                     <input
@@ -1075,7 +1031,6 @@ export default function ViewOrder() {
                   </div>
                 </div>
 
-                {/* Action Buttons */}
                 <div className="flex justify-between items-center">
                   <button
                     onClick={() => {
@@ -1091,7 +1046,6 @@ export default function ViewOrder() {
                 </div>
               </div>
 
-              {/* Orders List */}
               {loading ? (
                 <div className="text-center py-12">
                   <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
@@ -1112,7 +1066,6 @@ export default function ViewOrder() {
 
                     return (
                       <div key={order.OrderId} className="bg-white rounded-xl border overflow-hidden hover:shadow-md transition">
-                        {/* Order Header */}
                         <div
                           className="p-6 border-b cursor-pointer hover:bg-gray-50"
                           onClick={() => toggleOrderExpansion(order.OrderId)}
@@ -1140,11 +1093,9 @@ export default function ViewOrder() {
                           </div>
                         </div>
 
-                        {/* Order Content - Expanded */}
                         {isExpanded && (
                           <div className="p-6 border-t">
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                              {/* Left Column */}
                               <div className="space-y-4">
                                 <div>
                                   <h4 className="text-sm font-medium text-gray-500 mb-2">Thông tin khách hàng</h4>
@@ -1172,21 +1123,30 @@ export default function ViewOrder() {
                                 </div>
                               </div>
 
-                              {/* Middle Column - Products */}
                               <div className="lg:col-span-2">
                                 <h4 className="text-sm font-medium text-gray-500 mb-2">Sản phẩm ({order.totalItems || 0})</h4>
                                 <div className="space-y-3">
                                   {order.details?.slice(0, 3).map((detail, idx) => (
                                     <div key={idx} className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded">
-                                      <img
-                                        src={detail.Image}
-                                        alt={detail.ProductName}
-                                        className="w-10 h-10 rounded object-cover"
-                                        onError={(e) => {
-                                          e.target.onerror = null;
-                                          e.target.src = "https://via.placeholder.com/40";
-                                        }}
-                                      />
+                                      <div className="relative">
+                                        <img
+                                          src={detail.Image}
+                                          alt={detail.ProductName}
+                                          className="w-10 h-10 rounded object-cover"
+                                          onError={(e) => {
+                                            e.target.onerror = null;
+                                            e.target.src = "https://via.placeholder.com/40";
+                                          }}
+                                        />
+                                        {(order.OrderStatus === 2 || order.OrderStatus === 7) && 
+                                         (detail.Status === 1 || detail.Status === 2) && (
+                                          <div className={`absolute -top-1 -right-1 w-4 h-4 rounded-full border border-white ${detail.Status === 2 ? 'bg-green-500' : 'bg-gray-300'}`}>
+                                            {detail.Status === 2 && (
+                                              <Check className="w-3 h-3 text-white" />
+                                            )}
+                                          </div>
+                                        )}
+                                      </div>
                                       <div className="flex-1">
                                         <p className="font-medium text-sm truncate">{detail.ProductName}</p>
                                         <p className="text-xs text-gray-500">
@@ -1197,7 +1157,7 @@ export default function ViewOrder() {
                                         <div className="text-sm font-medium">
                                           {fmt(detail.UnitPrice * detail.Quantity)}đ
                                         </div>
-                                        <div className="text-xs text-gray-500">
+                                        <div className="text-xs text-gray-500 mt-1">
                                           {renderStatusBadge(detail.Status, "small")}
                                         </div>
                                       </div>
@@ -1210,8 +1170,7 @@ export default function ViewOrder() {
                                     </div>
                                   )}
 
-                                  {/* Preparation Progress */}
-                                  {order.OrderStatus === 2 && (
+                                  {(order.OrderStatus === 2 || order.OrderStatus === 7) && (
                                     <div className="mt-4">
                                       <div className="flex justify-between text-sm text-gray-600 mb-1">
                                         <span>Tiến độ chuẩn bị</span>
@@ -1228,7 +1187,6 @@ export default function ViewOrder() {
                                 </div>
                               </div>
 
-                              {/* Right Column - Actions */}
                               <div className="space-y-3">
                                 <button
                                   onClick={() => fetchOrderDetail(order.OrderId)}
@@ -1238,7 +1196,7 @@ export default function ViewOrder() {
                                   Xem chi tiết
                                 </button>
 
-                                {order.OrderStatus === 2 && order.canShip && (
+                                {(order.OrderStatus === 2 || order.OrderStatus === 7) && order.canShip && (
                                   <button
                                     onClick={() => handleShipping(order.OrderId)}
                                     className="w-full px-4 py-2 bg-blue-600 text-white cursor-pointer rounded-lg flex items-center justify-center gap-2 transition hover:bg-blue-700"
@@ -1246,6 +1204,13 @@ export default function ViewOrder() {
                                     <Truck className="w-4 h-4" />
                                     Gửi hàng ngay
                                   </button>
+                                )}
+
+                                {(order.OrderStatus === 2 || order.OrderStatus === 7) && !order.canShip && (
+                                  <div className="text-sm text-gray-500 text-center p-2">
+                                    {order.preparedCount === 0 ? "Chưa có sản phẩm nào được chuẩn bị" : 
+                                     `Cần chuẩn bị thêm ${order.totalItems - order.preparedCount} sản phẩm`}
+                                  </div>
                                 )}
 
                                 <button
@@ -1265,10 +1230,8 @@ export default function ViewOrder() {
                 </div>
               )}
 
-              {/* Phân trang đơn giản giống ListAccount */}
               {totalPages > 1 && (
                 <div className="flex items-center justify-between mt-6">
-                  {/* PREV */}
                   <button
                     onClick={() => setPage(p => Math.max(1, p - 1))}
                     disabled={page === 1}
@@ -1284,7 +1247,6 @@ export default function ViewOrder() {
                     <span className="text-sm font-medium">Trước</span>
                   </button>
 
-                  {/* PAGE NUMBER */}
                   <div className="flex items-center gap-2">
                     {Array.from({ length: totalPages }, (_, i) => (
                       <button
@@ -1303,7 +1265,6 @@ export default function ViewOrder() {
                     ))}
                   </div>
 
-                  {/* NEXT */}
                   <button
                     onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                     disabled={page === totalPages || totalPages === 0}
@@ -1325,7 +1286,6 @@ export default function ViewOrder() {
         </div>
       </div>
 
-      {/* Order Detail Modal */}
       {showDetail && <OrderDetailModal />}
 
       <Footer />

@@ -315,11 +315,14 @@ export default function Order() {
 
   /* ================= RENDER SELECT OPTIONS ================= */
   const renderProductVoucherOptions = (item) => {
-    if (!item.vouchers || item.vouchers.length === 0) {
+    // Kiểm tra nếu item.vouchers không tồn tại
+    const vouchers = item.vouchers || [];
+
+    if (vouchers.length === 0) {
       return <option disabled>Không có voucher khả dụng</option>;
     }
 
-    return item.vouchers.map(v => {
+    return vouchers.map(v => {
       const status = getProductVoucherAvailabilityStatus(v, item);
       const isDisabled = status !== "selected" && status !== "available";
 
@@ -407,22 +410,26 @@ export default function Order() {
     const v = item.selectedVoucher;
     if (!v) return 0;
 
-    if (item.totalPrice < v.MinOrderValue) return 0;
+    // Tính totalPrice nếu chưa có
+    const itemTotal = item.totalPrice || (item.UnitPrice * item.Quantity);
+
+    if (itemTotal < v.MinOrderValue) return 0;
 
     let discount = 0;
     if (v.DiscountType === "percent") {
-      discount = Math.floor(item.totalPrice * v.DiscountValue / 100);
+      discount = Math.floor(itemTotal * v.DiscountValue / 100);
       if (v.MaxDiscount) discount = Math.min(discount, v.MaxDiscount);
     } else {
       discount = v.DiscountValue;
     }
 
-    return Math.min(discount, item.totalPrice);
+    return Math.min(discount, itemTotal);
   };
 
   const calcItemFinal = (item) => {
     const discount = calcItemDiscount(item);
-    return Math.max(item.totalPrice - discount, 0);
+    const itemTotal = item.totalPrice || (item.UnitPrice * item.Quantity);
+    return Math.max(itemTotal - discount, 0);
   };
 
   const getOrderVoucherDiscount = () => {
@@ -476,7 +483,7 @@ export default function Order() {
 
   /* ================= TOTALS ================= */
   const productTotalOriginal = items.reduce(
-    (sum, item) => sum + item.totalPrice, 0
+    (sum, item) => sum + (item.totalPrice || (item.UnitPrice * item.Quantity) || 0), 0
   );
 
   const productTotalAfterItemDiscount = items.reduce(
@@ -762,15 +769,22 @@ export default function Order() {
                                   {item.ProductName}
                                 </h4>
                                 <div className="flex items-center gap-4 text-sm text-gray-500 mb-3">
-                                  <span>Đơn giá: <strong className="text-gray-700">{fmt(item.UnitPrice)}đ</strong></span>
+                                  <span>
+                                    Đơn giá: <strong className="text-gray-700">
+                                      {fmt(item.UnitPrice || item.ProductPrice || 0)}đ
+                                    </strong>
+                                  </span>
                                   <span>•</span>
-                                  <span>Tổng: <strong className="text-gray-700">{fmt(item.totalPrice)}đ</strong></span>
+                                  <span>
+                                    Tổng: <strong className="text-gray-700">
+                                      {fmt(item.totalPrice || (item.UnitPrice * item.Quantity) || 0)}đ
+                                    </strong>
+                                  </span>
                                 </div>
                               </div>
-
                               <div className="text-right">
                                 <div className="text-sm text-gray-400 line-through mb-1">
-                                  {fmt(item.totalPrice)}đ
+                                  {fmt(item.totalPrice || (item.UnitPrice * item.Quantity) || 0)}đ
                                 </div>
                                 <div className="font-bold text-red-500 text-lg">
                                   {fmt(calcItemFinal(item))}đ

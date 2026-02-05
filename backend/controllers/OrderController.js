@@ -3,14 +3,25 @@ const VoucherUsage = require("../models/VoucherUsage");
 const ShipType = require("../models/ShipType");
 const { pool } = require("../config/db");
 
+// Status cho Orders
 const ORDER_STATUS = {
-  PENDING_PAYMENT: 1,
-  PROCESSING: 2,
-  SHIPPING: 3,
-  COMPLETED: 4,
-  CANCELLED: 5,
-  RETURNED: 6,
-  WAITING_OTHER_SELLERS: 7
+  PENDING_PAYMENT: 1,          // Chờ thanh toán
+  PROCESSING: 2,              // Đang xử lý
+  SHIPPING: 3,                // Đang giao
+  COMPLETED: 4,               // Hoàn thành
+  CANCELLED: 5,               // Đã hủy
+  RETURNED: 6,                // Trả hàng
+  WAITING_OTHER_SELLERS: 7    // Chờ gian hàng khác
+};
+
+// Status cho OrderDetails
+const ORDER_DETAIL_STATUS = {
+  PENDING_PREPARED: 1,        // Chờ chuẩn bị
+  PREPARED: 2,                // Đã chuẩn bị xong
+  SHIPPING: 3,                // Đang giao
+  COMPLETED: 4,               // Hoàn thành
+  CANCELLED: 5,               // Đã hủy
+  RETURNED: 6                 // Trả hàng
 };
 
 const OrderController = {
@@ -22,19 +33,22 @@ const OrderController = {
       const accountId = req.user.AccountId;
       const checkoutData = await OrderModel.getCheckoutData(accountId, cartIds);
       
-      // Format image URL
+      // Format image URL và đảm bảo có totalPrice
       const itemsWithImages = checkoutData.items.map(item => ({
         ...item,
-        Image: `${req.protocol}://${req.get("host")}/uploads/ProductImage/${item.Image}`
+        Image: `${req.protocol}://${req.get("host")}/uploads/ProductImage/${item.Image}`,
+        totalPrice: Number(item.totalPrice) || (item.UnitPrice * item.Quantity),
+        UnitPrice: Number(item.UnitPrice) || Number(item.ProductPrice) || 0
       }));
 
       res.json({
         items: itemsWithImages,
-        orderVouchers: checkoutData.orderVouchers
+        orderVouchers: checkoutData.orderVouchers,
+        allVouchers: checkoutData.allVouchers
       });
     } catch (err) {
       console.error("Checkout error:", err);
-      res.status(500).json({ message: "Lỗi server" });
+      res.status(500).json({ message: err.message || "Lỗi server" });
     }
   },
 
@@ -51,16 +65,19 @@ const OrderController = {
       // Format image URL
       const itemsWithImages = checkoutData.items.map(item => ({
         ...item,
-        Image: `${req.protocol}://${req.get("host")}/uploads/ProductImage/${item.Image}`
+        Image: `${req.protocol}://${req.get("host")}/uploads/ProductImage/${item.Image}`,
+        totalPrice: Number(item.totalPrice) || (item.UnitPrice * item.Quantity),
+        UnitPrice: Number(item.UnitPrice) || 0
       }));
 
       return res.json({
         items: itemsWithImages,
-        orderVouchers: checkoutData.orderVouchers
+        orderVouchers: checkoutData.orderVouchers,
+        allVouchers: checkoutData.allVouchers
       });
     } catch (err) {
       console.error("checkoutBuyNow:", err);
-      return res.status(500).json({ message: "Checkout buy now failed" });
+      return res.status(500).json({ message: err.message || "Checkout buy now failed" });
     }
   },
 
@@ -470,7 +487,8 @@ const OrderController = {
       console.error("Check order detail error:", error);
       res.status(500).json({ message: error.message || "Lỗi server" });
     }
-  }
+  },
+  
 };
 
 module.exports = OrderController;
