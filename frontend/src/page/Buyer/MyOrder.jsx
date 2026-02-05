@@ -4,47 +4,59 @@ import axios from "../../components/lib/axios";
 import Header from "../../components/Guest/Header";
 import Footer from "../../components/Guest/footer";
 import Sidebar from "../../components/Buyer/Sidebar";
-import { Package, CheckCircle, Clock, Truck, XCircle, RotateCcw, CreditCard, MessageCircle, Star, AlertCircle, Calendar, MapPin, Hash, Eye, RefreshCw, ShoppingBag, Ticket, Percent, Tag, Truck as TruckIcon
+import { 
+  Package, CheckCircle, Clock, Truck, XCircle, RotateCcw, 
+  CreditCard, MessageCircle, Star, AlertCircle, Calendar, 
+  MapPin, Hash, Eye, RefreshCw, ShoppingBag, Ticket, 
+  Percent, Tag, Truck as TruckIcon, Wallet, Ban
 } from "lucide-react";
 
 export default function MyOrder() {
   const navigate = useNavigate();
-  const [allOrders, setAllOrders] = useState([]); // Tất cả đơn hàng
-  const [displayedOrders, setDisplayedOrders] = useState([]); // Đơn hàng hiển thị
+  const [allOrders, setAllOrders] = useState([]);
+  const [displayedOrders, setDisplayedOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("all");
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showDetail, setShowDetail] = useState(false);
   
-  // Phân trang
   const [page, setPage] = useState(1);
-  const pageSize = 10; // Số đơn hàng mỗi trang
+  const pageSize = 10;
 
   const fmt = n => Number(n || 0).toLocaleString("vi-VN");
 
-  // Định nghĩa các trạng thái
-  const STATUS_MAP = {
+  // Trạng thái ĐƠN HÀNG (Order)
+  const ORDER_STATUS_MAP = {
     1: { label: "Chờ thanh toán", color: "bg-yellow-100 text-yellow-800", icon: Clock },
-    2: { label: "Đang xử lý", color: "bg-blue-100 text-blue-800", icon: RefreshCw },
+    2: { label: "Chờ chuẩn bị", color: "bg-blue-100 text-blue-800", icon: Package },
     3: { label: "Đang giao", color: "bg-purple-100 text-purple-800", icon: Truck },
     4: { label: "Hoàn thành", color: "bg-green-100 text-green-800", icon: CheckCircle },
     5: { label: "Đã hủy", color: "bg-red-100 text-red-800", icon: XCircle },
     6: { label: "Trả hàng", color: "bg-orange-100 text-orange-800", icon: RotateCcw },
-    7: { label: "Đang xử lý", color: "bg-blue-100 text-blue-800", icon: RefreshCw }
+    7: { label: "Chờ chuẩn bị", color: "bg-blue-100 text-blue-800", icon: Package }
   };
 
-  // Tab phân loại
+  // Trạng thái SẢN PHẨM (OrderDetail)
+  const ORDER_DETAIL_STATUS_MAP = {
+    1: { label: "Chờ chuẩn bị", color: "bg-yellow-100 text-yellow-800", icon: Package },
+    2: { label: "Đã chuẩn bị xong", color: "bg-blue-100 text-blue-800", icon: CheckCircle },
+    3: { label: "Đang giao", color: "bg-purple-100 text-purple-800", icon: Truck },
+    4: { label: "Hoàn thành", color: "bg-green-100 text-green-800", icon: CheckCircle },
+    5: { label: "Đã hủy", color: "bg-red-100 text-red-800", icon: Ban },
+    6: { label: "Trả hàng", color: "bg-orange-100 text-orange-800", icon: RotateCcw }
+  };
+
   const TABS = [
     { id: "all", label: "Tất cả" },
     { id: "1", label: "Chờ thanh toán" },
-    { id: "2", label: "Đang xử lý" },
+    { id: "2", label: "Chờ chuẩn bị" },
     { id: "3", label: "Đang giao" },
     { id: "4", label: "Hoàn thành" },
     { id: "5", label: "Đã hủy" },
     { id: "6", label: "Trả hàng" }
   ];
 
-  // Hàm định dạng hiển thị voucher
+  // Format voucher hiển thị
   const formatVoucherDisplay = (voucher) => {
     if (!voucher || !voucher.VoucherName) return null;
     
@@ -69,7 +81,7 @@ export default function MyOrder() {
     };
   };
 
-  // Hàm tính discount thực tế cho từng sản phẩm
+  // Tính discount cho từng sản phẩm
   const calculateItemDiscount = (item) => {
     if (!item.DiscountType || !item.DiscountValue) return 0;
     
@@ -84,7 +96,6 @@ export default function MyOrder() {
     } else if (item.DiscountType === 'fixed') {
       return Math.min(item.DiscountValue, itemTotal);
     } else if (item.DiscountType === 'ship') {
-      // Giảm phí ship (hiển thị riêng)
       return 0;
     }
     return 0;
@@ -150,12 +161,10 @@ export default function MyOrder() {
 
   const totalPages = Math.ceil(filteredOrders.length / pageSize);
 
-  // Update displayed orders when paginatedOrders changes
   useEffect(() => {
     setDisplayedOrders(paginatedOrders);
   }, [paginatedOrders]);
 
-  // Reset to page 1 when tab changes
   useEffect(() => {
     setPage(1);
   }, [activeTab]);
@@ -178,7 +187,6 @@ export default function MyOrder() {
         
         return {
           ...detail,
-          // Ảnh sẽ được trả về đầy đủ từ server
           Image: detail.Image || "https://via.placeholder.com/80",
           itemTotal: itemTotal,
           itemDiscount: itemDiscount,
@@ -207,7 +215,6 @@ export default function MyOrder() {
         
         orderVoucherDisplay = formatVoucherDisplay(orderVoucher);
         
-        // Tính discount voucher toàn đơn
         const productTotalAfterItemDiscount = productTotal - productDiscount;
         
         if (orderVoucher.DiscountType === 'ship') {
@@ -239,7 +246,6 @@ export default function MyOrder() {
       setShowDetail(true);
     } catch (error) {
       console.error("Fetch order detail error:", error);
-      console.error("Error response:", error.response?.data);
       if (error.response?.status === 401) {
         sessionStorage.removeItem("token");
         sessionStorage.removeItem("account");
@@ -247,6 +253,40 @@ export default function MyOrder() {
       } else {
         alert("Không thể tải chi tiết đơn hàng");
       }
+    }
+  };
+
+  // Tính toán trạng thái thanh toán
+  const getPaymentStatus = (order) => {
+    if (order.MethodId === 1) { // Thanh toán trực tiếp
+      return order.Status === 4 ? "Đã thanh toán" : "Chờ thanh toán";
+    } else { // Thanh toán online
+      return order.Status === 2 ? "Đã thanh toán" : "Chưa thanh toán";
+    }
+  };
+
+  const shouldShowPaymentButton = (order) => {
+    return order.MethodId !== 1 && order.Status !== 2;
+  };
+
+  const handlePayment = async (orderId) => {
+    try {
+      const token = sessionStorage.getItem("token");
+      // Giả sử có API thanh toán
+      const response = await axios.post(`/orders/${orderId}/payment`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      alert("Chuyển hướng đến trang thanh toán...");
+      // Trong thực tế, bạn sẽ redirect đến trang thanh toán
+      // window.location.href = response.data.paymentUrl;
+      
+      // Sau khi thanh toán thành công, refresh data
+      fetchOrders();
+      setShowDetail(false);
+    } catch (error) {
+      console.error("Payment error:", error);
+      alert("Lỗi khi thực hiện thanh toán: " + (error.response?.data?.message || error.message));
     }
   };
 
@@ -261,8 +301,8 @@ export default function MyOrder() {
     return counts;
   }, [allOrders]);
 
-  const renderStatusBadge = (status) => {
-    const statusInfo = STATUS_MAP[status] || { label: "Không xác định", color: "bg-gray-100 text-gray-800", icon: AlertCircle };
+  const renderOrderStatusBadge = (status) => {
+    const statusInfo = ORDER_STATUS_MAP[status] || { label: "Không xác định", color: "bg-gray-100 text-gray-800", icon: AlertCircle };
     const Icon = statusInfo.icon;
     
     return (
@@ -273,27 +313,39 @@ export default function MyOrder() {
     );
   };
 
+  const renderOrderDetailStatusBadge = (status) => {
+    const statusInfo = ORDER_DETAIL_STATUS_MAP[status] || { label: "Không xác định", color: "bg-gray-100 text-gray-800", icon: AlertCircle };
+    const Icon = statusInfo.icon;
+    
+    return (
+      <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs ${statusInfo.color}`}>
+        <Icon className="w-3 h-3" />
+        {statusInfo.label}
+      </span>
+    );
+  };
+
   const getOrderActions = (order) => {
     const actions = [];
     
     switch (order.Status) {
-      case 1:
+      case 1: // Chờ thanh toán
         actions.push(
-          { label: "Thanh toán", action: () => handlePay(order.OrderId), icon: CreditCard, color: "bg-green-600 cursor-pointer hover:bg-green-700" },
+          { label: "Thanh toán", action: () => handlePayment(order.OrderId), icon: CreditCard, color: "bg-green-600 cursor-pointer hover:bg-green-700" },
           { label: "Hủy đơn", action: () => handleCancel(order.OrderId), icon: XCircle, color: "bg-red-600 cursor-pointer hover:bg-red-700" }
         );
         break;
-      case 2:
+      case 2: // Chờ chuẩn bị
         actions.push(
           { label: "Hủy đơn", action: () => handleCancel(order.OrderId), icon: XCircle, color: "bg-red-600 cursor-pointer hover:bg-red-700" }
         );
         break;
-      case 3:
+      case 3: // Đang giao
         actions.push(
           { label: "Liên hệ shop", action: () => handleContact(order.OrderId), icon: MessageCircle, color: "bg-blue-600 cursor-pointer hover:bg-blue-700" }
         );
         break;
-      case 4:
+      case 4: // Hoàn thành
         actions.push(
           { label: "Đánh giá", action: () => navigate(`/feedback/${order.OrderId}`), icon: Star, color: "bg-orange-600 cursor-pointer hover:bg-orange-700" },
           { label: "Mua lại", action: () => handleReorder(order.OrderId), icon: RotateCcw, color: "bg-purple-600 cursor-pointer hover:bg-purple-700" }
@@ -304,15 +356,13 @@ export default function MyOrder() {
     return actions;
   };
 
-  const handlePay = async (orderId) => {
-    console.log("Payment for order:", orderId);
-    alert("Chức năng thanh toán đang được phát triển");
-  };
-
   const handleCancel = async (orderId) => {
     if (window.confirm("Bạn có chắc chắn muốn hủy đơn hàng này?")) {
       try {
-        await axios.put(`/orders/${orderId}/cancel`);
+        const token = sessionStorage.getItem("token");
+        await axios.put(`/orders/${orderId}/cancel`, {}, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
         alert("Đã hủy đơn hàng thành công");
         fetchOrders();
       } catch (error) {
@@ -328,7 +378,10 @@ export default function MyOrder() {
 
   const handleReorder = async (orderId) => {
     try {
-      await axios.post(`/orders/${orderId}/reorder`);
+      const token = sessionStorage.getItem("token");
+      await axios.post(`/orders/${orderId}/reorder`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       alert("Đã thêm sản phẩm vào giỏ hàng");
       navigate("/cart");
     } catch (error) {
@@ -340,7 +393,9 @@ export default function MyOrder() {
     if (!selectedOrder) return null;
 
     const { order, details, itemCount, summary, hasOrderVoucher, hasProductVouchers } = selectedOrder;
-    const StatusIcon = STATUS_MAP[order.Status]?.icon || AlertCircle;
+    const StatusIcon = ORDER_STATUS_MAP[order.Status]?.icon || AlertCircle;
+    const paymentStatus = getPaymentStatus(order);
+    const showPaymentBtn = shouldShowPaymentButton(order);
     
     // Kiểm tra xem có voucher nào không
     const hasAnyVoucher = hasOrderVoucher || hasProductVouchers;
@@ -366,7 +421,7 @@ export default function MyOrder() {
                   <Calendar className="w-4 h-4 text-gray-500" />
                   <span className="text-gray-600">{order.OrderDate}</span>
                 </div>
-                {renderStatusBadge(order.Status)}
+                {renderOrderStatusBadge(order.Status)}
               </div>
             </div>
             <button
@@ -482,7 +537,7 @@ export default function MyOrder() {
                         {index + 1}
                       </div>
                       <span className="text-sm mt-2 text-gray-600">
-                        {STATUS_MAP[step]?.label || `Bước ${step}`}
+                        {ORDER_STATUS_MAP[step]?.label || `Bước ${step}`}
                       </span>
                     </div>
                     {index < 3 && (
@@ -520,7 +575,19 @@ export default function MyOrder() {
                 </div>
                 <div className="space-y-2">
                   <p className="font-medium">{order.MethodName}</p>
-                  <p className="text-gray-600">Trạng thái: {order.Status === 4 ? "Đã thanh toán" : "Chờ thanh toán"}</p>
+                  <p className="text-gray-600">Trạng thái: {paymentStatus}</p>
+                  
+                  {/* Nút thanh toán cho online chưa thanh toán */}
+                  {showPaymentBtn && (
+                    <button
+                      onClick={() => handlePayment(order.OrderId)}
+                      className="mt-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition cursor-pointer flex items-center gap-2"
+                    >
+                      <Wallet className="w-4 h-4" />
+                      Thanh toán ngay
+                    </button>
+                  )}
+                  
                   <p className="text-lg font-bold text-red-500">{fmt(order.FinalPrice)}đ</p>
                 </div>
               </div>
@@ -583,8 +650,8 @@ export default function MyOrder() {
                             <div className="text-lg font-bold text-red-500">
                               {fmt(detail.finalPrice + detail.ShipFee)}đ
                             </div>
-                            <div className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs mt-2 ${STATUS_MAP[detail.Status]?.color || 'bg-gray-100 text-gray-800'}`}>
-                              {STATUS_MAP[detail.Status]?.label || 'Không xác định'}
+                            <div className="mt-2">
+                              {renderOrderDetailStatusBadge(detail.Status)}
                             </div>
                           </div>
                         </div>
@@ -734,6 +801,7 @@ export default function MyOrder() {
                 <div className="space-y-4">
                   {displayedOrders.map(order => {
                     const actions = getOrderActions(order);
+                    const paymentStatus = getPaymentStatus(order);
                     
                     return (
                       <div key={order.OrderId} className="bg-white rounded-xl border overflow-hidden hover:shadow-md transition">
@@ -749,7 +817,7 @@ export default function MyOrder() {
                                 <Calendar className="w-4 h-4 text-gray-400" />
                                 <span className="text-gray-600">{order.CreatedAt}</span>
                               </div>
-                              {renderStatusBadge(order.Status)}
+                              {renderOrderStatusBadge(order.Status)}
                             </div>
                             <div className="flex items-center gap-3">
                               <span className="text-lg font-bold text-red-500">{fmt(order.FinalPrice)}đ</span>
@@ -777,6 +845,7 @@ export default function MyOrder() {
                                   <div>
                                     <p className="text-sm text-gray-500">Thanh toán</p>
                                     <p className="font-medium">{order.MethodName}</p>
+                                    <p className="text-xs text-gray-500">{paymentStatus}</p>
                                   </div>
                                 </div>
                               </div>
@@ -835,10 +904,9 @@ export default function MyOrder() {
                 </div>
               )}
 
-              {/* Pagination - Chỉ hiển thị khi có nhiều hơn 1 trang */}
+              {/* Pagination */}
               {totalPages > 1 && (
                 <div className="flex items-center justify-between mt-6">
-                  {/* PREV */}
                   <button
                     onClick={() => setPage(p => Math.max(1, p - 1))}
                     disabled={page === 1}
@@ -854,7 +922,6 @@ export default function MyOrder() {
                     <span className="text-sm font-medium">Trước</span>
                   </button>
 
-                  {/* PAGE NUMBER */}
                   <div className="flex items-center gap-2">
                     {Array.from({ length: totalPages }, (_, i) => (
                       <button
@@ -873,7 +940,6 @@ export default function MyOrder() {
                     ))}
                   </div>
 
-                  {/* NEXT */}
                   <button
                     onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                     disabled={page === totalPages || totalPages === 0}

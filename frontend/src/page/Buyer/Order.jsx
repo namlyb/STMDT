@@ -568,7 +568,7 @@ export default function Order() {
       localStorage.removeItem("buyNowData");
       sessionStorage.removeItem("checkoutCartIds");
 
-      navigate(`/profile/orders/${response.data.orderId}`);
+      navigate(`/orders`);
 
     } catch (error) {
       console.error("Order error:", error);
