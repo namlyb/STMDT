@@ -489,6 +489,68 @@ const OrderController = {
     }
   },
   
+  // Staff: Lấy danh sách đơn hàng đang giao
+getStaffOrders: async (req, res) => {
+  try {
+    const filters = {
+      status: req.query.status || 'shipping',
+      search: req.query.search || '',
+      dateFrom: req.query.dateFrom || '',
+      dateTo: req.query.dateTo || ''
+    };
+    
+    const orders = await OrderModel.getStaffOrders(filters);
+    res.json({ orders });
+  } catch (error) {
+    console.error("Get staff orders error:", error);
+    res.status(500).json({ message: "Lỗi khi lấy danh sách đơn hàng" });
+  }
+},
+
+// Staff: Lấy chi tiết đơn hàng
+getStaffOrderDetail: async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const orderDetail = await OrderModel.getStaffOrderDetail(orderId);
+    res.json(orderDetail);
+  } catch (error) {
+    console.error("Get staff order detail error:", error);
+    res.status(500).json({ message: error.message });
+  }
+},
+
+// Staff: Xác nhận đã giao hàng
+confirmDelivery: async (req, res) => {
+  try {
+    const { orderDetailId } = req.params;
+    const result = await OrderModel.confirmDelivery(orderDetailId);
+    res.json({
+      message: "Đã xác nhận giao hàng thành công",
+      orderDetailId: result.orderDetailId,
+      newStatus: result.newStatus
+    });
+  } catch (error) {
+    console.error("Confirm delivery error:", error);
+    res.status(400).json({ message: error.message });
+  }
+},
+
+// Staff: Xác nhận tất cả sản phẩm đã giao
+confirmAllDelivery: async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const result = await OrderModel.confirmAllDelivery(orderId);
+    res.json({
+      message: "Đã xác nhận tất cả sản phẩm",
+      orderId: result.orderId,
+      updatedItems: result.updatedItems
+    });
+  } catch (error) {
+    console.error("Confirm all delivery error:", error);
+    res.status(400).json({ message: error.message });
+  }
+},
+
 };
 
 module.exports = OrderController;

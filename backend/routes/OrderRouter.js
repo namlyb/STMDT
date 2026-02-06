@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { verifyToken } = require("../middleware/auth");
+const { verifyToken, verifyRole } = require("../middleware/auth");
 const OrderController = require("../controllers/OrderController");
 
 // ================== ROUTES FOR BUYER ==================
@@ -44,5 +44,11 @@ router.put("/seller/order-details/:orderDetailId/complete", verifyToken, OrderCo
 // Chuyển tất cả sản phẩm sang vận chuyển
 router.put("/seller/orders/:orderId/ship-all", verifyToken, OrderController.shipAllItemsForSeller);
 router.get("/seller/order-details/:orderDetailId/check", verifyToken, OrderController.checkOrderDetailStatus);
+
+// routes/OrderRouter.js - thêm routes cho staff
+router.get("/staff/orders", verifyToken, verifyRole([4]), OrderController.getStaffOrders);
+router.get("/staff/orders/:orderId", verifyToken, verifyRole([4]), OrderController.getStaffOrderDetail);
+router.put("/staff/order-details/:orderDetailId/deliver", verifyToken, verifyRole([4]), OrderController.confirmDelivery);
+router.put("/staff/orders/:orderId/deliver-all", verifyToken, verifyRole([4]), OrderController.confirmAllDelivery);
 
 module.exports = router;

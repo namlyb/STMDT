@@ -1020,6 +1020,236 @@ const OrderModel = {
     }
   },
 
+  // Staff: Lấy đơn hàng đang giao
+// Staff: Lấy đơn hàng đang giao - SỬA QUERY LẠI
+getStaffOrders: async (filters) => {
+  const { status = 'shipping', search = '', dateFrom = '', dateTo = '' } = filters;
+  
+  let query = `
+    SELECT DISTINCT
+      o.OrderId,
+      o.OrderDate,
+      o.FinalPrice,
+      o.Status as OrderStatus,
+      o.CreatedAt,
+      a.Content as AddressContent,
+      a.Name as AddressName,
+      a.Phone as AddressPhone,
+      acc.Name as CustomerName,
+      acc.Phone as CustomerPhone,
+      (
+        SELECT COUNT(*) 
+        FROM OrderDetails od2 
+        WHERE od2.OrderId = o.OrderId 
+          AND od2.Status = 3
+      ) as itemCount
+    FROM Orders o
+    JOIN Address a ON o.AddressId = a.AddressId
+    JOIN Accounts acc ON o.AccountId = acc.AccountId
+    WHERE o.Status = 3  -- CHỈ lấy đơn hàng có Status = 3 (đang giao)
+  `;
+
+  const params = [];
+
+  // Filter by date range
+  if (dateFrom && dateTo) {
+    query += " AND DATE(o.CreatedAt) BETWEEN ? AND ?";
+    params.push(dateFrom, dateTo);
+  } else if (dateFrom) {
+    query += " AND DATE(o.CreatedAt) >= ?";
+    params.push(dateFrom);
+  } else if (dateTo) {
+    query += " AND DATE(o.CreatedAt) <= ?";
+    params.push(dateTo);
+  }
+
+  // Filter by search
+  if (search) {
+    query += " AND (o.OrderId LIKE ? OR acc.Name LIKE ? OR acc.Phone LIKE ?)";
+    const searchParam = `%${search}%`;
+    params.push(searchParam, searchParam, searchParam);
+  }
+
+  query += " ORDER BY o.CreatedAt DESC";
+
+  const [orders] = await pool.query(query, params);
+  return orders;
+},
+
+// Staff: Lấy chi tiết đơn hàng - SỬA QUERY LẠI
+getStaffOrderDetail: async (orderId) => {
+  // Lấy thông tin đơn hàng
+  const [orderRows] = await pool.query(`
+    SELECT 
+      o.OrderId,
+      o.OrderDate,
+      o.FinalPrice,
+      o.Status as OrderStatus,
+      a.Content as AddressContent,
+      a.Name as AddressName,
+      a.Phone as AddressPhone,
+      acc.Name as CustomerName,
+      acc.Phone as CustomerPhone
+    FROM Orders o
+    JOIN Address a ON o.AddressId = a.AddressId
+    JOIN Accounts acc ON o.AccountId = acc.AccountId
+    WHERE o.OrderId = ?
+  `, [orderId]);
+
+  if (!orderRows.length) {
+    throw new Error("Không tìm thấy đơn hàng");
+  }
+
+  // Lấy chi tiết sản phẩm (chỉ lấy những sản phẩm đang giao)
+  const [detailRows] = await pool.query(`
+    SELECT 
+      od.*,
+      p.ProductName,
+      p.Image,
+      s.StallName,
+      st.Content as ShipTypeContent
+    FROM OrderDetails od
+    JOIN Products p ON od.ProductId = p.ProductId
+    JOIN Stalls s ON p.StallId = s.StallId
+    LEFT JOIN ShipType st ON od.ShipTypeId = st.ShipTypeId
+    WHERE od.OrderId = ?
+      AND od.Status = 3  -- CHỈ lấy sản phẩm đang giao (Status = 3)
+    ORDER BY od.CreatedAt ASC
+  `, [orderId]);
+
+  return {
+    order: orderRows[0],
+    details: detailRows
+  };
+},
+
+// Staff: Xác nhận giao hàng
+confirmDelivery: async (orderDetailId) => {
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    // Kiểm tra trạng thái hiện tại
+    const [detailRows] = await connection.query(
+      `SELECT Status, OrderId FROM OrderDetails WHERE OrderDetailId = ?`,
+      [orderDetailId]
+    );
+
+    if (!detailRows.length) {
+      throw new Error("Không tìm thấy chi tiết đơn hàng");
+    }
+
+    const currentStatus = detailRows[0].Status;
+    const orderId = detailRows[0].OrderId;
+
+    // Chỉ cho phép chuyển từ 3 (đang giao) sang 4 (đã giao)
+    if (currentStatus !== 3) {
+      throw new Error("Chỉ có thể xác nhận giao hàng khi đơn hàng đang ở trạng thái đang giao");
+    }
+
+    // Cập nhật trạng thái
+    await connection.query(
+      `UPDATE OrderDetails SET Status = 4, UpdatedAt = NOW() WHERE OrderDetailId = ?`,
+      [orderDetailId]
+    );
+
+    // Tạo lịch sử trạng thái
+    const trackingCode = `DELIVER-${orderDetailId}-${Date.now()}`;
+    await connection.query(
+      `INSERT INTO OrderStatusHistory (OrderDetailId, TrackingCode, Status, CreatedAt)
+       VALUES (?, ?, 'Đã giao hàng', NOW())`,
+      [orderDetailId, trackingCode]
+    );
+
+    // Kiểm tra nếu tất cả sản phẩm đã giao thì cập nhật đơn hàng
+    const [allItems] = await connection.query(
+      `SELECT 
+        COUNT(*) as total,
+        SUM(CASE WHEN Status = 4 THEN 1 ELSE 0 END) as completed
+       FROM OrderDetails 
+       WHERE OrderId = ?`,
+      [orderId]
+    );
+
+    if (allItems[0].total === allItems[0].completed) {
+      await connection.query(
+        `UPDATE Orders SET Status = 4, UpdatedAt = NOW() WHERE OrderId = ?`,
+        [orderId]
+      );
+    }
+
+    await connection.commit();
+
+    return {
+      orderDetailId,
+      newStatus: 4
+    };
+
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+},
+
+// Staff: Xác nhận tất cả sản phẩm đã giao
+confirmAllDelivery: async (orderId) => {
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    // Lấy tất cả sản phẩm đang giao trong đơn hàng
+    const [shippingItems] = await connection.query(
+      `SELECT OrderDetailId FROM OrderDetails 
+       WHERE OrderId = ? AND Status = 3`,
+      [orderId]
+    );
+
+    if (shippingItems.length === 0) {
+      throw new Error("Không có sản phẩm nào đang vận chuyển");
+    }
+
+    const orderDetailIds = shippingItems.map(item => item.OrderDetailId);
+
+    // Cập nhật tất cả sang trạng thái đã giao
+    await connection.query(
+      `UPDATE OrderDetails SET Status = 4, UpdatedAt = NOW()
+       WHERE OrderId = ? AND Status = 3`,
+      [orderId]
+    );
+
+    // Tạo lịch sử trạng thái cho từng sản phẩm
+    for (const item of shippingItems) {
+      const trackingCode = `DELIVER-ALL-${item.OrderDetailId}-${Date.now()}`;
+      await connection.query(
+        `INSERT INTO OrderStatusHistory (OrderDetailId, TrackingCode, Status, CreatedAt)
+         VALUES (?, ?, 'Đã giao hàng', NOW())`,
+        [item.OrderDetailId, trackingCode]
+      );
+    }
+
+    // Cập nhật trạng thái đơn hàng
+    await connection.query(
+      `UPDATE Orders SET Status = 4, UpdatedAt = NOW() WHERE OrderId = ?`,
+      [orderId]
+    );
+
+    await connection.commit();
+
+    return {
+      orderId,
+      updatedItems: shippingItems.length
+    };
+
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+},
+
 };
 
 module.exports = OrderModel;

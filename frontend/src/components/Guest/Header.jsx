@@ -51,6 +51,9 @@ export default function Header() {
       case "3":
         navigate("/seller/products");
         break;
+      case '4':
+        navigate("/staff/manage-orders");
+        break;
       default:
         navigate("/");
     }

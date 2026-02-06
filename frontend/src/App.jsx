@@ -3,6 +3,7 @@ import { Routes, Route } from "react-router-dom";
 import AdminGuard from "./components/Guard/AdminGuard";
 import SellerGuard from "./components/Guard/SellerGuard";
 import BuyerGuard from "./components/Guard/BuyerGuard";
+import StaffGuard from "./components/Guard/StaffGuard";
 
 import ListAccount from "./page/Admin/ListAccount";
 import ListProduct from "./page/Admin/ListProduct";
@@ -33,7 +34,7 @@ import PlatformFee from "./page/Admin/PlatformFee";
 import MyOrder from "./page/Buyer/MyOrder";
 import ViewOrder from "./page/Seller/ViewOrder";
 import ViewStall from "./page/Buyer/ViewStall";
-
+import ManageOrder from "./page/Staff/ManageOrder";
 
 function App() {
   return (
@@ -66,6 +67,10 @@ function App() {
         <Route path="/seller/voucher/create" element={<SellerCreateVoucher />} />
         <Route path="/seller/voucher/update/:id" element={<UpdateVoucher />} />
         <Route path="/seller/orders" element={<ViewOrder />} />
+      </Route>
+
+      <Route element={<StaffGuard />}>
+        <Route path="/staff/manage-orders" element={<ManageOrder />} />
       </Route>
 
       {/* Buyer */}
