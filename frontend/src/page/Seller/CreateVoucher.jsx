@@ -19,70 +19,223 @@ export default function CreateVoucher() {
         EndTime: "",
     });
 
-
+    const [errors, setErrors] = useState({});
     const [loading, setLoading] = useState(false);
+    const [tenPercent, setTenPercent] = useState(0); // 10% của đơn tối thiểu
 
     useEffect(() => {
         const roleId = sessionStorage.getItem("roleId");
-
         if (roleId !== "3") {
             alert("Bạn không có quyền truy cập");
             navigate("/");
         }
     }, [navigate]);
 
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-
-        if (name === "DiscountType" && value !== "percent") {
-            setForm({ ...form, DiscountType: value, MaxDiscount: "" });
-            return;
+    // Tính 10% của đơn tối thiểu
+    useEffect(() => {
+        if (form.MinOrderValue) {
+            const minOrder = Number(form.MinOrderValue);
+            const tenPercentValue = Math.floor(minOrder * 0.1);
+            setTenPercent(tenPercentValue);
         }
+    }, [form.MinOrderValue]);
 
-        setForm({ ...form, [name]: value });
+    // Các option cho đơn tối thiểu (từ 100k trở lên)
+    const minOrderOptions = [
+        { value: "100000", label: "100.000đ (10% = 10.000đ)" },
+        { value: "200000", label: "200.000đ (10% = 20.000đ)" },
+        { value: "300000", label: "300.000đ (10% = 30.000đ)" },
+        { value: "500000", label: "500.000đ (10% = 50.000đ)" },
+        { value: "1000000", label: "1.000.000đ (10% = 100.000đ)" },
+        { value: "2000000", label: "2.000.000đ (10% = 200.000đ)" },
+        { value: "3000000", label: "3.000.000đ (10% = 300.000đ)" },
+        { value: "5000000", label: "5.000.000đ (10% = 500.000đ)" },
+    ];
+
+    // Lọc các option cho MaxDiscount dựa trên 10% của đơn tối thiểu
+    const getMaxDiscountOptions = () => {
+        const allOptions = [
+            { value: "10000", label: "10.000đ" },
+            { value: "20000", label: "20.000đ" },
+            { value: "30000", label: "30.000đ" },
+            { value: "50000", label: "50.000đ" },
+            { value: "100000", label: "100.000đ" },
+            { value: "200000", label: "200.000đ" },
+            { value: "300000", label: "300.000đ" },
+            { value: "500000", label: "500.000đ" },
+            { value: "1000000", label: "1.000.000đ" },
+        ];
+
+        // Nếu đã chọn đơn tối thiểu, lọc các option ≤ 10% đơn tối thiểu
+        if (form.MinOrderValue) {
+            return allOptions.filter(option => 
+                Number(option.value) <= tenPercent
+            );
+        }
+        
+        return allOptions;
     };
 
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        const newForm = { ...form, [name]: value };
+
+        // Reset các trường liên quan khi thay đổi loại giảm giá
+        if (name === "DiscountType") {
+            newForm.DiscountValue = "";
+            newForm.MaxDiscount = "";
+            setErrors({});
+        }
+
+        // Nếu thay đổi MinOrderValue, reset MaxDiscount nếu vượt quá 10%
+        if (name === "MinOrderValue" && form.DiscountType === "percent") {
+            const minOrder = Number(value) || 0;
+            const tenPercentValue = Math.floor(minOrder * 0.1);
+            
+            if (newForm.MaxDiscount && Number(newForm.MaxDiscount) > tenPercentValue) {
+                newForm.MaxDiscount = "";
+                setErrors(prev => ({ 
+                    ...prev, 
+                    MaxDiscount: `Giảm tối đa phải ≤ 10% đơn tối thiểu (≤ ${tenPercentValue.toLocaleString()}đ)` 
+                }));
+            }
+        }
+
+        setForm(newForm);
+        validateField(name, value);
+    };
+
+    // Validate real-time
+    const validateField = (name, value) => {
+        const newErrors = { ...errors };
+        
+        switch (name) {
+            case "MinOrderValue":
+                if (value && Number(value) < 100000) {
+                    newErrors.MinOrderValue = "Đơn tối thiểu phải từ 100.000đ";
+                } else {
+                    delete newErrors.MinOrderValue;
+                }
+                break;
+                
+            case "DiscountValue":
+                if (form.DiscountType === "percent") {
+                    if (value && ![5, 10].includes(Number(value))) {
+                        newErrors.DiscountValue = "Chỉ được chọn 5% hoặc 10%";
+                    } else {
+                        delete newErrors.DiscountValue;
+                    }
+                } else if (form.DiscountType === "fixed") {
+                    const discount = Number(value) || 0;
+                    
+                    // Kiểm tra nếu đã chọn đơn tối thiểu
+                    if (form.MinOrderValue) {
+                        if (discount <= 0) {
+                            newErrors.DiscountValue = "Giá trị giảm phải lớn hơn 0";
+                        } else if (discount > tenPercent) {
+                            newErrors.DiscountValue = `Giá trị giảm phải ≤ 10% đơn tối thiểu (≤ ${tenPercent.toLocaleString()}đ)`;
+                        } else {
+                            delete newErrors.DiscountValue;
+                        }
+                    } else if (value && discount <= 0) {
+                        newErrors.DiscountValue = "Giá trị giảm phải lớn hơn 0";
+                    } else {
+                        delete newErrors.DiscountValue;
+                    }
+                }
+                break;
+                
+            case "MaxDiscount":
+                if (form.DiscountType === "percent") {
+                    const maxDiscount = Number(value) || 0;
+                    
+                    if (value && maxDiscount > tenPercent) {
+                        newErrors.MaxDiscount = `Giảm tối đa phải ≤ 10% đơn tối thiểu (≤ ${tenPercent.toLocaleString()}đ)`;
+                    } else {
+                        delete newErrors.MaxDiscount;
+                    }
+                }
+                break;
+                
+            case "Quantity":
+                if (value && (Number(value) < 1 || Number(value) > 500 || !Number.isInteger(Number(value)))) {
+                    newErrors.Quantity = "Số lượng phải là số nguyên từ 1 đến 500";
+                } else {
+                    delete newErrors.Quantity;
+                }
+                break;
+                
+            case "EndTime":
+                if (value) {
+                    const today = new Date().setHours(0, 0, 0, 0);
+                    const endDate = new Date(value).setHours(0, 0, 0, 0);
+                    if (endDate <= today) {
+                        newErrors.EndTime = "Ngày hết hạn phải sau ngày hiện tại";
+                    } else {
+                        delete newErrors.EndTime;
+                    }
+                }
+                break;
+                
+            default:
+                break;
+        }
+        
+        setErrors(newErrors);
+    };
+
+    const validateForm = () => {
+        const newErrors = {};
+        
+        // Kiểm tra tất cả các trường
+        validateField("MinOrderValue", form.MinOrderValue);
+        validateField("DiscountValue", form.DiscountValue);
+        validateField("MaxDiscount", form.MaxDiscount);
+        validateField("Quantity", form.Quantity);
+        validateField("EndTime", form.EndTime);
+        
+        // Kiểm tra tên voucher
+        if (!form.VoucherName.trim()) {
+            newErrors.VoucherName = "Vui lòng nhập tên voucher";
+        }
+        
+        // Kiểm tra đã chọn đơn tối thiểu chưa
+        if (!form.MinOrderValue) {
+            newErrors.MinOrderValue = "Vui lòng chọn giá trị đơn tối thiểu";
+        }
+        
+        // Kiểm tra riêng cho từng loại discount
+        if (form.DiscountType === "percent") {
+            if (!form.DiscountValue) {
+                newErrors.DiscountValue = "Vui lòng chọn phần trăm giảm";
+            }
+            if (!form.MaxDiscount) {
+                newErrors.MaxDiscount = "Vui lòng chọn mức giảm tối đa";
+            }
+        } else if (form.DiscountType === "fixed") {
+            if (!form.DiscountValue) {
+                newErrors.DiscountValue = "Vui lòng nhập giá trị giảm";
+            }
+        }
+        
+        setErrors(prev => ({ ...prev, ...newErrors }));
+        return Object.keys({ ...errors, ...newErrors }).length === 0;
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-
-        const discount = Number(form.Discount);
-        const quantity = Number(form.Quantity);
-        const today = new Date().setHours(0, 0, 0, 0);
-        const endDate = new Date(form.EndTime).setHours(0, 0, 0, 0);
-
-        // ✅ Discount validation
-        if (form.DiscountType === "percent") {
-            if (discount < 5 || discount > 100) {
-                alert("Giảm theo % chỉ được từ 5 đến 100");
-                return;
-            }
-        }
-
-        if (form.DiscountType === "fixed") {
-            if (discount <= 0) {
-                alert("Giảm cố định phải lớn hơn 0");
-                return;
-            }
-        }
-
-        // ✅ Quantity validation
-        if (!Number.isInteger(quantity) || quantity <= 0 || quantity > 500) {
-            alert("Số lượng phải là số nguyên từ 1 đến 500");
-            return;
-        }
-
-        // ✅ EndTime validation
-        if (endDate <= today) {
-            alert("Ngày hết hạn không được trước ngày hiện tại");
+        
+        if (!validateForm()) {
+            alert("Vui lòng kiểm tra lại thông tin");
             return;
         }
 
         setLoading(true);
         try {
             const token = sessionStorage.getItem("token");
+            
             await axios.post(
-                "/vouchers",
+                "/vouchers/seller",
                 {
                     ...form,
                     DiscountValue: Number(form.DiscountValue),
@@ -92,7 +245,6 @@ export default function CreateVoucher() {
                         : null,
                     Quantity: Number(form.Quantity),
                     EndTime: form.EndTime,
-                    CreatedBy: account.AccountId,
                 },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
@@ -101,30 +253,11 @@ export default function CreateVoucher() {
             navigate("/seller/voucher");
         } catch (err) {
             console.error(err);
-            alert("Lỗi khi tạo voucher");
+            alert("Lỗi khi tạo voucher: " + (err.response?.data?.message || err.message));
         } finally {
             setLoading(false);
         }
     };
-
-    useEffect(() => {
-        if (!voucherId) return;
-
-        const fetchVoucher = async () => {
-            const res = await axios.get(`/vouchers/${voucherId}`);
-            setForm({
-                VoucherName: res.data.VoucherName,
-                DiscountType: res.data.DiscountType,
-                Discount: res.data.Discount,
-                Quantity: "",
-                ConditionText: res.data.ConditionText,
-                EndTime: res.data.EndTime.split("T")[0],
-            });
-        };
-
-        fetchVoucher();
-    }, [voucherId]);
-
 
     return (
         <>
@@ -136,123 +269,174 @@ export default function CreateVoucher() {
                     <h1 className="text-2xl font-bold mb-6">Tạo phiếu giảm giá mới</h1>
 
                     <form className="space-y-4" onSubmit={handleSubmit}>
-                        {/* TÊN */}
+                        {/* TÊN VOUCHER */}
                         <div>
-                            <label className="block text-sm font-medium mb-1">Tên voucher</label>
+                            <label className="block text-sm font-medium mb-1">
+                                Tên voucher <span className="text-red-500">*</span>
+                            </label>
                             <input
                                 name="VoucherName"
                                 value={form.VoucherName}
                                 onChange={handleChange}
                                 required
-                                className="border rounded px-3 py-2 w-full"
+                                className={`border rounded px-3 py-2 w-full ${
+                                    errors.VoucherName ? "border-red-500" : ""
+                                }`}
+                                placeholder="Nhập tên voucher"
                             />
+                            {errors.VoucherName && (
+                                <p className="text-red-500 text-sm mt-1">{errors.VoucherName}</p>
+                            )}
                         </div>
 
-                        {/* LOẠI */}
+                        {/* LOẠI GIẢM GIÁ */}
                         <div>
-                            <label className="block text-sm font-medium mb-1">Loại giảm</label>
+                            <label className="block text-sm font-medium mb-1">
+                                Loại giảm giá <span className="text-red-500">*</span>
+                            </label>
                             <select
                                 name="DiscountType"
                                 value={form.DiscountType}
                                 onChange={handleChange}
                                 className="border rounded px-3 py-2 w-full"
                             >
-                                <option value="percent">Theo %</option>
+                                <option value="percent">Giảm theo phần trăm</option>
                                 <option value="fixed">Giảm tiền cố định</option>
                             </select>
                         </div>
 
-                        {/* GIÁ TRỊ GIẢM */}
-                        <div>
-                            <label className="block text-sm font-medium mb-1">
-                                Giá trị giảm
-                            </label>
-                            <input
-                                type="number"
-                                name="DiscountValue"
-                                value={form.DiscountValue}
-                                onChange={handleChange}
-                                min={form.DiscountType === "percent" ? 1 : 1000}
-                                max={form.DiscountType === "percent" ? 100 : undefined}
-                                required
-                                className="border rounded px-3 py-2 w-full"
-                                placeholder={
-                                    form.DiscountType === "percent"
-                                        ? "VD: 10 (%)"
-                                        : "VD: 50000 (vnđ)"
-                                }
-                            />
-                        </div>
-
-                        {/* 🔥 MAX DISCOUNT – CHỈ HIỆN KHI percent */}
-                        {form.DiscountType === "percent" && (
-                            <div>
-                                <label className="block text-sm font-medium mb-1">
-                                    Giảm tối đa (vnđ)
-                                </label>
-                                <select
-                                    name="MaxDiscount"
-                                    value={form.MaxDiscount}
-                                    onChange={handleChange}
-                                    required
-                                    className="border rounded px-3 py-2 w-full cursor-pointer"
-                                >
-                                    <option value="">-- Chọn mức tối đa --</option>
-                                    <option value="10000">10.000đ</option>
-                                    <option value="20000">20.000đ</option>
-                                    <option value="50000">50.000đ</option>
-                                    <option value="100000">100.000đ</option>
-                                    <option value="200000">200.000đ</option>
-                                    <option value="500000">500.000đ</option>
-                                    <option value="1000000">1.000.000đ</option>
-                                </select>
-                            </div>
-                        )}
-
                         {/* ĐƠN TỐI THIỂU */}
                         <div>
                             <label className="block text-sm font-medium mb-1">
-                                Giá trị đơn tối thiểu
+                                Giá trị đơn tối thiểu <span className="text-red-500">*</span>
                             </label>
                             <select
                                 name="MinOrderValue"
                                 value={form.MinOrderValue}
                                 onChange={handleChange}
                                 required
-                                className="border rounded px-3 py-2 w-full"
+                                className={`border rounded px-3 py-2 w-full ${
+                                    errors.MinOrderValue ? "border-red-500" : ""
+                                }`}
                             >
-                                <option value="">-- Chọn --</option>
-                                <option value="0">Từ 0đ</option>
-                                <option value="10000">Từ 10.000đ</option>
-                                <option value="20000">Từ 20.000đ</option>
-                                <option value="50000">Từ 50.000đ</option>
-                                <option value="100000">Từ 100.000đ</option>
-                                <option value="200000">Từ 200.000đ</option>
-                                <option value="500000">Từ 500.000đ</option>
-                                <option value="1000000">Từ 1.000.000đ</option>
-                                <option value="2000000">Từ 2.000.000đ</option>
+                                <option value="">-- Chọn giá trị tối thiểu --</option>
+                                {minOrderOptions.map(option => (
+                                    <option key={option.value} value={option.value}>
+                                        {option.label}
+                                    </option>
+                                ))}
                             </select>
+                            {errors.MinOrderValue && (
+                                <p className="text-red-500 text-sm mt-1">{errors.MinOrderValue}</p>
+                            )}
                         </div>
 
-                        {/* SỐ LƯỢNG */}
+                        {/* GIÁ TRỊ GIẢM */}
                         <div>
-                            <label className="block text-sm font-medium mb-1">Số lượng</label>
+                            <label className="block text-sm font-medium mb-1">
+                                Giá trị giảm <span className="text-red-500">*</span>
+                            </label>
+                            
+                            {form.DiscountType === "percent" ? (
+                                <>
+                                    <select
+                                        name="DiscountValue"
+                                        value={form.DiscountValue}
+                                        onChange={handleChange}
+                                        required
+                                        className={`border rounded px-3 py-2 w-full ${
+                                            errors.DiscountValue ? "border-red-500" : ""
+                                        }`}
+                                    >
+                                        <option value="">-- Chọn phần trăm giảm --</option>
+                                        <option value="5">5%</option>
+                                        <option value="10">10%</option>
+                                    </select>
+                                    {errors.DiscountValue && (
+                                        <p className="text-red-500 text-sm mt-1">{errors.DiscountValue}</p>
+                                    )}
+                                </>
+                            ) : (
+                                <>
+                                    <input
+                                        type="number"
+                                        name="DiscountValue"
+                                        value={form.DiscountValue}
+                                        onChange={handleChange}
+                                        min="1"
+                                        required
+                                        className={`border rounded px-3 py-2 w-full ${
+                                            errors.DiscountValue ? "border-red-500" : ""
+                                        }`}
+                                        placeholder="Nhập số tiền giảm (VNĐ)"
+                                    />
+                                    {errors.DiscountValue && (
+                                        <p className="text-red-500 text-sm mt-1">{errors.DiscountValue}</p>
+                                    )}
+                                    {form.MinOrderValue && (
+                                        <div className="flex items-center gap-2 mt-1">
+                                        </div>
+                                    )}
+                                </>
+                            )}
+                        </div>
+
+                        {/* GIẢM TỐI ĐA (CHỈ HIỆN KHI percent) */}
+                        {form.DiscountType === "percent" && (
+                            <div>
+                                <label className="block text-sm font-medium mb-1">
+                                    Giảm tối đa (VNĐ) <span className="text-red-500">*</span>
+                                </label>
+                                <select
+                                    name="MaxDiscount"
+                                    value={form.MaxDiscount}
+                                    onChange={handleChange}
+                                    required
+                                    disabled={!form.MinOrderValue}
+                                    className={`border rounded px-3 py-2 w-full ${
+                                        errors.MaxDiscount ? "border-red-500" : ""
+                                    } ${!form.MinOrderValue ? "bg-gray-100 cursor-not-allowed" : ""}`}
+                                >
+                                    <option value="">{form.MinOrderValue ? "-- Chọn mức giảm tối đa --" : "-- Vui lòng chọn đơn tối thiểu trước --"}</option>
+                                    {getMaxDiscountOptions().map(option => (
+                                        <option key={option.value} value={option.value}>
+                                            {option.label}
+                                        </option>
+                                    ))}
+                                </select>
+                                {errors.MaxDiscount && (
+                                    <p className="text-red-500 text-sm mt-1">{errors.MaxDiscount}</p>
+                                )}
+                            </div>
+                        )}
+
+                        {/* SỐ LƯỢNG VOUCHER */}
+                        <div>
+                            <label className="block text-sm font-medium mb-1">
+                                Số lượng voucher <span className="text-red-500">*</span>
+                            </label>
                             <input
                                 type="number"
                                 name="Quantity"
                                 value={form.Quantity}
                                 onChange={handleChange}
-                                min={1}
-                                max={500}
+                                min="1"
+                                max="500"
                                 required
-                                className="border rounded px-3 py-2 w-full"
+                                className={`border rounded px-3 py-2 w-full ${
+                                    errors.Quantity ? "border-red-500" : ""
+                                }`}
+                                placeholder="Nhập số lượng (1-500)"
                             />
+                            {errors.Quantity && (
+                                <p className="text-red-500 text-sm mt-1">{errors.Quantity}</p>
+                            )}
                         </div>
 
-                        {/* HẠN */}
+                        {/* NGÀY HẾT HẠN */}
                         <div>
                             <label className="block text-sm font-medium mb-1">
-                                Ngày hết hạn
+                                Ngày hết hạn <span className="text-red-500">*</span>
                             </label>
                             <input
                                 type="date"
@@ -261,18 +445,98 @@ export default function CreateVoucher() {
                                 onChange={handleChange}
                                 required
                                 min={new Date().toISOString().split("T")[0]}
-                                className="border rounded px-3 py-2 w-full"
+                                className={`border rounded px-3 py-2 w-full ${
+                                    errors.EndTime ? "border-red-500" : ""
+                                }`}
                             />
+                            {errors.EndTime && (
+                                <p className="text-red-500 text-sm mt-1">{errors.EndTime}</p>
+                            )}
                         </div>
 
-                        <button
-                            type="submit"
-                            className="px-4 py-2 bg-orange-500 text-white rounded hover:bg-orange-600"
-                        >
-                            Tạo voucher
-                        </button>
+                        {/* NÚT TẠO VOUCHER */}
+                        <div className="pt-4">
+                            <button
+                                type="submit"
+                                disabled={loading || !form.MinOrderValue}
+                                className={`px-6 py-2 bg-orange-500 text-white rounded hover:bg-orange-600 ${
+                                    loading || !form.MinOrderValue ? "opacity-50 cursor-not-allowed" : ""
+                                }`}
+                            >
+                                {loading ? "Đang xử lý..." : "Tạo voucher"}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => navigate("/seller/voucher")}
+                                className="ml-4 px-6 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+                            >
+                                Hủy
+                            </button>
+                        </div>
                     </form>
 
+                    {/* THÔNG BÁO QUY TẮC MỚI */}
+                    <div className="mt-8 p-4 bg-yellow-50 border border-yellow-200 rounded">
+                        <h3 className="font-bold text-lg mb-2">Quy tắc tạo voucher:</h3>
+                        <ul className="list-disc pl-5 space-y-1">
+                            <li>Đơn tối thiểu: Từ 100.000đ trở lên</li>
+                            <li>Giảm theo phần trăm: 
+                                <ul className="list-circle pl-5 mt-1">
+                                    <li>Chỉ được chọn 5% hoặc 10%</li>
+                                    <li>Giảm tối đa phải ≤ 10% giá trị đơn tối thiểu</li>
+                                </ul>
+                            </li>
+                            <li>Giảm cố định: 
+                                <ul className="list-circle pl-5 mt-1">
+                                    <li>Người bán tự nhập giá trị giảm</li>
+                                    <li>Giá trị giảm phải ≤ 10% giá trị đơn tối thiểu</li>
+                                </ul>
+                            </li>
+                            <li>Số lượng voucher: Từ 1 đến 500</li>
+                            <li>Ngày hết hạn phải sau ngày hiện tại</li>
+                        </ul>
+                    </div>
+
+                    {/* THÔNG TIN TÓM TẮT */}
+                    {form.MinOrderValue && (
+                        <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded">
+                            <h4 className="font-bold text-blue-800 mb-2">Thông tin xác nhận:</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <div>
+                                    <span className="font-medium">Đơn tối thiểu:</span> {Number(form.MinOrderValue).toLocaleString()}đ
+                                </div>
+                                <div>
+                                    <span className="font-medium">10% đơn tối thiểu:</span> {tenPercent.toLocaleString()}đ
+                                </div>
+                                
+                                {form.DiscountType === "percent" && (
+                                    <>
+                                        <div>
+                                            <span className="font-medium">Phần trăm giảm:</span> {form.DiscountValue ? form.DiscountValue + "%" : "Chưa chọn"}
+                                        </div>
+                                        <div>
+                                            <span className="font-medium">Giảm tối đa:</span> {form.MaxDiscount ? Number(form.MaxDiscount).toLocaleString() + "đ" : "Chưa chọn"}
+                                        </div>
+                                    </>
+                                )}
+                                
+                                {form.DiscountType === "fixed" && form.DiscountValue && (
+                                    <div className="md:col-span-2">
+                                        <span className="font-medium">Giá trị giảm:</span> {Number(form.DiscountValue).toLocaleString()}đ
+                                        {Number(form.DiscountValue) <= tenPercent ? (
+                                            <span className="ml-2 text-green-600 text-sm">
+                                                ✓ Hợp lệ (≤ {tenPercent.toLocaleString()}đ)
+                                            </span>
+                                        ) : (
+                                            <span className="ml-2 text-red-600 text-sm">
+                                                ✗ Vượt quá giới hạn 10%
+                                            </span>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
         </>
