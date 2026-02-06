@@ -183,6 +183,18 @@ update: async (id, data) => {
   }
 },
 
+getByStallId: async (stallId) => {
+  const sql = `
+    SELECT ProductId, ProductName, Price, Image, Status
+    FROM Products
+    WHERE StallId = ?
+      AND IsActive = 1
+  `;
+  const [rows] = await pool.query(sql, [stallId]);
+  return rows;
+},
+
+
 };
 
 module.exports = Product;

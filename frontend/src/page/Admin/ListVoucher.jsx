@@ -241,20 +241,20 @@ export default function ListVoucher() {
                       {discountText}
                     </td>
 
-                    <td className="px-4 py-3">
-                      {renderQuantityCell(Number(v.TotalQuantity) + Number(v.UsedQuantity))}
-                    </td>
+                    {/* Tổng phiếu = Voucher.Quantity + VoucherUsage.Quantity + VoucherUsage.IsUsed */}
+                  <td className="px-4 py-3">
+                    {renderQuantityCell(v.TotalQuantity)}
+                  </td>
 
-                    <td className="px-4 py-3">
-                      {renderQuantityCell(v.UsedQuantity, "text-red-500")}
-                    </td>
+                  {/* Phiếu đã nhận = VoucherUsage.Quantity + VoucherUsage.IsUsed */}
+                  <td className="px-4 py-3">
+                    {renderQuantityCell(v.UsedQuantity, "text-red-500")}
+                  </td>
 
-                    <td className="px-4 py-3">
-                      {renderQuantityCell(
-                        v.TotalQuantity - v.UsedQuantity,
-                        "text-green-600"
-                      )}
-                    </td>
+                  {/* Phiếu còn lại = Voucher.Quantity (chưa được nhận) */}
+                  <td className="px-4 py-3">
+                    {renderQuantityCell(v.RemainingQuantity, "text-green-600")}
+                  </td>
 
                     <td className="px-4 py-3 text-center">
                       {new Date(v.EndTime).toLocaleDateString("vi-VN")}

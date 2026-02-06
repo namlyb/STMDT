@@ -66,7 +66,7 @@ export default function Address() {
             <h2 className="text-xl font-semibold">Địa chỉ của tôi</h2>
             <button
               onClick={() => navigate("/address/add")}
-              className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded"
+              className="bg-orange-500 cursor-pointer hover:bg-orange-600 text-white px-4 py-2 rounded"
             >
               + Thêm địa chỉ
             </button>

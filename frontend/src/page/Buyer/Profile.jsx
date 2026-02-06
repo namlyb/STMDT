@@ -255,7 +255,7 @@ export default function Profile() {
                 <div className="grid grid-cols-2">
                   <button
                     type="submit"
-                    className="col-span-1 bg-orange-500 text-white px-2 py-2 rounded"
+                    className="bg-orange-500 cursor-pointer hover:bg-orange-600 text-white px-4 py-2 rounded"
                   >
                     Lưu
                   </button>
@@ -290,7 +290,7 @@ export default function Profile() {
 
               <button
                 onClick={handleAvatarSubmit}
-                className="bg-orange-500 text-white px-6 py-2 rounded"
+                className="bg-orange-500 cursor-pointer hover:bg-orange-600 text-white px-4 py-2 rounded"
               >
                 Lưu ảnh
               </button>

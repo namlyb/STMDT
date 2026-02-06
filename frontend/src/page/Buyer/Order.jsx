@@ -690,7 +690,7 @@ export default function Order() {
                           <p className="text-gray-400 mb-3">Chưa có địa chỉ nào</p>
                           <button
                             onClick={() => navigate("/address/add")}
-                            className="px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-700 border border-blue-200 hover:border-blue-300 rounded-lg transition"
+                            className="px-4 py-2 text-sm font-medium cursor-pointer text-blue-600 hover:text-blue-700 border border-blue-200 hover:border-blue-300 rounded-lg transition"
                           >
                             + Thêm địa chỉ mới
                           </button>

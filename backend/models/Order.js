@@ -300,22 +300,25 @@ const OrderModel = {
       `, [cartIds]);
     }
 
-    // Cập nhật voucher usage nếu có
+    // ================= CẬP NHẬT VOUCHER USAGE =================
+    // 1. Xử lý voucher toàn đơn (nếu có)
     if (orderVoucherId) {
-      await connection.query(`
-        UPDATE VoucherUsage 
-        SET IsUsed = 1, Quantity = Quantity - 1
-        WHERE UsageId = ? AND AccountId = ?
-      `, [orderVoucherId, accountId]);
+      // Mỗi lần sử dụng voucher giảm Quantity 1, tăng IsUsed 1
+      await VoucherUsage.decrementVoucherQuantityWithConnection(
+        connection,
+        orderVoucherId,
+        1
+      );
     }
 
-    // Cập nhật voucher usage cho từng sản phẩm
+    // 2. Xử lý voucher sản phẩm
     for (const [voucherId, usageCount] of productVoucherUsage) {
-      await connection.query(`
-        UPDATE VoucherUsage 
-        SET IsUsed = 1, Quantity = Quantity - ?
-        WHERE UsageId = ? AND AccountId = ?
-      `, [usageCount, voucherId, accountId]);
+      // Mỗi sản phẩm sử dụng voucher giảm Quantity 1, tăng IsUsed 1
+      await VoucherUsage.decrementVoucherQuantityWithConnection(
+        connection,
+        voucherId,
+        usageCount
+      );
     }
 
     return { orderId, orderItems };

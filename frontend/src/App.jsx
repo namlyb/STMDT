@@ -32,6 +32,8 @@ import UpdateAddress from "./page/Buyer/UpdateAddress";
 import PlatformFee from "./page/Admin/PlatformFee";
 import MyOrder from "./page/Buyer/MyOrder";
 import ViewOrder from "./page/Seller/ViewOrder";
+import ViewStall from "./page/Buyer/ViewStall";
+
 
 function App() {
   return (
@@ -74,10 +76,12 @@ function App() {
         <Route path="/address/update/:id" element={<UpdateAddress />} />
         <Route path="/my-voucher" element={<MyVoucher />} />
         <Route path="/orders" element={<MyOrder />} />
+        <Route path="/stall/:id" element={<ViewStall />} />
+        <Route path="/checkout" element={<Order />} />
       </Route>
         <Route path="/cart" element={<Cart />} />
         <Route path="/product/:id" element={<ProductDetail />} />
-        <Route path="/checkout" element={<Order />} />
+        
 
 
     </Routes>

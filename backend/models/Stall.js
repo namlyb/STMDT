@@ -33,7 +33,24 @@ const Stall = {
     const sql = `INSERT INTO Stalls (StallName, AccountId) VALUES (?, ?)`;
     const [result] = await pool.query(sql, [StallName, AccountId]);
     return { StallId: result.insertId, StallName, AccountId };
-  }
+  },
+
+  getByStallId: async (stallId) => {
+  const sql = `
+    SELECT 
+      s.StallId,
+      s.StallName,
+      a.AccountId,
+      a.Name,
+      a.Avt
+    FROM Stalls s
+    JOIN Accounts a ON s.AccountId = a.AccountId
+    WHERE s.StallId = ?
+  `;
+  const [rows] = await pool.query(sql, [stallId]);
+  return rows[0];
+},
+
 
 };
 

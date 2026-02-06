@@ -31,17 +31,21 @@ const VoucherUsage = {
       );
 
       if (used) {
-        throw new Error("ALREADY_RECEIVED");
+        // Nếu đã nhận, tăng quantity thêm 1
+        await conn.query(
+          `UPDATE VoucherUsage SET Quantity = Quantity + 1 WHERE VoucherId=? AND AccountId=?`,
+          [voucherId, accountId]
+        );
+      } else {
+        // Nếu chưa nhận, tạo mới với Quantity = 1, IsUsed = 0
+        await conn.query(
+          `INSERT INTO VoucherUsage (VoucherId, AccountId, Quantity, IsUsed)
+           VALUES (?, ?, 1, 0)`,
+          [voucherId, accountId]
+        );
       }
 
-      // Insert usage
-      await conn.query(
-        `INSERT INTO VoucherUsage (VoucherId, AccountId, Quantity)
-         VALUES (?, ?, 1)`,
-        [voucherId, accountId]
-      );
-
-      // Trừ quantity voucher
+      // Trừ quantity trong bảng Vouchers
       await conn.query(
         `UPDATE Vouchers SET Quantity = Quantity - 1 WHERE VoucherId=?`,
         [voucherId]
@@ -52,6 +56,9 @@ const VoucherUsage = {
 
     } catch (err) {
       await conn.rollback();
+      if (err.message === "OUT_OF_STOCK") {
+        throw new Error("Voucher đã hết");
+      }
       throw err;
     } finally {
       conn.release();
@@ -70,12 +77,13 @@ const VoucherUsage = {
         v.MinOrderValue,
         v.MaxDiscount,
         vu.Quantity,
+        vu.IsUsed,
         v.EndTime,
         v.CreatedBy
       FROM VoucherUsage vu
       JOIN Vouchers v ON v.VoucherId = vu.VoucherId
       WHERE vu.AccountId = ?
-        AND vu.IsUsed = 0
+        AND vu.Quantity > 0  -- Chỉ lấy voucher còn lượt sử dụng
         AND v.EndTime >= CURDATE()
       ORDER BY v.EndTime ASC
       `,
@@ -102,7 +110,7 @@ const VoucherUsage = {
       JOIN Vouchers v ON v.VoucherId = vu.VoucherId
       LEFT JOIN Stalls s ON s.AccountId = v.CreatedBy
       WHERE vu.AccountId = ?
-        AND vu.IsUsed = 0
+        AND vu.Quantity > 0  -- Chỉ lấy voucher còn lượt sử dụng
         AND v.EndTime >= CURDATE()
       `,
       [accountId]
@@ -138,10 +146,7 @@ const VoucherUsage = {
       const [updateResult] = await connection.query(
         `UPDATE VoucherUsage 
          SET Quantity = Quantity - ?,
-             IsUsed = CASE 
-               WHEN Quantity - ? <= 0 THEN 1 
-               ELSE IsUsed 
-             END
+             IsUsed = IsUsed + ?
          WHERE UsageId = ? AND Quantity >= ?`,
         [quantity, quantity, usageId, quantity]
       );
@@ -167,7 +172,7 @@ const VoucherUsage = {
 
       // Lấy số lượng hiện tại
       const [rows] = await connection.query(
-        'SELECT Quantity FROM VoucherUsage WHERE UsageId = ? FOR UPDATE',
+        'SELECT Quantity, IsUsed FROM VoucherUsage WHERE UsageId = ? FOR UPDATE',
         [usageId]
       );
 
@@ -182,16 +187,16 @@ const VoucherUsage = {
       }
 
       const newQuantity = currentQuantity - quantityToDecrease;
-      const isUsed = newQuantity <= 0 ? 1 : 0;
+      const newIsUsed = (rows[0].IsUsed || 0) + quantityToDecrease;
 
       // Cập nhật
       await connection.query(
         'UPDATE VoucherUsage SET Quantity = ?, IsUsed = ? WHERE UsageId = ?',
-        [newQuantity, isUsed, usageId]
+        [newQuantity, newIsUsed, usageId]
       );
 
       await connection.commit();
-      return { newQuantity, isUsed };
+      return { newQuantity, newIsUsed };
     } catch (error) {
       await connection.rollback();
       throw error;
@@ -200,88 +205,106 @@ const VoucherUsage = {
     }
   },
 
-  decrementVoucherQuantity: async (usageId, quantityToDecrement) => {
-  const connection = await pool.getConnection();
-  try {
-    await connection.beginTransaction();
+  decrementVoucherQuantity: async (usageId, quantityToDecrement = 1) => {
+    const connection = await pool.getConnection();
+    try {
+      await connection.beginTransaction();
 
-    // Kiểm tra voucher tồn tại và có đủ quantity không
-    const [voucherRows] = await connection.query(
-      `SELECT vu.*, v.* 
-       FROM VoucherUsage vu
-       JOIN Vouchers v ON vu.VoucherId = v.VoucherId
-       WHERE vu.UsageId = ?
-         AND vu.Quantity >= ?`,
-      [usageId, quantityToDecrement]
-    );
+      // Kiểm tra voucher tồn tại và có đủ quantity không
+      const [voucherRows] = await connection.query(
+        `SELECT vu.*, v.* 
+         FROM VoucherUsage vu
+         JOIN Vouchers v ON vu.VoucherId = v.VoucherId
+         WHERE vu.UsageId = ?
+           AND vu.Quantity >= ?`,
+        [usageId, quantityToDecrement]
+      );
 
-    if (!voucherRows.length) {
-      throw new Error(`Voucher không tồn tại hoặc không đủ quantity`);
+      if (!voucherRows.length) {
+        throw new Error(`Voucher không tồn tại hoặc không đủ lượt sử dụng`);
+      }
+
+      const currentQuantity = voucherRows[0].Quantity;
+      const currentIsUsed = voucherRows[0].IsUsed || 0;
+      const newQuantity = currentQuantity - quantityToDecrement;
+      const newIsUsed = currentIsUsed + quantityToDecrement;
+
+      // Cập nhật quantity và IsUsed theo logic mới
+      const [updateResult] = await connection.query(
+        `UPDATE VoucherUsage 
+         SET Quantity = ?,
+             IsUsed = ?
+         WHERE UsageId = ?`,
+        [newQuantity, newIsUsed, usageId]
+      );
+
+      if (updateResult.affectedRows === 0) {
+        throw new Error(`Không thể cập nhật voucher`);
+      }
+
+      await connection.commit();
+
+      return {
+        usageId,
+        oldQuantity: currentQuantity,
+        newQuantity,
+        oldIsUsed: currentIsUsed,
+        newIsUsed
+      };
+
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
     }
+  },
 
-    const currentQuantity = voucherRows[0].Quantity;
-    const newQuantity = currentQuantity - quantityToDecrement;
+  decrementVoucherQuantityWithConnection: async (connection, usageId, quantityToDecrement = 1) => {
+    try {
+      // Kiểm tra voucher tồn tại và có đủ quantity không
+      const [voucherRows] = await connection.query(
+        `SELECT vu.*, v.* 
+         FROM VoucherUsage vu
+         JOIN Vouchers v ON vu.VoucherId = v.VoucherId
+         WHERE vu.UsageId = ?
+           AND vu.Quantity >= ?`,
+        [usageId, quantityToDecrement]
+      );
 
-    // Cập nhật quantity và IsUsed
-    const [updateResult] = await connection.query(
-      `UPDATE VoucherUsage 
-       SET Quantity = ?,
-           IsUsed = CASE WHEN ? <= 0 THEN 1 ELSE IsUsed END
-       WHERE UsageId = ?`,
-      [newQuantity, newQuantity, usageId]
-    );
+      if (!voucherRows.length) {
+        throw new Error(`Voucher không tồn tại hoặc không đủ lượt sử dụng`);
+      }
 
-    if (updateResult.affectedRows === 0) {
-      throw new Error(`Không thể cập nhật voucher`);
+      const currentQuantity = voucherRows[0].Quantity;
+      const currentIsUsed = voucherRows[0].IsUsed || 0;
+      const newQuantity = currentQuantity - quantityToDecrement;
+      const newIsUsed = currentIsUsed + quantityToDecrement;
+
+      // Cập nhật quantity và IsUsed
+      const [updateResult] = await connection.query(
+        `UPDATE VoucherUsage 
+         SET Quantity = ?,
+             IsUsed = ?
+         WHERE UsageId = ?`,
+        [newQuantity, newIsUsed, usageId]
+      );
+
+      if (updateResult.affectedRows === 0) {
+        throw new Error(`Không thể cập nhật voucher`);
+      }
+
+      return {
+        usageId,
+        oldQuantity: currentQuantity,
+        newQuantity,
+        oldIsUsed: currentIsUsed,
+        newIsUsed
+      };
+
+    } catch (error) {
+      throw error;
     }
-
-    await connection.commit();
-
-    return {
-      usageId,
-      oldQuantity: currentQuantity,
-      newQuantity,
-      isUsed: newQuantity <= 0 ? 1 : 0
-    };
-
-  } catch (error) {
-    await connection.rollback();
-    throw error;
-  } finally {
-    connection.release();
-  }
-},
-
-  // Lấy voucher sản phẩm cho một stall cụ thể
-  getProductVouchersForStall: async (accountId, stallId) => {
-    const [rows] = await pool.query(
-      `
-      SELECT 
-        vu.UsageId,
-        vu.Quantity,
-        vu.IsUsed,
-        v.VoucherId,
-        v.VoucherName,
-        v.DiscountType,
-        v.DiscountValue,
-        v.MinOrderValue,
-        v.MaxDiscount,
-        v.EndTime,
-        v.CreatedBy,
-        s.StallId
-      FROM VoucherUsage vu
-      JOIN Vouchers v ON v.VoucherId = vu.VoucherId
-      LEFT JOIN Stalls s ON s.AccountId = v.CreatedBy
-      WHERE vu.AccountId = ?
-        AND vu.Quantity > 0
-        AND v.EndTime >= CURDATE()
-        AND v.DiscountType IN ('fixed', 'percent')
-        AND (v.CreatedBy = 1 OR s.StallId = ?)
-      ORDER BY v.EndTime ASC
-      `,
-      [accountId, stallId]
-    );
-    return rows;
   },
 
   // Lấy voucher toàn đơn (chỉ admin)
@@ -303,7 +326,7 @@ const VoucherUsage = {
       FROM VoucherUsage vu
       JOIN Vouchers v ON v.VoucherId = vu.VoucherId
       WHERE vu.AccountId = ?
-        AND vu.Quantity > 0
+        AND vu.Quantity > 0  -- Chỉ lấy voucher còn lượt sử dụng
         AND v.EndTime >= CURDATE()
         AND v.CreatedBy = 1 
         AND v.DiscountType IN ('fixed', 'percent', 'ship')
@@ -314,24 +337,55 @@ const VoucherUsage = {
     return rows;
   },
 
+  getProductVouchersForStall: async (accountId, stallId) => {
+    const [rows] = await pool.query(
+      `
+      SELECT 
+        vu.UsageId,
+        vu.Quantity,
+        vu.IsUsed,
+        v.VoucherId,
+        v.VoucherName,
+        v.DiscountType,
+        v.DiscountValue,
+        v.MinOrderValue,
+        v.MaxDiscount,
+        v.EndTime,
+        v.CreatedBy,
+        s.StallId
+      FROM VoucherUsage vu
+      JOIN Vouchers v ON v.VoucherId = vu.VoucherId
+      LEFT JOIN Stalls s ON s.AccountId = v.CreatedBy
+      WHERE vu.AccountId = ?
+        AND vu.Quantity > 0  -- Chỉ lấy voucher còn lượt sử dụng
+        AND v.EndTime >= CURDATE()
+        AND v.DiscountType IN ('fixed', 'percent')
+        AND (v.CreatedBy = 1 OR s.StallId = ?)
+      ORDER BY v.EndTime ASC
+      `,
+      [accountId, stallId]
+    );
+    return rows;
+  },
+
   validateVoucherForProduct: async (usageId, accountId, productStallId) => {
-  const [rows] = await pool.query(
-    `SELECT vu.*, v.*, s.StallId 
-     FROM VoucherUsage vu
-     JOIN Vouchers v ON vu.VoucherId = v.VoucherId
-     LEFT JOIN Stalls s ON s.AccountId = v.CreatedBy
-     WHERE vu.UsageId = ? 
-       AND vu.AccountId = ?
-       AND vu.Quantity > 0
-       AND v.EndTime >= CURDATE()
-       AND (
-         v.CreatedBy = 1  -- Voucher của admin
-         OR s.StallId = ?  -- Hoặc voucher của đúng stall
-       )`,
-    [usageId, accountId, productStallId]
-  );
-  return rows[0];
-},
+    const [rows] = await pool.query(
+      `SELECT vu.*, v.*, s.StallId 
+       FROM VoucherUsage vu
+       JOIN Vouchers v ON vu.VoucherId = v.VoucherId
+       LEFT JOIN Stalls s ON s.AccountId = v.CreatedBy
+       WHERE vu.UsageId = ? 
+         AND vu.AccountId = ?
+         AND vu.Quantity > 0  -- Chỉ kiểm tra voucher còn lượt sử dụng
+         AND v.EndTime >= CURDATE()
+         AND (
+           v.CreatedBy = 1  -- Voucher của admin
+           OR s.StallId = ?  -- Hoặc voucher của đúng stall
+         )`,
+      [usageId, accountId, productStallId]
+    );
+    return rows[0];
+  },
 
 validateVoucherForOrder: async (usageId, accountId, orderTotal) => {
   const [rows] = await pool.query(

@@ -135,7 +135,7 @@ CREATE TABLE VoucherUsage (
     VoucherId INT NOT NULL,
     AccountId INT NOT NULL,
     Quantity INT NOT NULL,
-    IsUsed TINYINT(1) DEFAULT 0,
+    IsUsed INT NOT NULL DEFAULT 0,
     FOREIGN KEY (VoucherId) REFERENCES Vouchers(VoucherId),
     FOREIGN KEY (AccountId) REFERENCES Accounts(AccountId)
 );
