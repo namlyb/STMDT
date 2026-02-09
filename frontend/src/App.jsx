@@ -35,6 +35,8 @@ import MyOrder from "./page/Buyer/MyOrder";
 import ViewOrder from "./page/Seller/ViewOrder";
 import ViewStall from "./page/Buyer/ViewStall";
 import ManageOrder from "./page/Staff/ManageOrder";
+import CreateFeedback from "./page/Buyer/CreateFeedback";
+import MyFeedback from "./page/Buyer/MyFeedback";
 
 function App() {
   return (
@@ -83,6 +85,8 @@ function App() {
         <Route path="/orders" element={<MyOrder />} />
         <Route path="/stall/:id" element={<ViewStall />} />
         <Route path="/checkout" element={<Order />} />
+        <Route path="/feedback/order/:orderId" element={<CreateFeedback />} />
+        <Route path="/my-feedbacks" element={<MyFeedback />} />
       </Route>
         <Route path="/cart" element={<Cart />} />
         <Route path="/product/:id" element={<ProductDetail />} />

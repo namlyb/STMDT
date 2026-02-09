@@ -11,7 +11,7 @@ export default function ProductDetail() {
   const navigate = useNavigate();
   const account = JSON.parse(sessionStorage.getItem("account"));
   const currentAccountId = account?.AccountId;
-
+  const [formattedAvgScore, setFormattedAvgScore] = useState('0.0');
   const [data, setData] = useState(null);
   const [quantity, setQuantity] = useState(1);
   const [showChat, setShowChat] = useState(false);
@@ -39,6 +39,17 @@ export default function ProductDetail() {
     fetchProduct();
   }, [id, navigate]);
 
+  useEffect(() => {
+    if (data) {
+      // Xử lý avgScore an toàn
+      let score = data.avgScore;
+      if (typeof score === 'object' && score !== null) {
+        // Nếu là object, cố gắng lấy giá trị
+        score = score.avgScore || score.score || 0;
+      }
+      setFormattedAvgScore(parseFloat(score || 0).toFixed(1));
+    }
+  }, [data]);
   /* ================= QUANTITY ================= */
   const increase = () => setQuantity(q => q + 1);
   const decrease = () => quantity > 1 && setQuantity(q => q - 1);
@@ -210,7 +221,7 @@ export default function ProductDetail() {
             <img src={stallAvatar} className="w-14 h-14 rounded-full" />
             <div>
               <p className="font-bold">{stall.StallName}</p>
-              <p className="text-sm text-gray-500">⭐ {avgScore.toFixed(1)}</p>
+              <p className="text-sm text-gray-500">⭐ {formattedAvgScore}</p>
             </div>
           </div>
 

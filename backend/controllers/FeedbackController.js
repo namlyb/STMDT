@@ -359,6 +359,91 @@ const FeedbackController = {
         error: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
     }
+  },
+
+  // Lấy danh sách sản phẩm trong đơn hàng để feedback
+  getOrderProductsForFeedback: async (req, res) => {
+    try {
+      const { orderId } = req.params;
+      const AccountId = req.user.AccountId;
+      
+      // Kiểm tra đơn hàng có thuộc về user không
+      const { pool } = require("../config/db");
+      const [orderRows] = await pool.query(
+        "SELECT OrderId FROM Orders WHERE OrderId = ? AND AccountId = ?",
+        [orderId, AccountId]
+      );
+      
+      if (orderRows.length === 0) {
+        return res.status(403).json({
+          message: "Bạn không có quyền truy cập đơn hàng này"
+        });
+      }
+      
+      // Lấy danh sách sản phẩm
+      const products = await FeedbackModel.getOrderProductsForFeedback(orderId, AccountId);
+      
+      // Format image URLs
+      const baseUrl = `${req.protocol}://${req.get("host")}`;
+      const formattedProducts = products.map(product => ({
+        ...product,
+        ProductImage: product.ProductImage 
+          ? (product.ProductImage.startsWith('http')
+              ? product.ProductImage
+              : `${baseUrl}/uploads/ProductImage/${product.ProductImage}`)
+          : null,
+        canFeedback: !product.FeedbackId, // Có thể feedback nếu chưa có FeedbackId
+        hasFeedback: !!product.FeedbackId // Đã feedback nếu có FeedbackId
+      }));
+      
+      res.json({
+        orderId,
+        products: formattedProducts,
+        total: formattedProducts.length,
+        canFeedbackCount: formattedProducts.filter(p => p.canFeedback).length,
+        hasFeedbackCount: formattedProducts.filter(p => p.hasFeedback).length
+      });
+      
+    } catch (error) {
+      console.error("Get order products for feedback error:", error);
+      res.status(500).json({
+        message: "Đã xảy ra lỗi khi lấy danh sách sản phẩm",
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  },
+
+  // Lấy chi tiết sản phẩm để feedback (cho modal)
+  getProductFeedbackDetail: async (req, res) => {
+    try {
+      const { orderDetailId } = req.params;
+      const AccountId = req.user.AccountId;
+      
+      // Kiểm tra sản phẩm có thể feedback không
+      const product = await FeedbackModel.validateOrderDetailForFeedback(orderDetailId, AccountId);
+      if (!product) {
+        return res.status(404).json({
+          message: "Sản phẩm không tồn tại hoặc đã được đánh giá"
+        });
+      }
+      
+      // Kiểm tra đã feedback chưa
+      const hasFeedback = await FeedbackModel.checkExistingFeedback(orderDetailId);
+      
+      res.json({
+        product: {
+          ...product,
+          canFeedback: !hasFeedback
+        }
+      });
+      
+    } catch (error) {
+      console.error("Get product feedback detail error:", error);
+      res.status(500).json({
+        message: "Đã xảy ra lỗi khi lấy thông tin sản phẩm",
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
   }
 };
 

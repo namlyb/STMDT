@@ -25,6 +25,7 @@ const VoucherUsageRouter = require("./routes/VoucherUsageRouter");
 const shipTypeRouter = require("./routes/ShipTypeRouter");
 const platformFeeRouter = require("./routes/PlatFormFeeRouter");
 const paymentMethodRouter = require('./routes/PaymentMethodRouter');
+const feedbackRouter = require("./routes/FeedbackRouter");
 
 const app = express();
 const server = http.createServer(app);
@@ -55,6 +56,8 @@ app.use("/api/voucher-usage", VoucherUsageRouter);
 app.use("/api/shiptypes", shipTypeRouter);
 app.use("/api/platform-fees", platformFeeRouter);
 app.use('/api/payment-methods', paymentMethodRouter);
+app.use("/api/feedback", feedbackRouter);
+
 
 // Avatar images
 app.use(
@@ -78,6 +81,12 @@ app.use(
 app.use(
   "/uploads/AdsImage",
   express.static(path.join(__dirname, "uploads/AdsImage"))
+);
+
+// Feedback images
+app.use(
+  "/uploads/feedback",
+  express.static("uploads/feedback")
 );
 
 // Start server AFTER DB connected

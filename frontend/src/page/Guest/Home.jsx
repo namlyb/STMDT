@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "../../components/Guest/Header";
-import Footer from "../../components/Guest/footer";
+import Footer from "../../components/Guest/Footer";
 import axios from "../../components/lib/axios";
 import ChatBubble from "../../components/ChatBox/ChatBubble";
 import canChat from "../../utils/canChat";

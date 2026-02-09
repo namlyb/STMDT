@@ -96,37 +96,57 @@ const ProductController = {
       res.status(500).json({ message: "Lỗi tìm kiếm sản phẩm" });
     }
   },
+  // Tìm hàm getProductDetail và sửa như sau:
   getProductDetail: async (req, res) => {
-    try {
-      const { id } = req.params;
+  try {
+    const { id } = req.params;
 
-      const product = await Product.getById(id);
-      if (!product) {
-        return res.status(404).json({
-          message: "Không tìm thấy sản phẩm"
-        });
-      }
-
-      const stall = await Stall.getByProductId(id);
-      const feedbacks = await Feedback.getByProductId(id);
-      const avgScore = await Feedback.getAvgScoreByProductId(id);
-      const totalOrders = await OrderDetail.countByProductId(id);
-
-      res.status(200).json({
-        product,
-        stall,
-        feedbacks,
-        avgScore,
-        totalOrders
-      });
-
-    } catch (error) {
-      console.error("🔥 Get product detail error:", error);
-      res.status(500).json({
-        message: "Lỗi khi lấy chi tiết sản phẩm"
+    const product = await Product.getById(id);
+    if (!product) {
+      return res.status(404).json({
+        message: "Không tìm thấy sản phẩm"
       });
     }
-  },
+
+    const stall = await Stall.getByProductId(id);
+    
+    // Lấy feedbacks
+    const feedbacks = await Feedback.getFeedbacksByProductId(id, 1, 10);
+    
+    // Lấy rating info và đảm bảo avgScore là số
+    const ratingInfo = await Feedback.getProductAverageRating(id);
+    
+    // CHỈNH SỬA Ở ĐÂY: Chuyển đổi avgScore thành số
+    let avgScore = 0;
+    if (ratingInfo && ratingInfo.avgScore) {
+      // Nếu ratingInfo.avgScore là object, lấy giá trị số
+      avgScore = typeof ratingInfo.avgScore === 'object' 
+        ? parseFloat(ratingInfo.avgScore.avgScore || 0)
+        : parseFloat(ratingInfo.avgScore);
+    }
+    
+    const totalOrders = await OrderDetail.countByProductId(id);
+    
+    // Lấy totalReviews từ ratingInfo
+    const totalReviews = ratingInfo ? (ratingInfo.totalReviews || 0) : 0;
+
+    res.status(200).json({
+      product,
+      stall,
+      feedbacks,
+      avgScore: avgScore || 0, // Đảm bảo là số
+      totalOrders,
+      totalReviews
+    });
+
+  } catch (error) {
+    console.error("🔥 Get product detail error:", error);
+    res.status(500).json({
+      message: "Lỗi khi lấy chi tiết sản phẩm",
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+},
 
   getProductsBySeller: async (req, res) => {
     try {

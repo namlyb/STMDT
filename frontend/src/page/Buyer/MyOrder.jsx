@@ -2,7 +2,7 @@ import { useState, useEffect, Fragment, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "../../components/lib/axios";
 import Header from "../../components/Guest/Header";
-import Footer from "../../components/Guest/footer";
+import Footer from "../../components/Guest/Footer";
 import Sidebar from "../../components/Buyer/Sidebar";
 import { 
   Package, CheckCircle, Clock, Truck, XCircle, RotateCcw, 
@@ -347,7 +347,7 @@ export default function MyOrder() {
         break;
       case 4: // Hoàn thành
         actions.push(
-          { label: "Đánh giá", action: () => navigate(`/feedback/${order.OrderId}`), icon: Star, color: "bg-orange-600 cursor-pointer hover:bg-orange-700" },
+          { label: "Đánh giá", action: () => navigate(`/feedback/order/${order.OrderId}`), icon: Star, color: "bg-orange-600 cursor-pointer hover:bg-orange-700" },
           { label: "Mua lại", action: () => handleReorder(order.OrderId), icon: RotateCcw, color: "bg-purple-600 cursor-pointer hover:bg-purple-700" }
         );
         break;
