@@ -86,7 +86,7 @@ app.use(
 // Feedback images
 app.use(
   "/uploads/feedback",
-  express.static("uploads/feedback")
+  express.static(path.join(__dirname, "uploads/feedback"))
 );
 
 // Start server AFTER DB connected

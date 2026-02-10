@@ -6,7 +6,7 @@ import Footer from "../../components/Guest/Footer";
 import Sidebar from "../../components/Buyer/Sidebar";
 import { 
   Star, Upload, X, Check, Package, ChevronLeft, 
-  MessageSquare, Image as ImageIcon, AlertCircle
+  MessageSquare, Image as ImageIcon, AlertCircle, Plus, Trash2
 } from "lucide-react";
 
 export default function CreateFeedback() {
@@ -21,8 +21,8 @@ export default function CreateFeedback() {
   // Form state
   const [score, setScore] = useState(5);
   const [content, setContent] = useState("");
-  const [image, setImage] = useState(null);
-  const [imagePreview, setImagePreview] = useState(null);
+  const [images, setImages] = useState([]);
+  const [imagePreviews, setImagePreviews] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   
@@ -33,56 +33,42 @@ export default function CreateFeedback() {
   }, [orderId]);
 
   const fetchOrderProducts = async () => {
-  try {
-    const token = sessionStorage.getItem("token");
-    setLoading(true);
-    
-    console.log("Token:", token);
-    console.log("Order ID:", orderId);
-    
-    // THỬ TRỰC TIẾP với URL đầy đủ
-    const fullUrl = `http://localhost:8080/feedback/order/${orderId}/products`;
-    console.log("Full URL:", fullUrl);
-    
-    const response = await fetch(fullUrl, {
-      headers: { 
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    });
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    
-    const data = await response.json();
-    console.log("Response data:", data);
-    
-    setProducts(data.products);
-    
-  } catch (error) {
-    console.error("Fetch order products error:", error);
-    
-    // Test không có token để xem có phải do auth không
     try {
-      const testResponse = await fetch(`http://localhost:8080/feedback/order/${orderId}/products`);
-      const testData = await testResponse.json();
-      console.log("Test without token:", testData);
-    } catch (noTokenError) {
-      console.log("Test without token failed:", noTokenError);
+      const token = sessionStorage.getItem("token");
+      setLoading(true);
+      
+      const response = await axios.get(`/feedback/order/${orderId}/products`, {
+        headers: { 
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      console.log("Response data:", response.data);
+      
+      if (response.data.success) {
+        setProducts(response.data.products);
+      } else {
+        throw new Error(response.data.message || "Không thể lấy danh sách sản phẩm");
+      }
+      
+    } catch (error) {
+      console.error("Fetch order products error:", error);
+      
+      if (error.response?.status === 401) {
+        sessionStorage.removeItem("token");
+        sessionStorage.removeItem("account");
+        navigate("/login");
+      } else {
+        setError(error.response?.data?.message || error.message);
+        
+        if (error.response?.status === 404 || error.response?.status === 403) {
+          setProducts([]);
+        }
+      }
+    } finally {
+      setLoading(false);
     }
-    
-    if (error.message.includes('401')) {
-      sessionStorage.removeItem("token");
-      sessionStorage.removeItem("account");
-      navigate("/login");
-    } else {
-      alert(`Lỗi: ${error.message}\n\nVui lòng kiểm tra console để biết chi tiết.`);
-    }
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const handleStartFeedback = (product) => {
     if (product.hasFeedback) {
@@ -93,45 +79,70 @@ export default function CreateFeedback() {
     setSelectedProduct(product);
     setScore(5);
     setContent("");
-    setImage(null);
-    setImagePreview(null);
+    setImages([]);
+    setImagePreviews([]);
     setError("");
     setShowFeedbackModal(true);
   };
 
   const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
+    const files = Array.from(e.target.files);
+    
+    // Kiểm tra số lượng ảnh (tối đa 5)
+    if (images.length + files.length > 5) {
+      setError("Chỉ được tải lên tối đa 5 ảnh");
+      return;
+    }
+    
+    // Kiểm tra từng file
+    const validFiles = [];
+    const invalidFiles = [];
+    
+    files.forEach(file => {
       // Kiểm tra kích thước file (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
-        setError("Kích thước ảnh tối đa là 5MB");
+        invalidFiles.push({file, reason: "Kích thước ảnh tối đa là 5MB"});
         return;
       }
       
       // Kiểm tra định dạng
       const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
       if (!allowedTypes.includes(file.type)) {
-        setError("Chỉ chấp nhận file ảnh (JPEG, PNG, GIF)");
+        invalidFiles.push({file, reason: "Chỉ chấp nhận file ảnh (JPEG, PNG, GIF)"});
         return;
       }
       
-      setImage(file);
-      setError("");
-      
+      validFiles.push(file);
+    });
+    
+    if (invalidFiles.length > 0) {
+      setError(invalidFiles.map(f => f.reason).join(', '));
+      return;
+    }
+    
+    if (validFiles.length === 0) return;
+    
+    setError("");
+    
+    // Tạo preview cho từng ảnh
+    const newPreviews = [];
+    validFiles.forEach(file => {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setImagePreview(reader.result);
+        newPreviews.push(reader.result);
+        if (newPreviews.length === validFiles.length) {
+          setImagePreviews(prev => [...prev, ...newPreviews]);
+        }
       };
       reader.readAsDataURL(file);
-    }
+    });
+    
+    setImages(prev => [...prev, ...validFiles]);
   };
 
-  const removeImage = () => {
-    setImage(null);
-    setImagePreview(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
+  const removeImage = (index) => {
+    setImages(prev => prev.filter((_, i) => i !== index));
+    setImagePreviews(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleSubmitFeedback = async () => {
@@ -163,9 +174,11 @@ export default function CreateFeedback() {
       formData.append("OrderDetailId", selectedProduct.OrderDetailId);
       formData.append("Score", score);
       formData.append("Content", content.trim());
-      if (image) {
-        formData.append("Image", image);
-      }
+      
+      // Thêm từng ảnh vào FormData
+      images.forEach((image, index) => {
+        formData.append("Images", image);
+      });
       
       const response = await axios.post("/feedback", formData, {
         headers: {
@@ -174,22 +187,26 @@ export default function CreateFeedback() {
         }
       });
       
-      alert("Đánh giá thành công!");
-      
-      // Cập nhật UI: đánh dấu sản phẩm đã được feedback
-      setProducts(prev => prev.map(product => 
-        product.OrderDetailId === selectedProduct.OrderDetailId
-          ? { ...product, hasFeedback: true, canFeedback: false }
-          : product
-      ));
-      
-      // Đóng modal và reset form
-      setShowFeedbackModal(false);
-      setSelectedProduct(null);
-      setScore(5);
-      setContent("");
-      setImage(null);
-      setImagePreview(null);
+      if (response.data.success) {
+        alert("Đánh giá thành công!");
+        
+        // Cập nhật UI: đánh dấu sản phẩm đã được feedback
+        setProducts(prev => prev.map(product => 
+          product.OrderDetailId === selectedProduct.OrderDetailId
+            ? { ...product, hasFeedback: true, canFeedback: false }
+            : product
+        ));
+        
+        // Đóng modal và reset form
+        setShowFeedbackModal(false);
+        setSelectedProduct(null);
+        setScore(5);
+        setContent("");
+        setImages([]);
+        setImagePreviews([]);
+      } else {
+        throw new Error(response.data.message || "Đánh giá thất bại");
+      }
       
     } catch (error) {
       console.error("Submit feedback error:", error);
@@ -398,7 +415,8 @@ export default function CreateFeedback() {
               {/* Star Rating */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Chất lượng sản phẩm
+                  Chất lượng sản phẩm (tùy chọn)
+                  <span className="text-gray-400 ml-1 text-xs">Mặc định: 5 sao</span>
                 </label>
                 <div className="flex items-center gap-2">
                   {[1, 2, 3, 4, 5].map((star) => (
@@ -457,27 +475,51 @@ export default function CreateFeedback() {
               {/* Image Upload */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Hình ảnh đính kèm (tùy chọn)
+                  Hình ảnh đính kèm (tùy chọn, tối đa 5 ảnh)
                 </label>
                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-orange-500 transition-colors">
-                  {imagePreview ? (
+                  {imagePreviews.length > 0 ? (
                     <div className="space-y-4">
-                      <div className="relative inline-block">
-                        <img
-                          src={imagePreview}
-                          alt="Preview"
-                          className="h-48 rounded-lg object-cover"
-                        />
-                        <button
-                          type="button"
-                          onClick={removeImage}
-                          disabled={submitting}
-                          className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition cursor-pointer"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
+                      <div className="grid grid-cols-3 gap-4">
+                        {imagePreviews.map((preview, index) => (
+                          <div key={index} className="relative">
+                            <img
+                              src={preview}
+                              alt={`Preview ${index + 1}`}
+                              className="h-32 w-full object-cover rounded-lg"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeImage(index)}
+                              disabled={submitting}
+                              className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition cursor-pointer"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
                       </div>
-                      <p className="text-sm text-gray-500">Nhấp để thay đổi ảnh</p>
+                      
+                      {imagePreviews.length < 5 && (
+                        <>
+                          <p className="text-sm text-gray-500">Nhấp để thêm ảnh ({imagePreviews.length}/5)</p>
+                          <label className="cursor-pointer inline-block">
+                            <input
+                              ref={fileInputRef}
+                              type="file"
+                              className="hidden"
+                              accept="image/*"
+                              onChange={handleImageChange}
+                              disabled={submitting}
+                              multiple
+                            />
+                            <div className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition inline-flex items-center gap-2 mt-2">
+                              <Plus className="w-4 h-4" />
+                              Thêm ảnh
+                            </div>
+                          </label>
+                        </>
+                      )}
                     </div>
                   ) : (
                     <>
@@ -491,13 +533,16 @@ export default function CreateFeedback() {
                           accept="image/*"
                           onChange={handleImageChange}
                           disabled={submitting}
+                          multiple
                         />
                         <div className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition inline-flex items-center gap-2">
                           <Upload className="w-4 h-4" />
                           Chọn ảnh từ máy tính
                         </div>
                       </label>
-                      <p className="text-sm text-gray-500 mt-3">JPEG, PNG, GIF (tối đa 5MB)</p>
+                      <p className="text-sm text-gray-500 mt-3">
+                        JPEG, PNG, GIF (tối đa 5MB mỗi ảnh)
+                      </p>
                     </>
                   )}
                 </div>

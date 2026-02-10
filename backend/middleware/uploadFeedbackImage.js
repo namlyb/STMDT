@@ -1,52 +1,40 @@
+// middleware/UploadFeedbackImage.js
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 
-// Tạo thư mục nếu chưa tồn tại
-const uploadDir = "uploads/feedback";
+// Tạo thư mục upload
+const uploadDir = path.join(__dirname, "../uploads/feedback");
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
 // Cấu hình storage
 const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
+  destination: (req, file, cb) => {
     cb(null, uploadDir);
   },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(
-      null,
-      file.fieldname +
-        "-" +
-        uniqueSuffix +
-        path.extname(file.originalname)
-    );
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    const uniqueName = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, uniqueName + ext);
   },
 });
 
-// Filter file type
+// Filter file
 const fileFilter = (req, file, cb) => {
-  const allowedTypes = /jpeg|jpg|png|gif/;
-  const extname = allowedTypes.test(
-    path.extname(file.originalname).toLowerCase()
-  );
-  const mimetype = allowedTypes.test(file.mimetype);
-
-  if (mimetype && extname) {
-    return cb(null, true);
+  if (file.mimetype.startsWith("image/")) {
+    cb(null, true);
   } else {
-    cb(new Error("Chỉ chấp nhận file ảnh (jpeg, jpg, png, gif)"));
+    cb(new Error("Chỉ cho phép upload ảnh"), false);
   }
 };
 
-// Cấu hình multer
+// Tạo middleware upload
 const upload = multer({
-  storage: storage,
-  limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB
-  },
-  fileFilter: fileFilter,
+  storage,
+  fileFilter,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
 });
 
 module.exports = upload;

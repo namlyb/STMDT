@@ -162,13 +162,20 @@ CREATE TABLE Feedbacks (
     FeedbackId INT AUTO_INCREMENT PRIMARY KEY,
     AccountId INT NOT NULL,
     OrderDetailId INT NOT NULL,
-    Score INT CHECK (Score BETWEEN 1 AND 5),
+    Score INT NOT NULL CHECK (Score BETWEEN 1 AND 5),
     Content TEXT NOT NULL,
-    Image TEXT,
     CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (AccountId) REFERENCES Accounts(AccountId),
     FOREIGN KEY (OrderDetailId) REFERENCES OrderDetails(OrderDetailId)
 );
+CREATE TABLE FeedbackImages (
+    ImageId INT AUTO_INCREMENT PRIMARY KEY,
+    FeedbackId INT NOT NULL,
+    ImageName VARCHAR(255) NOT NULL,
+    CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (FeedbackId) REFERENCES Feedbacks(FeedbackId)
+);
+
 CREATE TABLE Payments (
     PaymentId INT AUTO_INCREMENT PRIMARY KEY,
     OrderId INT NOT NULL,
@@ -221,3 +228,13 @@ CREATE TABLE Returns (
   RefundAmount INT,
   FOREIGN KEY (OrderDetailId) REFERENCES OrderDetails(OrderDetailId)
 );
+
+
+ALTER TABLE FeedbackImages
+DROP FOREIGN KEY feedbackimages_ibfk_1;
+
+ALTER TABLE FeedbackImages
+ADD CONSTRAINT fk_feedback_images
+FOREIGN KEY (FeedbackId)
+REFERENCES Feedbacks(FeedbackId)
+ON DELETE CASCADE;

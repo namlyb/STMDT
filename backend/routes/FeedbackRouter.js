@@ -13,7 +13,7 @@ router.get("/order/:orderId/products", verifyToken, FeedbackController.getOrderP
 router.get("/product/:orderDetailId", verifyToken, FeedbackController.getProductFeedbackDetail);
 
 // Tạo feedback
-router.post("/", verifyToken, upload.single('Image'), FeedbackController.createFeedback);
+router.post("/", verifyToken, upload.array('Images', 5), FeedbackController.createFeedback);
 
 // Lấy feedback của user
 router.get("/my-feedbacks", verifyToken, FeedbackController.getMyFeedbacks);

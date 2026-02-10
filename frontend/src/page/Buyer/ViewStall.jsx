@@ -5,7 +5,7 @@ import axios from "../../components/lib/axios";
 import { API_URL } from "../../config";
 import BuyerChat from "./BuyerChat";
 import ChatBubble from "../../components/ChatBox/ChatBubble";
-import { Star, ShoppingBag, MessageCircle, Package, Award} from "lucide-react";
+import { Star, ShoppingBag, MessageCircle, Package, Award, Users, StarHalf } from "lucide-react";
 
 export default function ViewStall() {
   const { id } = useParams();
@@ -16,13 +16,19 @@ export default function ViewStall() {
 
   const [data, setData] = useState(null);
   const [feedbacks, setFeedbacks] = useState([]);
-  const [stats, setStats] = useState({ avgScore: 0, totalFeedbacks: 0 });
+  const [stats, setStats] = useState({ 
+    avgScore: 0, 
+    totalFeedbacks: 0,
+    scoreDistribution: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 }
+  });
   const [showChat, setShowChat] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [feedbackPage, setFeedbackPage] = useState(1);
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
 
   const AVATAR_BASE = `${API_URL}/uploads/AccountAvatar`;
   const PRODUCT_IMAGE_BASE = `${API_URL}/uploads/ProductImage`;
-  const FEEDBACK_IMAGE_BASE = `${API_URL}/uploads/FeedbackImage`;
+  const FEEDBACK_IMAGE_BASE = `${API_URL}/uploads/feedback`;
 
   useEffect(() => {
     const loadData = async () => {
@@ -30,18 +36,17 @@ export default function ViewStall() {
         setLoading(true);
         const [stallRes, feedbackRes] = await Promise.all([
           axios.get(`/stalls/${id}`),
-          axios.get(`/stalls/${id}/feedbacks`)
+          axios.get(`/feedback/stall/${id}/public?page=1&limit=10`)
         ]);
         
         setData(stallRes.data);
-        setFeedbacks(feedbackRes.data);
         
-        // Tính điểm trung bình
-        if (feedbackRes.data.length > 0) {
-          const avg = feedbackRes.data.reduce((sum, fb) => sum + fb.Score, 0) / feedbackRes.data.length;
+        if (feedbackRes.data.success) {
+          setFeedbacks(feedbackRes.data.feedbacks);
           setStats({
-            avgScore: avg,
-            totalFeedbacks: feedbackRes.data.length
+            avgScore: parseFloat(feedbackRes.data.rating.average) || 0,
+            totalFeedbacks: feedbackRes.data.rating.total || 0,
+            scoreDistribution: feedbackRes.data.stats?.distribution || { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 }
           });
         }
       } catch (err) {
@@ -55,6 +60,25 @@ export default function ViewStall() {
 
     loadData();
   }, [id, navigate]);
+
+  const loadMoreFeedbacks = async () => {
+    if (feedbackLoading) return;
+    
+    try {
+      setFeedbackLoading(true);
+      const nextPage = feedbackPage + 1;
+      const response = await axios.get(`/feedback/stall/${id}/public?page=${nextPage}&limit=10`);
+      
+      if (response.data.success) {
+        setFeedbacks(prev => [...prev, ...response.data.feedbacks]);
+        setFeedbackPage(nextPage);
+      }
+    } catch (error) {
+      console.error("Load more feedbacks error:", error);
+    } finally {
+      setFeedbackLoading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -101,25 +125,38 @@ export default function ViewStall() {
     ? `${AVATAR_BASE}/${stall.Avt}`
     : `${AVATAR_BASE}/avtDf.png`;
 
-  const renderStars = (score) => {
+  const renderStars = (score, size = "md") => {
+    const sizes = {
+      sm: "w-4 h-4",
+      md: "w-5 h-5",
+      lg: "w-6 h-6"
+    };
+    
     return (
       <div className="flex items-center gap-1">
         {[...Array(5)].map((_, i) => (
           <Star
             key={i}
-            size={16}
-            className={`${
+            className={`${sizes[size]} ${
               i < Math.floor(score)
                 ? "text-yellow-400 fill-yellow-400"
+                : i < score
+                ? "text-yellow-400"
                 : "text-gray-300"
             }`}
           />
         ))}
-        <span className="ml-2 text-sm text-gray-600">
+        <span className={`ml-2 ${size === 'lg' ? 'text-lg' : 'text-sm'} text-gray-600 font-medium`}>
           {score.toFixed(1)}
         </span>
       </div>
     );
+  };
+
+  const getStarPercentage = (star) => {
+    const total = stats.totalFeedbacks;
+    if (total === 0) return 0;
+    return Math.round((stats.scoreDistribution[star] / total) * 100);
   };
 
   return (
@@ -273,135 +310,199 @@ export default function ViewStall() {
                 </div>
               </div>
 
-              {/* Recent Feedbacks */}
-              {feedbacks.length > 0 && (
+              {/* Star Distribution */}
+              {stats.totalFeedbacks > 0 && (
                 <div className="bg-white rounded-xl p-6 shadow-sm">
                   <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                    <MessageCircle className="w-5 h-5 text-blue-500" />
-                    Đánh giá gần đây
+                    <StarHalf className="w-5 h-5 text-yellow-500" />
+                    Phân phối điểm
                   </h3>
                   
-                  <div className="space-y-4">
-                    {feedbacks.slice(0, 5).map((feedback) => (
-                      <div key={feedback.FeedbackId} className="border-b pb-4 last:border-0">
-                        <div className="flex items-start gap-3 mb-2">
-                          <img
-                            src={
-                              feedback.CustomerAvt 
-                                ? `${AVATAR_BASE}/${feedback.CustomerAvt}`
-                                : `${AVATAR_BASE}/avtDf.png`
-                            }
-                            alt={feedback.CustomerName}
-                            className="w-10 h-10 rounded-full"
-                          />
-                          <div className="flex-1">
-                            <div className="flex justify-between items-start">
-                              <span className="font-medium text-gray-800">
-                                {feedback.CustomerName}
-                              </span>
-                              {renderStars(feedback.Score)}
-                            </div>
-                            <p className="text-gray-600 text-sm mt-1 line-clamp-2">
-                              {feedback.Content}
-                            </p>
-                            {feedback.Image && (
-                              <img
-                                src={`${FEEDBACK_IMAGE_BASE}/${feedback.Image}`}
-                                alt="Feedback"
-                                className="mt-2 h-20 rounded object-cover"
-                              />
-                            )}
-                            <p className="text-xs text-gray-400 mt-2">
-                              {new Date(feedback.CreatedAt).toLocaleDateString('vi-VN')}
-                            </p>
-                          </div>
+                  <div className="space-y-2">
+                    {[5, 4, 3, 2, 1].map((star) => (
+                      <div key={star} className="flex items-center gap-3">
+                        <div className="flex items-center w-16">
+                          <span className="text-sm text-gray-600 w-4">{star}</span>
+                          <Star className="w-4 h-4 text-yellow-400 ml-1" />
                         </div>
+                        <div className="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden">
+                          <div 
+                            className="bg-yellow-400 h-full rounded-full"
+                            style={{ width: `${getStarPercentage(star)}%` }}
+                          ></div>
+                        </div>
+                        <span className="text-sm text-gray-600 w-10">
+                          {getStarPercentage(star)}%
+                        </span>
                       </div>
                     ))}
-                    
-                    {feedbacks.length > 5 && (
-                      <button
-                        onClick={() => document.getElementById('feedback-section').scrollIntoView({ behavior: 'smooth' })}
-                        className="w-full text-center text-orange-500 font-medium py-2 hover:bg-orange-50 rounded-lg"
-                      >
-                        Xem thêm {feedbacks.length - 5} đánh giá
-                      </button>
-                    )}
                   </div>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Full Feedback Section */}
-          {feedbacks.length > 0 && (
-            <div id="feedback-section" className="mt-12">
-              <div className="flex items-center justify-between mb-6">
+          {/* Feedback Section */}
+          <div className="mt-12">
+            <div className="flex items-center justify-between mb-6">
+              <div>
                 <h2 className="text-2xl font-bold text-gray-800">
                   Đánh giá về shop
                 </h2>
-                <div className="flex items-center gap-4">
-                  <div className="text-center bg-orange-50 px-4 py-2 rounded-lg">
-                    <p className="text-3xl font-bold text-orange-500">
+                <p className="text-gray-600 mt-1">
+                  {stats.totalFeedbacks} đánh giá từ khách hàng
+                </p>
+              </div>
+              
+              {stats.totalFeedbacks > 0 && (
+                <div className="text-center bg-gradient-to-r from-orange-50 to-amber-50 px-6 py-4 rounded-xl">
+                  <div className="flex items-center justify-center gap-2">
+                    <span className="text-4xl font-bold text-orange-600">
                       {stats.avgScore.toFixed(1)}
-                    </p>
-                    <div className="flex justify-center mt-1">
-                      {renderStars(stats.avgScore)}
+                    </span>
+                    <div>
+                      {renderStars(stats.avgScore, "lg")}
+                      <p className="text-sm text-gray-600 mt-1">
+                        trên 5 sao
+                      </p>
                     </div>
                   </div>
                 </div>
-              </div>
+              )}
+            </div>
 
-              <div className="bg-white rounded-xl p-6 shadow-sm">
+            {stats.totalFeedbacks === 0 ? (
+              <div className="bg-white rounded-xl p-8 text-center">
+                <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
+                  <Users className="w-10 h-10 text-gray-400" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-700 mb-2">
+                  Chưa có đánh giá nào
+                </h3>
+                <p className="text-gray-500">
+                  Hãy là người đầu tiên đánh giá shop này
+                </p>
+              </div>
+            ) : (
+              <>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {feedbacks.map((feedback) => (
-                    <div key={feedback.FeedbackId} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                      <div className="flex items-start gap-3">
+                    <div key={feedback.FeedbackId} className="bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow">
+                      <div className="flex items-start gap-4">
                         <img
-                          src={
-                            feedback.CustomerAvt 
-                              ? `${AVATAR_BASE}/${feedback.CustomerAvt}`
-                              : `${AVATAR_BASE}/avtDf.png`
-                          }
-                          alt={feedback.CustomerName}
-                          className="w-12 h-12 rounded-full"
-                        />
+  src={
+    feedback.AccountAvatar 
+      ? (feedback.AccountAvatar.startsWith('http')
+          ? feedback.AccountAvatar
+          : `${AVATAR_BASE}/${feedback.AccountAvatar}`)
+      : `${AVATAR_BASE}/avtDf.png`
+  }
+  alt={feedback.AccountName}
+  className="w-12 h-12 rounded-full flex-shrink-0"
+/>
+                        
                         <div className="flex-1">
                           <div className="flex justify-between items-start mb-2">
                             <div>
-                              <p className="font-semibold">{feedback.CustomerName}</p>
-                              <p className="text-sm text-gray-500">
-                                Đánh giá về: {feedback.ProductName}
+                              <h4 className="font-semibold text-gray-800">
+                                {feedback.AccountName}
+                              </h4>
+                              <p className="text-sm text-gray-500 mt-1">
+                                Đánh giá về: {feedback.ProductName || "sản phẩm"}
                               </p>
                             </div>
-                            <span className="text-sm text-gray-400">
-                              {new Date(feedback.CreatedAt).toLocaleDateString('vi-VN')}
-                            </span>
+                            <div className="text-right">
+                              {renderStars(feedback.Score)}
+                              <span className="text-xs text-gray-400 block mt-1">
+                                {new Date(feedback.CreatedAt).toLocaleDateString('vi-VN')}
+                              </span>
+                            </div>
                           </div>
                           
-                          <div className="mb-3">
-                            {renderStars(feedback.Score)}
-                          </div>
+                          <p className="text-gray-700 mt-3">
+                            {feedback.Content}
+                          </p>
                           
-                          <p className="text-gray-700 mb-3">{feedback.Content}</p>
-                          
-                          {feedback.Image && (
-                            <img
-                              src={`${FEEDBACK_IMAGE_BASE}/${feedback.Image}`}
-                              alt="Feedback"
-                              className="h-40 rounded-lg object-cover"
-                            />
-                          )}
+                          {/* Hiển thị nhiều ảnh */}
+{feedback.Images && feedback.Images.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-3">
+                          {feedback.Images.map((image, imgIndex) => {
+                            // Xử lý URL ảnh feedback
+                            const imageUrl = typeof image === 'string' 
+                              ? (image.startsWith('http') 
+                                  ? image 
+                                  : `${FEEDBACK_IMAGE_BASE}/${image}`)
+                              : '';
+                            
+                            return (
+                              <img
+                                key={imgIndex}
+                                src={imageUrl}
+                                alt={`Hình ${imgIndex + 1}`}
+                                className="h-24 w-24 object-cover rounded-lg cursor-pointer hover:opacity-90"
+                                onClick={() => {
+                                  const modalImage = document.getElementById('modal-image');
+                                  const modal = document.getElementById('image-modal');
+                                  if (modalImage && modal) {
+                                    modalImage.src = imageUrl;
+                                    modal.classList.remove('hidden');
+                                  }
+                                }}
+                              />
+                            );
+                          })}
+                        </div>
+                      )}
                         </div>
                       </div>
                     </div>
                   ))}
                 </div>
-              </div>
-            </div>
-          )}
+
+                {/* Load More Button */}
+                {feedbacks.length < stats.totalFeedbacks && (
+                  <div className="text-center mt-8">
+                    <button
+                      onClick={loadMoreFeedbacks}
+                      disabled={feedbackLoading}
+                      className="px-6 py-2.5 bg-white border border-gray-300 cursor-pointer text-gray-700 rounded-lg hover:bg-gray-50 transition inline-flex items-center gap-2"
+                    >
+                      {feedbackLoading ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-orange-500"></div>
+                          Đang tải...
+                        </>
+                      ) : (
+                        <>
+                          Xem thêm đánh giá
+                          <ChevronLeft className="w-4 h-4 rotate-90" />
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </div>
       </main>
+
+      {/* Image Modal */}
+      <div id="image-modal" className="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80">
+        <div className="relative max-w-4xl max-h-[90vh]">
+          <button
+            onClick={() => document.getElementById('image-modal').classList.add('hidden')}
+            className="absolute -top-10 right-0 p-2 text-white hover:text-gray-300 cursor-pointer"
+          >
+          </button>
+          <img
+            id="modal-image"
+            src=""
+            alt="Ảnh đánh giá"
+            className="max-w-full max-h-[80vh] object-contain rounded-lg"
+          />
+        </div>
+      </div>
 
       {/* Chat Components */}
       {canChat && (
