@@ -113,101 +113,101 @@ const SellerChatContent = ({ chat, currentUserId, messages = [], onSendMessage, 
     const fileURL = message.FileURL || `/api/files/${message.FileURL?.split('/').pop()}`;
     
     return (
-      <div className="max-w-xs">
-        <div className={`rounded-lg overflow-hidden ${isImage ? 'border' : ''}`}>
-          {isImage ? (
-            <div className="relative group">
-              <img
-                src={fileURL}
-                alt={message.FileName || "Image"}
-                className="max-w-full max-h-64 object-contain cursor-pointer bg-gray-100"
+    <div className="max-w-xs">
+      <div className={`rounded-lg overflow-hidden ${isImage ? 'border' : ''}`}>
+        {isImage ? (
+          <div className="relative group">
+            <img
+              src={fileURL}
+              alt={message.FileName || "Image"}
+              className="max-w-full max-h-64 object-contain cursor-pointer bg-gray-100 group-hover:blur-sm transition-all duration-200"
+              onClick={() => setImageViewer({
+                url: fileURL,
+                name: message.FileName || "Image"
+              })}
+            />
+            <div className="absolute inset-0 backdrop-blur-0 group-hover:backdrop-blur-[2px] bg-white/0 group-hover:bg-white/5 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
+              <button
                 onClick={() => setImageViewer({
                   url: fileURL,
                   name: message.FileName || "Image"
                 })}
-              />
-              <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
-                <button
-                  onClick={() => setImageViewer({
-                    url: fileURL,
-                    name: message.FileName || "Image"
-                  })}
-                  className="p-2 bg-white bg-opacity-80 rounded-full"
-                >
-                  <FaImage className="text-gray-700" />
-                </button>
-              </div>
-            </div>
-          ) : isVideo ? (
-            <div className="relative">
-              <video
-                controls
-                className="max-w-full max-h-64 bg-black"
-                poster={message.ThumbnailURL}
+                className="p-2 bg-white/80 backdrop-blur-sm cursor-pointer rounded-full shadow-sm hover:bg-white hover:shadow-md transition-all"
               >
-                <source src={fileURL} type={message.FileMimeType || 'video/mp4'} />
-                Trình duyệt của bạn không hỗ trợ video.
-              </video>
+                <FaImage className="text-gray-700" />
+              </button>
             </div>
-          ) : isAudio ? (
-            <div className="p-4 bg-gray-100 rounded-lg">
-              <div className="flex items-center space-x-3">
-                <FaMusic className="text-2xl text-green-500 flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium truncate text-ellipsis overflow-hidden" title={message.FileName || "Audio file"}>
-                    {message.FileName || "Audio file"}
-                  </p>
-                  <audio
-                    controls
-                    className="w-full mt-2"
-                    src={fileURL}
-                  />
-                </div>
+          </div>
+        ) : isVideo ? (
+          <div className="relative">
+            <video
+              controls
+              className="max-w-full max-h-64 bg-black"
+              poster={message.ThumbnailURL}
+            >
+              <source src={fileURL} type={message.FileMimeType || 'video/mp4'} />
+              Trình duyệt của bạn không hỗ trợ video.
+            </video>
+          </div>
+        ) : isAudio ? (
+          <div className="p-4 bg-gray-100 rounded-lg">
+            <div className="flex items-center space-x-3">
+              <FaMusic className="text-2xl text-green-500 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="font-medium truncate text-ellipsis overflow-hidden" title={message.FileName || "Audio file"}>
+                  {message.FileName || "Audio file"}
+                </p>
+                <audio
+                  controls
+                  className="w-full mt-2"
+                  src={fileURL}
+                />
               </div>
             </div>
-          ) : (
-            <div className="p-4 bg-gray-100 rounded-lg">
-              <div className="flex items-center space-x-3">
-                <div className="text-2xl flex-shrink-0">
-                  {getFileIcon(message.FileMimeType, message.FileName)}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p 
-                    className="font-medium truncate text-ellipsis overflow-hidden"
-                    title={message.FileName || "File"}
-                  >
-                    {message.FileName || "File"}
-                  </p>
-                  {message.FileSize && (
-                    <p className="text-sm text-gray-500">
-                      {(message.FileSize / 1024).toFixed(1)} KB
-                    </p>
-                  )}
-                </div>
-                <a
-                  href={fileURL}
-                  download={message.FileName || "file"}
-                  className="p-2 hover:bg-gray-200 rounded-full transition-colors flex-shrink-0"
-                  title="Download"
+          </div>
+        ) : (
+          <div className="p-4 bg-gray-100 rounded-lg">
+            <div className="flex items-center space-x-3">
+              <div className="text-2xl flex-shrink-0">
+                {getFileIcon(message.FileMimeType, message.FileName)}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p 
+                  className="font-medium truncate text-ellipsis overflow-hidden"
+                  title={message.FileName || "File"}
                 >
-                  <FaDownload />
-                </a>
+                  {message.FileName || "File"}
+                </p>
+                {message.FileSize && (
+                  <p className="text-sm text-gray-500">
+                    {(message.FileSize / 1024).toFixed(1)} KB
+                  </p>
+                )}
               </div>
+              <a
+                href={fileURL}
+                download={message.FileName || "file"}
+                className="p-2 hover:bg-gray-200 rounded-full transition-colors flex-shrink-0"
+                title="Download"
+              >
+                <FaDownload />
+              </a>
             </div>
-          )}
-        </div>
-        {message.Content && message.Content !== message.FileName && (
-          <p className="mt-2 text-sm text-gray-700 break-words whitespace-pre-wrap" 
-             style={{ 
-               maxWidth: '100%',
-               wordBreak: 'break-word',
-               overflowWrap: 'break-word'
-             }}>
-            {message.Content}
-          </p>
+          </div>
         )}
       </div>
-    );
+      {message.Content && message.Content !== message.FileName && (
+        <p className="mt-2 text-sm text-gray-700 break-words whitespace-pre-wrap" 
+           style={{ 
+             maxWidth: '100%',
+             wordBreak: 'break-word',
+             overflowWrap: 'break-word'
+           }}>
+          {message.Content}
+        </p>
+      )}
+    </div>
+  );
   };
 
   // Lọc tin nhắn trùng lặp
@@ -252,7 +252,7 @@ const SellerChatContent = ({ chat, currentUserId, messages = [], onSendMessage, 
                 <a
                   href={imageViewer.url}
                   download={imageViewer.name}
-                  className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+                  className="p-2 text-gray-600 cursor-pointer hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
                   title="Download"
                   onClick={(e) => e.stopPropagation()}
                 >
@@ -261,7 +261,7 @@ const SellerChatContent = ({ chat, currentUserId, messages = [], onSendMessage, 
                 {/* Nút đóng */}
                 <button
                   onClick={() => setImageViewer(null)}
-                  className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
+                  className="p-2 text-gray-600 cursor-pointer hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
                   title="Đóng"
                 >
                   <FaTimes size={24} />
@@ -324,7 +324,7 @@ const SellerChatContent = ({ chat, currentUserId, messages = [], onSendMessage, 
                     whiteSpace: "pre-wrap",
                     overflowWrap: "anywhere",
                     backgroundColor: isMe ? "#f97316" : "#fff",
-                    color: isMe ? "#000000" : "#000",
+                    color: isMe ? "#000" : "#000",
                     border: isMe ? "none" : "1px solid #e5e7eb",
                     fontFamily: '"Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif'
                   }}

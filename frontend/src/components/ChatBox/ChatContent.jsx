@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import twemoji from "twemoji";
-import { FaPaperPlane, FaPaperclip, FaFile, FaDownload, FaImage, FaVideo, FaMusic, FaFilePdf, FaFileWord, FaFileExcel, FaFileArchive } from "react-icons/fa";
+import { FaPaperPlane, FaPaperclip, FaFile, FaDownload, FaImage, FaVideo, FaMusic, FaFilePdf, FaFileWord, FaFileExcel, FaFileArchive, FaTimes } from "react-icons/fa";
 import FileUploadModal from "./FileUploadModal";
 
 const MAX_LEN = 500;
@@ -97,116 +97,87 @@ const ChatContent = ({ chat, currentUserId, messages = [], onSendMessage, onNewM
     const fileURL = message.FileURL || `/api/files/${message.FileURL?.split('/').pop()}`;
     
     return (
-      <div className="max-w-xs">
-        <div className={`rounded-lg overflow-hidden ${isImage ? 'border' : ''}`}>
-          {isImage ? (
-            <div className="relative group">
-              <img
-                src={fileURL}
-                alt={message.FileName || "Image"}
-                className="max-w-full max-h-64 object-contain cursor-pointer bg-gray-100"
+    <div className="max-w-xs">
+      <div className={`rounded-lg overflow-hidden ${isImage ? 'border' : ''}`}>
+        {isImage ? (
+          <div className="relative group">
+            <img
+              src={fileURL}
+              alt={message.FileName || "Image"}
+              className="max-w-full max-h-64 object-contain cursor-pointer bg-gray-100 group-hover:blur-sm transition-all duration-200"
+              onClick={() => setImageViewer({
+                url: fileURL,
+                name: message.FileName || "Image"
+              })}
+            />
+            <div className="absolute inset-0 backdrop-blur-0 group-hover:backdrop-blur-[2px] bg-white/0 group-hover:bg-white/5 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
+              <button
                 onClick={() => setImageViewer({
                   url: fileURL,
                   name: message.FileName || "Image"
                 })}
-              />
-              <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
-                <button
-                  onClick={() => setImageViewer({
-                    url: fileURL,
-                    name: message.FileName || "Image"
-                  })}
-                  className="p-2 bg-white bg-opacity-80 rounded-full"
-                >
-                  <FaImage className="text-gray-700" />
-                </button>
-              </div>
-            </div>
-          ) : isVideo ? (
-            <div className="relative">
-              <video
-                controls
-                className="max-w-full max-h-64 bg-black"
-                poster={message.ThumbnailURL}
+                className="p-2 bg-white/80 backdrop-blur-sm cursor-pointer rounded-full shadow-sm hover:bg-white hover:shadow-md transition-all"
               >
-                <source src={fileURL} type={message.FileMimeType || 'video/mp4'} />
-                Trình duyệt của bạn không hỗ trợ video.
-              </video>
+                <FaImage className="text-gray-700" />
+              </button>
             </div>
-          ) : isAudio ? (
-            <div className="p-4 bg-gray-100 rounded-lg">
-              <div className="flex items-center space-x-3">
-                <FaMusic className="text-2xl text-green-500" />
-                <div className="flex-1">
-                  <p className="font-medium truncate">{message.FileName || "Audio file"}</p>
-                  <audio
-                    controls
-                    className="w-full mt-2"
-                    src={fileURL}
-                  />
-                </div>
+          </div>
+        ) : isVideo ? (
+          <div className="relative">
+            <video
+              controls
+              className="max-w-full max-h-64 bg-black"
+              poster={message.ThumbnailURL}
+            >
+              <source src={fileURL} type={message.FileMimeType || 'video/mp4'} />
+              Trình duyệt của bạn không hỗ trợ video.
+            </video>
+          </div>
+        ) : isAudio ? (
+          <div className="p-4 bg-gray-100 rounded-lg">
+            <div className="flex items-center space-x-3">
+              <FaMusic className="text-2xl text-green-500" />
+              <div className="flex-1">
+                <p className="font-medium truncate">{message.FileName || "Audio file"}</p>
+                <audio
+                  controls
+                  className="w-full mt-2"
+                  src={fileURL}
+                />
               </div>
             </div>
-          ) : (
-            <div className="p-4 bg-gray-100 rounded-lg">
-              <div className="flex items-center space-x-3">
-                <div className="text-2xl">
-                  {getFileIcon(message.FileMimeType, message.FileName)}
-                </div>
-                <div className="flex-1">
-                  <p className="font-medium truncate">{message.FileName || "File"}</p>
-                  {message.FileSize && (
-                    <p className="text-sm text-gray-500">
-                      {(message.FileSize / 1024).toFixed(1)} KB
-                    </p>
-                  )}
-                </div>
-                <a
-                  href={fileURL}
-                  download={message.FileName || "file"}
-                  className="p-2 hover:bg-gray-200 rounded-full transition-colors"
-                  title="Download"
-                >
-                  <FaDownload />
-                </a>
+          </div>
+        ) : (
+          <div className="p-4 bg-gray-100 rounded-lg">
+            <div className="flex items-center space-x-3">
+              <div className="text-2xl">
+                {getFileIcon(message.FileMimeType, message.FileName)}
               </div>
+              <div className="flex-1">
+                <p className="font-medium truncate">{message.FileName || "File"}</p>
+                {message.FileSize && (
+                  <p className="text-sm text-gray-500">
+                    {(message.FileSize / 1024).toFixed(1)} KB
+                  </p>
+                )}
+              </div>
+              <a
+                href={fileURL}
+                download={message.FileName || "file"}
+                className="p-2 hover:bg-gray-200 rounded-full transition-colors"
+                title="Download"
+              >
+                <FaDownload />
+              </a>
             </div>
-          )}
-        </div>
-        {message.Content && message.Content !== message.FileName && (
-          <p className="mt-2 text-sm text-gray-700">{message.Content}</p>
+          </div>
         )}
       </div>
-    );
-  };
-
-  const ImageViewerModal = () => {
-    if (!imageViewer) return null;
-
-    return (
-      <div
-        className="fixed inset-0 bg-black bg-opacity-90 z-[99999] flex items-center justify-center"
-        onClick={() => setImageViewer(null)}
-      >
-        <div className="relative max-w-4xl max-h-[90vh]">
-          <button
-            onClick={() => setImageViewer(null)}
-            className="absolute top-4 right-4 text-white text-2xl z-10 p-2 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors"
-          >
-            ✕
-          </button>
-          <img
-            src={imageViewer.url}
-            alt={imageViewer.name}
-            className="max-w-full max-h-[90vh] object-contain"
-            onClick={(e) => e.stopPropagation()}
-          />
-          <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white p-4">
-            <p className="truncate">{imageViewer.name}</p>
-          </div>
-        </div>
-      </div>
-    );
+      {message.Content && message.Content !== message.FileName && (
+        <p className="mt-2 text-sm text-gray-700">{message.Content}</p>
+      )}
+    </div>
+  );
   };
 
   const renderMessage = (text) => {
@@ -225,7 +196,54 @@ const ChatContent = ({ chat, currentUserId, messages = [], onSendMessage, onNewM
 
   return (
     <div className="flex-1 flex flex-col relative">
-      <ImageViewerModal />
+      {/* Image Viewer Modal giống SellerChat */}
+      {imageViewer && (
+        <div
+          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-[99999] flex items-center justify-center"
+          onClick={() => setImageViewer(null)}
+        >
+          <div 
+            className="relative max-w-4xl max-h-[90vh] bg-white rounded-lg shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header với tiêu đề và nút đóng */}
+            <div className="absolute top-0 left-0 right-0 bg-white/80 backdrop-blur-sm z-10 flex items-center justify-between p-3 border-b">
+              <div className="text-sm font-medium text-gray-700 truncate flex-1 mr-4">
+                {imageViewer.name}
+              </div>
+              <div className="flex items-center gap-2">
+                {/* Nút download */}
+                <a
+                  href={imageViewer.url}
+                  download={imageViewer.name}
+                  className="p-2 text-gray-600 cursor-pointer hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+                  title="Download"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <FaDownload size={20} />
+                </a>
+                {/* Nút đóng */}
+                <button
+                  onClick={() => setImageViewer(null)}
+                  className="p-2 text-gray-600 cursor-pointer hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
+                  title="Đóng"
+                >
+                  <FaTimes size={24} />
+                </button>
+              </div>
+            </div>
+            
+            {/* Ảnh */}
+            <div className="pt-12 h-full flex items-center justify-center p-4">
+              <img
+                src={imageViewer.url}
+                alt={imageViewer.name}
+                className="max-w-full max-h-[calc(90vh-3rem)] object-contain"
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {showFileUpload && (
         <FileUploadModal
@@ -275,7 +293,7 @@ const ChatContent = ({ chat, currentUserId, messages = [], onSendMessage, onNewM
                     whiteSpace: "pre-wrap",
                     overflowWrap: "anywhere",
                     backgroundColor: isMe ? "#f97316" : "#fff",
-                    color: isMe ? "#000000" : "#000",
+                    color: isMe ? "#000" : "#000",
                     border: isMe ? "none" : "1px solid #e5e7eb",
                     fontFamily: '"Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif'
                   }}
