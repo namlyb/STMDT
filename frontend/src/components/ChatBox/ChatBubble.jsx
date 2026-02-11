@@ -10,18 +10,24 @@ export default function ChatBubble({ sellerId, visible = true, onOpen }) {
 
   const loadChats = async () => {
     if (!buyerId) return;
-    const res = await axios.get("/chats/buyer", { params: { buyerId } });
-    setChats(res.data);
+    try {
+      const res = await axios.get("/chats/buyer", { params: { buyerId } });
+      setChats(res.data);
+    } catch (error) {
+      console.error("Error loading chats:", error);
+    }
   };
 
   useEffect(() => {
-    loadChats();
-    // Polling để nhận tin nhắn mới
-    const interval = setInterval(loadChats, 5000);
-    return () => clearInterval(interval);
+    if (buyerId) {
+      loadChats();
+    }
   }, [buyerId]);
 
-  const totalUnread = useMemo(() => chats.reduce((sum, c) => sum + (c.UnreadCount || 0), 0), [chats]);
+  const totalUnread = useMemo(() => 
+    chats.reduce((sum, c) => sum + (c.UnreadCount || 0), 0), 
+    [chats]
+  );
 
   if (!visible) return null;
 
@@ -30,9 +36,6 @@ export default function ChatBubble({ sellerId, visible = true, onOpen }) {
       <BuyerChat
         sellerId={sellerId}
         onClose={() => setOpen(false)}
-        onRead={(chatId) =>
-          setChats(prev => prev.map(c => (c.ChatId === chatId ? { ...c, UnreadCount: 0 } : c)))
-        }
       />
     );
 
@@ -42,7 +45,7 @@ export default function ChatBubble({ sellerId, visible = true, onOpen }) {
         if (onOpen) onOpen();
         else setOpen(true);
       }}
-      className="fixed bottom-6 right-6 w-12 h-12 bg-orange-500 text-white rounded-full cursor-pointer shadow-xl flex items-center justify-center z-[99999]"
+      className="fixed bottom-6 right-6 w-12 h-12 bg-orange-500 text-white rounded-full cursor-pointer shadow-xl flex items-center justify-center z-[99999] hover:bg-orange-600 transition-colors"
     >
       <span className="text-lg font-bold select-none">S</span>
       {totalUnread > 0 && (

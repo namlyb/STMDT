@@ -26,6 +26,7 @@ const shipTypeRouter = require("./routes/ShipTypeRouter");
 const platformFeeRouter = require("./routes/PlatFormFeeRouter");
 const paymentMethodRouter = require('./routes/PaymentMethodRouter');
 const feedbackRouter = require("./routes/FeedbackRouter");
+const fileRouter = require("./routes/FileRouter");
 
 const app = express();
 const server = http.createServer(app);
@@ -57,7 +58,7 @@ app.use("/api/shiptypes", shipTypeRouter);
 app.use("/api/platform-fees", platformFeeRouter);
 app.use('/api/payment-methods', paymentMethodRouter);
 app.use("/api/feedback", feedbackRouter);
-
+app.use("/api/files", fileRouter);
 
 // Avatar images
 app.use(
@@ -88,7 +89,10 @@ app.use(
   "/uploads/feedback",
   express.static(path.join(__dirname, "uploads/feedback"))
 );
-
+app.use(
+  "/uploads/File", // Thêm dòng này
+  express.static(path.join(__dirname, "uploads/File"))
+);
 // Start server AFTER DB connected
 const PORT = process.env.PORT || 8080;
 
