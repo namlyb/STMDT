@@ -63,7 +63,7 @@ const MessageController = {
   },
 
   // ================= SEND FILE MESSAGE =================
-  sendFileMessage: async (req, res) => {
+sendFileMessage: async (req, res) => {
     try {
       const { chatId, senderId, content, fileId, messageType = 'file' } = req.body;
 
@@ -101,11 +101,27 @@ const MessageController = {
         return res.status(200).json(duplicate);
       }
 
+      // Xử lý content: nếu không có content hoặc rỗng, để null
+      let finalContent = content && content.trim() !== '' ? content.trim() : null;
+
+      // Nếu content là null, đặt content mặc định theo loại file
+      if (finalContent === null) {
+        if (finalMessageType === 'image') {
+          finalContent = 'Đã gửi một ảnh';
+        } else if (finalMessageType === 'audio') {
+          finalContent = 'Đã gửi một audio';
+        } else if (finalMessageType === 'video') {
+          finalContent = 'Đã gửi một video';
+        } else {
+          finalContent = null; // Các loại file khác để null
+        }
+      }
+
       // Tạo tin nhắn
       const msg = await Message.createWithFile({
         chatId,
         senderId,
-        content: content || file.OriginalName,
+        content: finalContent, // Có thể là null
         messageType: finalMessageType,
         fileURL: `/api/files/${fileId}`,
         fileName: file.OriginalName,

@@ -275,7 +275,7 @@ const ChatContent = ({ chat, currentUserId, messages = [], onSendMessage, onNewM
                     whiteSpace: "pre-wrap",
                     overflowWrap: "anywhere",
                     backgroundColor: isMe ? "#f97316" : "#fff",
-                    color: isMe ? "#fff" : "#000",
+                    color: isMe ? "#000000" : "#000",
                     border: isMe ? "none" : "1px solid #e5e7eb",
                     fontFamily: '"Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif'
                   }}

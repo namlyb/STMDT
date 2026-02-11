@@ -6,6 +6,7 @@ import { API_URL } from "../../config";
 import { io } from "socket.io-client";
 import { useNavigate } from "react-router-dom";
 import { FaPaperPlane, FaPaperclip, FaFile, FaDownload, FaImage, FaVideo, FaMusic, FaFilePdf, FaFileWord, FaFileExcel, FaFileArchive, FaTimes } from "react-icons/fa";
+import FileUploadModal from "../../components/ChatBox/FileUploadModal";
 import twemoji from "twemoji";
 
 const socket = io(API_URL, {
@@ -72,9 +73,6 @@ const SellerChatContent = ({ chat, currentUserId, messages = [], onSendMessage, 
   const [input, setInput] = useState("");
   const [showFileUpload, setShowFileUpload] = useState(false);
   const [imageViewer, setImageViewer] = useState(null);
-  const [uploadingFile, setUploadingFile] = useState(false);
-  const [fileError, setFileError] = useState("");
-  const fileInputRef = useRef(null);
   const scrollRef = useRef(null);
   
   const MAX_LEN = 500;
@@ -106,57 +104,6 @@ const SellerChatContent = ({ chat, currentUserId, messages = [], onSendMessage, 
     if (fileName?.endsWith('.xls') || fileName?.endsWith('.xlsx')) return <FaFileExcel className="text-green-500" />;
     if (mimeType.includes('zip') || mimeType.includes('compressed')) return <FaFileArchive className="text-yellow-500" />;
     return <FaFile className="text-gray-500" />;
-  };
-
-  const handleFileSelect = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    // Kiểm tra kích thước file (10MB)
-    if (file.size > 10 * 1024 * 1024) {
-      setFileError("File vượt quá 10MB. Vui lòng chọn file nhỏ hơn.");
-      return;
-    }
-
-    setUploadingFile(true);
-    setFileError("");
-
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('uploadedBy', currentUserId);
-    formData.append('chatId', chat.ChatId);
-
-    try {
-      // 1. Upload file
-      const uploadRes = await axios.post('/files/upload', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-
-      // 2. Gửi tin nhắn với file
-      const messageRes = await axios.post('/messages/file', {
-        chatId: chat.ChatId,
-        senderId: currentUserId,
-        content: '',
-        fileId: uploadRes.data.fileId,
-      });
-
-      if (onNewMessage) {
-        onNewMessage(messageRes.data);
-      }
-      
-      setShowFileUpload(false);
-    } catch (error) {
-      console.error('Upload error:', error);
-      setFileError('Upload file thất bại. Vui lòng thử lại.');
-    } finally {
-      setUploadingFile(false);
-      // Reset file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    }
   };
 
   const renderFileMessage = (message) => {
@@ -270,7 +217,22 @@ const SellerChatContent = ({ chat, currentUserId, messages = [], onSendMessage, 
 
   return (
     <div className="flex-1 flex flex-col min-w-0">
-      {/* Image Viewer Modal - Updated Design */}
+      {/* File Upload Modal */}
+      {showFileUpload && (
+        <FileUploadModal
+          chatId={chat?.ChatId}
+          senderId={currentUserId}
+          onClose={() => setShowFileUpload(false)}
+          onSuccess={(newMessage) => {
+            if (onNewMessage) {
+              onNewMessage(newMessage);
+            }
+            setShowFileUpload(false);
+          }}
+        />
+      )}
+
+      {/* Image Viewer Modal */}
       {imageViewer && (
         <div
           className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center"
@@ -319,57 +281,6 @@ const SellerChatContent = ({ chat, currentUserId, messages = [], onSendMessage, 
         </div>
       )}
 
-      {/* File Upload Modal */}
-      {showFileUpload && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-40">
-          <div className="bg-white rounded-lg w-full max-w-md mx-4">
-            <div className="p-4 border-b flex justify-between items-center">
-              <h3 className="text-lg font-semibold">Gửi File</h3>
-              <button 
-                onClick={() => setShowFileUpload(false)}
-                className="text-gray-500 hover:text-gray-700"
-                disabled={uploadingFile}
-              >
-                <FaTimes />
-              </button>
-            </div>
-
-            <div className="p-4">
-              <div
-                onClick={() => fileInputRef.current?.click()}
-                className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-blue-500 transition-colors"
-              >
-                <FaPaperclip className="text-4xl text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-600">Nhấn để chọn file</p>
-                <p className="text-sm text-gray-400 mt-2">
-                  Hỗ trợ: ảnh, video, audio, zip, pdf, word, excel...
-                </p>
-                <p className="text-sm text-gray-400">Tối đa 10MB</p>
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleFileSelect}
-                  className="hidden"
-                  disabled={uploadingFile}
-                />
-              </div>
-
-              {fileError && (
-                <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-                  <p className="text-red-600 text-sm">{fileError}</p>
-                </div>
-              )}
-
-              {uploadingFile && (
-                <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <p className="text-blue-600 text-sm text-center">Đang upload file...</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Messages Area */}
       <div 
         ref={scrollRef} 
@@ -413,7 +324,7 @@ const SellerChatContent = ({ chat, currentUserId, messages = [], onSendMessage, 
                     whiteSpace: "pre-wrap",
                     overflowWrap: "anywhere",
                     backgroundColor: isMe ? "#f97316" : "#fff",
-                    color: isMe ? "#fff" : "#000",
+                    color: isMe ? "#000000" : "#000",
                     border: isMe ? "none" : "1px solid #e5e7eb",
                     fontFamily: '"Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif'
                   }}
