@@ -6,7 +6,6 @@ const path = require("path");
 const http = require("http");
 const { Server } = require("socket.io");
 
-
 const { connectDB } = require("./config/db");
 const accountRoute = require("./routes/AccountRouter");
 const productRoute = require("./routes/ProductRouter");
@@ -27,15 +26,20 @@ const platformFeeRouter = require("./routes/PlatFormFeeRouter");
 const paymentMethodRouter = require('./routes/PaymentMethodRouter');
 const feedbackRouter = require("./routes/FeedbackRouter");
 const fileRouter = require("./routes/FileRouter");
+const callRouter = require("./routes/CallRouter");
 
 const app = express();
 const server = http.createServer(app);
+
 // Middlewares
 app.use(cors({
-  origin: "http://localhost:5173",
-  credentials: true
+  origin: true,
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
 }));
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use("/uploads", express.static("uploads"));
 
@@ -59,63 +63,101 @@ app.use("/api/platform-fees", platformFeeRouter);
 app.use('/api/payment-methods', paymentMethodRouter);
 app.use("/api/feedback", feedbackRouter);
 app.use("/api/files", fileRouter);
+app.use("/api/calls", callRouter);
 
-// Avatar images
+// Static files
 app.use(
   "/uploads/AccountAvatar",
   express.static(path.join(__dirname, "uploads/AccountAvatar"))
 );
-
-// Product images
 app.use(
   "/uploads/ProductImage",
   express.static(path.join(__dirname, "uploads/ProductImage"))
 );
-
-// Category images
 app.use(
   "/uploads/CategoryImage",
   express.static(path.join(__dirname, "uploads/CategoryImage"))
 );
-
-// Ads images
 app.use(
   "/uploads/AdsImage",
   express.static(path.join(__dirname, "uploads/AdsImage"))
 );
-
-// Feedback images
 app.use(
   "/uploads/feedback",
   express.static(path.join(__dirname, "uploads/feedback"))
 );
 app.use(
-  "/uploads/File", // Thêm dòng này
+  "/uploads/File",
   express.static(path.join(__dirname, "uploads/File"))
 );
-// Start server AFTER DB connected
-const PORT = process.env.PORT || 8080;
 
-
+// Socket.io
 const io = new Server(server, {
   cors: {
-    origin: "*"
-  }
+    origin: "http://localhost:5173",
+    methods: ["GET", "POST"],
+    credentials: true
+  },
+  transports: ['websocket', 'polling']
 });
 
 io.on("connection", (socket) => {
   console.log("🟢 Client connected:", socket.id);
 
+  // Tham gia user room
+  socket.on("registerUser", (userId) => {
+    socket.join(`user_${userId}`);
+    console.log(`User ${userId} registered with socket ${socket.id}`);
+  });
+
+  // Tham gia chat room
   socket.on("joinChat", (chatId) => {
     socket.join(`chat_${chatId}`);
+    console.log(`Client ${socket.id} joined chat_${chatId}`);
+  });
+
+  // Tham gia call room
+  socket.on("joinCall", (callId) => {
+    socket.join(`call_${callId}`);
+    console.log(`Client ${socket.id} joined call_${callId}`);
+  });
+
+  // Rời chat room
+  socket.on("leaveChat", (chatId) => {
+    socket.leave(`chat_${chatId}`);
+    console.log(`Client ${socket.id} left chat_${chatId}`);
+  });
+
+  // Rời call room
+  socket.on("leaveCall", (callId) => {
+    socket.leave(`call_${callId}`);
+    console.log(`Client ${socket.id} left call_${callId}`);
+  });
+
+  // Xử lý tín hiệu WebRTC
+  socket.on("webrtcSignal", (data) => {
+    const { callId, signalType, signalData, senderId } = data;
+    
+    console.log(`WebRTC signal from ${senderId} to call ${callId}: ${signalType}`);
+    
+    // Gửi tín hiệu đến tất cả client trong room (trừ người gửi)
+    socket.to(`call_${callId}`).emit("webrtcSignal", {
+      callId,
+      signalType,
+      signalData,
+      senderId
+    });
   });
 
   socket.on("disconnect", () => {
-    console.log("🔴 Client disconnected");
+    console.log("🔴 Client disconnected:", socket.id);
   });
 });
 
 app.set("io", io);
+
+// Start server
+const PORT = process.env.PORT || 8080;
 
 server.listen(PORT, async () => {
   await connectDB();
