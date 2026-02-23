@@ -15,43 +15,40 @@ export default function ListProduct() {
   // CHECK ROLE
   useEffect(() => {
     const roleId = sessionStorage.getItem("roleId");
-
     if (roleId !== "3") {
       alert("Bạn không có quyền truy cập");
       navigate("/");
     }
   }, [navigate]);
 
-  // LOAD PRODUCTS - SỬA LỖI: Xử lý response đúng cấu trúc
+  // LOAD PRODUCTS - SỬA LỖI DEPENDENCY
   useEffect(() => {
+    let isMounted = true;
     const fetchProducts = async () => {
       if (!account) return;
       try {
         const res = await axios.get(`/products/seller/${account.AccountId}`);
-        
         // API trả về { success: true, products: [...] }
-        // Cần lấy res.data.products thay vì res.data
-        // console.log("API Response:", res.data); // Debug
-        
         if (res.data && res.data.success) {
-          // Đảm bảo lấy đúng mảng products từ response
           const productsArray = res.data.products || [];
-          setProducts(Array.isArray(productsArray) ? productsArray : []);
+          if (isMounted) setProducts(Array.isArray(productsArray) ? productsArray : []);
         } else {
-          // Nếu response không đúng định dạng
-          setProducts([]);
+          if (isMounted) setProducts([]);
           console.error("API response format incorrect:", res.data);
         }
       } catch (err) {
         console.error("Load seller products error:", err);
-        alert("Lỗi khi tải sản phẩm");
-        setProducts([]);
+        if (isMounted) {
+          alert("Lỗi khi tải sản phẩm");
+          setProducts([]);
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
     fetchProducts();
-  }, [account]);
+    return () => { isMounted = false; };
+  }, [account?.AccountId]); // chỉ phụ thuộc vào AccountId
 
   // SEARCH
   const filteredProducts = products.filter(p =>
@@ -59,14 +56,13 @@ export default function ListProduct() {
   );
 
   // TOGGLE STATUS
-  const toggleStatus = async (productId, status, e) => {
+  const toggleStatus = async (productId, currentStatus, e) => {
     e.stopPropagation();
     try {
-      await axios.put(`/products/${productId}/status`, { status: !status });
+      const newStatus = currentStatus === 1 ? 0 : 1;
+      await axios.put(`/products/${productId}/status`, { status: newStatus });
       setProducts(prev =>
-        prev.map(p =>
-          p.ProductId === productId ? { ...p, Status: !status ? 1 : 0 } : p
-        )
+        prev.map(p => p.ProductId === productId ? { ...p, Status: newStatus } : p)
       );
     } catch (err) {
       console.error("Toggle status error:", err);
@@ -74,8 +70,28 @@ export default function ListProduct() {
     }
   };
 
-  if (loading) return <div className="p-4">Đang tải sản phẩm...</div>;
-  
+  // Hàm lấy URL ảnh (hỗ trợ cả đường dẫn tương đối và tuyệt đối)
+  const getImageUrl = (image) => {
+    if (!image) return null;
+    if (image.startsWith('http')) return image;
+    if (image.startsWith('/uploads')) return image;
+    return `/uploads/ProductImage/${image}`;
+  };
+
+  if (loading) {
+    return (
+      <>
+        <Header />
+        <div className="max-w-6xl mx-auto mt-4 flex gap-6 items-start">
+          <SellerSidebar />
+          <div className="flex-1 p-8 text-center">
+            <div className="p-4">Đang tải sản phẩm...</div>
+          </div>
+        </div>
+      </>
+    );
+  }
+
   if (!Array.isArray(products) || products.length === 0) {
     return (
       <>
@@ -120,12 +136,12 @@ export default function ListProduct() {
                   {p.Image ? (
                     <>
                       <img
-                        src={p.Image}
+                        src={getImageUrl(p.Image)}
                         className="absolute inset-0 w-full h-full object-cover blur-xl scale-110"
                         alt={p.ProductName || "Product"}
                       />
                       <img
-                        src={p.Image}
+                        src={getImageUrl(p.Image)}
                         className="relative z-10 h-full mx-auto object-contain"
                         alt={p.ProductName || "Product"}
                       />
@@ -154,7 +170,6 @@ export default function ListProduct() {
                   >
                     {p.Status === 1 ? "Đang bán" : "Ngừng bán"}
                   </span>
-
                   <button
                     onClick={(e) => toggleStatus(p.ProductId, p.Status, e)}
                     className="px-2 py-1 bg-orange-500 text-white rounded text-xs"

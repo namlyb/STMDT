@@ -97,7 +97,7 @@ app.use(express.static(path.join(__dirname, "dist")));
 
 app.get("*", (req, res) => {
   if (!req.path.startsWith("/api") && !req.path.startsWith("/uploads")) {
-    res.sendFile(path.join(distPath, "index.html"));
+    res.sendFile(path.join(__dirname, "dist", "index.html"));
   }
 });
 

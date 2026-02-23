@@ -14,7 +14,6 @@ export default function SellerSidebar() {
     { id: 3, label: "Tin nhắn", path: "/seller/chat" },
     { id: 4, label: "Đơn hàng", path: "/seller/orders" },
     { id: 5, label: "Phiếu giảm giá", path: "/seller/voucher" },
-    { id: 6, label: "Khuyến mãi", path: "#" },
   ];
 
   useEffect(() => {
@@ -36,17 +35,19 @@ export default function SellerSidebar() {
   // Chỉ chạy 1 lần khi mount
 }, []);
 
-
+const getAvatarUrl = (avatar) => {
+  if (!avatar) return "/uploads/AccountAvatar/avtDf.png";
+  if (avatar.startsWith('http')) return avatar;
+  if (avatar.startsWith('/uploads')) return avatar;
+  return `/uploads/AccountAvatar/${avatar}`;
+};
 
   return (
     <aside className="w-60 bg-white border rounded-lg shadow-md p-4 flex-shrink-0 sticky top-20 h-fit">
       {/* Thông tin tài khoản */}
       <div className="flex flex-col items-center gap-2 mb-6">
         <img
-          src={
-            account?.Avatar ||
-            "http://localhost:8080/uploads/AccountAvatar/avtDf.png"
-          }
+          src={getAvatarUrl(account?.Avatar)}
           alt={account?.Name}
           className="w-12 h-12 rounded-full object-cover border"
         />

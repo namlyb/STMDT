@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "../../components/lib/axios";
 import Header from "../../components/Guest/Header";
-import Footer from "../../components/Guest/footer";
+import Footer from "../../components/Guest/Footer";
 import Sidebar from "../../components/Seller/Sidebar";
 import {
   Package,
@@ -65,8 +65,8 @@ export default function ViewOrder() {
   const getImageUrl = (imageName) => {
     if (!imageName) return "https://via.placeholder.com/80";
     if (imageName.startsWith('http')) return imageName;
-    const baseUrl = "http://localhost:8080";
-    return `${baseUrl}/uploads/ProductImage/${imageName}`;
+    if (imageName.startsWith('/uploads')) return imageName;
+    return `/uploads/ProductImage/${imageName}`;
   };
 
   const STATUS_MAP = {

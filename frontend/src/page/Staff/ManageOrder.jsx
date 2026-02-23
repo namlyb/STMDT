@@ -16,7 +16,7 @@ const ManageOrder = () => {
     dateFrom: "",
     dateTo: ""
   });
-  
+
   // State cho toast message
   const [toast, setToast] = useState({
     show: false,
@@ -92,17 +92,17 @@ const ManageOrder = () => {
     try {
       // Reset completed order nếu có
       setCompletedOrder(null);
-      
+
       const res = await axios.get(`/orders/staff/orders/${orderId}`);
       console.log("Order details API response:", res.data);
-      
+
       // Kiểm tra nếu không có chi tiết
       if (!res.data.details || res.data.details.length === 0) {
         showToast("Đơn hàng này không có sản phẩm nào", "info");
         resetOrderDetails();
         return;
       }
-      
+
       // Kiểm tra xem có sản phẩm nào đang giao không
       const shippingItems = res.data.details.filter(item => item.Status === 3);
       if (shippingItems.length === 0) {
@@ -110,7 +110,7 @@ const ManageOrder = () => {
         resetOrderDetails();
         return;
       }
-      
+
       setOrderDetails(res.data.details);
       setSelectedOrder(orderId);
     } catch (error) {
@@ -127,17 +127,17 @@ const ManageOrder = () => {
       if (!confirm) return;
 
       await axios.put(`/orders/staff/order-details/${orderDetailId}/deliver`);
-      
+
       // Cập nhật trạng thái cục bộ
-      const updatedOrderDetails = orderDetails.map(item => 
-        item.OrderDetailId === orderDetailId 
-          ? { ...item, Status: 4 } 
+      const updatedOrderDetails = orderDetails.map(item =>
+        item.OrderDetailId === orderDetailId
+          ? { ...item, Status: 4 }
           : item
       );
-      
+
       setOrderDetails(updatedOrderDetails);
       showToast("Đã xác nhận giao hàng thành công!");
-      
+
       // Kiểm tra nếu tất cả sản phẩm đã giao thì hoàn thành đơn hàng
       const allDelivered = updatedOrderDetails.every(item => item.Status === 4);
       if (allDelivered) {
@@ -149,7 +149,7 @@ const ManageOrder = () => {
           fetchOrders();
         }, 1500);
       }
-      
+
     } catch (error) {
       console.error("Error confirming delivery:", error);
       showToast(error.response?.data?.message || "Không thể xác nhận giao hàng", "error");
@@ -163,26 +163,26 @@ const ManageOrder = () => {
       if (!confirm) return;
 
       await axios.put(`/orders/staff/orders/${selectedOrder}/deliver-all`);
-      
+
       // Cập nhật trạng thái cục bộ cho tất cả sản phẩm
       const allCompletedDetails = orderDetails.map(item => ({
         ...item,
         Status: 4
       }));
-      
+
       setOrderDetails(allCompletedDetails);
       showToast("Đã xác nhận tất cả sản phẩm!");
-      
+
       // Đánh dấu đơn hàng đã hoàn thành
       setCompletedOrder(selectedOrder);
-      
+
       // Sau 1.5 giây, reset hoàn toàn và refresh
       setTimeout(() => {
         showToast(`Đơn hàng #${selectedOrder} đã hoàn thành!`);
         resetOrderDetails();
         fetchOrders();
       }, 1500);
-      
+
     } catch (error) {
       console.error("Error confirming all delivery:", error);
       showToast(error.response?.data?.message || "Lỗi khi xác nhận", "error");
@@ -195,6 +195,13 @@ const ManageOrder = () => {
       style: "currency",
       currency: "VND"
     }).format(amount);
+  };
+
+  const getImageUrl = (image) => {
+    if (!image) return "https://via.placeholder.com/48x48?text=No+Image";
+    if (image.startsWith('http')) return image;
+    if (image.startsWith('/uploads')) return image;
+    return `/uploads/ProductImage/${image}`;
   };
 
   // Format date
@@ -227,7 +234,7 @@ const ManageOrder = () => {
     const shippingProducts = orderDetails.filter(item => item.Status === 3).length;
     const deliveredProducts = orderDetails.filter(item => item.Status === 4).length;
     const totalAmount = orderDetails.reduce((sum, item) => sum + (item.UnitPrice * item.Quantity), 0);
-    
+
     return {
       totalProducts,
       shippingProducts,
@@ -253,9 +260,8 @@ const ManageOrder = () => {
       <div className="min-h-screen bg-gray-50">
         {/* Toast Notification */}
         {toast.show && (
-          <div className={`fixed top-4 right-4 z-50 px-6 py-4 rounded-lg shadow-lg ${
-            toast.type === "success" ? "bg-green-500 text-white" : "bg-red-500 text-white"
-          }`}>
+          <div className={`fixed top-4 right-4 z-50 px-6 py-4 rounded-lg shadow-lg ${toast.type === "success" ? "bg-green-500 text-white" : "bg-red-500 text-white"
+            }`}>
             <div className="flex items-center">
               {toast.type === "success" ? (
                 <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -270,7 +276,7 @@ const ManageOrder = () => {
             </div>
           </div>
         )}
-        
+
         {/* Main Container */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           {/* Header */}
@@ -292,7 +298,7 @@ const ManageOrder = () => {
                   placeholder="Mã đơn hàng, tên khách hàng..."
                   className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   value={filter.search}
-                  onChange={(e) => setFilter({...filter, search: e.target.value})}
+                  onChange={(e) => setFilter({ ...filter, search: e.target.value })}
                 />
               </div>
 
@@ -305,7 +311,7 @@ const ManageOrder = () => {
                   type="date"
                   className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   value={filter.dateFrom}
-                  onChange={(e) => setFilter({...filter, dateFrom: e.target.value})}
+                  onChange={(e) => setFilter({ ...filter, dateFrom: e.target.value })}
                 />
               </div>
 
@@ -318,7 +324,7 @@ const ManageOrder = () => {
                   type="date"
                   className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   value={filter.dateTo}
-                  onChange={(e) => setFilter({...filter, dateTo: e.target.value})}
+                  onChange={(e) => setFilter({ ...filter, dateTo: e.target.value })}
                 />
               </div>
 
@@ -360,7 +366,7 @@ const ManageOrder = () => {
                     </span>
                   </div>
                 </div>
-                
+
                 <div className="overflow-y-auto max-h-[calc(100vh-250px)]">
                   {orders.length === 0 ? (
                     <div className="p-8 text-center text-gray-500">
@@ -373,9 +379,8 @@ const ManageOrder = () => {
                     orders.map((order) => (
                       <div
                         key={order.OrderId}
-                        className={`p-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors ${
-                          selectedOrder === order.OrderId ? "bg-blue-50 border-l-4 border-l-blue-500" : ""
-                        }`}
+                        className={`p-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors ${selectedOrder === order.OrderId ? "bg-blue-50 border-l-4 border-l-blue-500" : ""
+                          }`}
                         onClick={() => handleOrderClick(order.OrderId)}
                       >
                         <div className="flex justify-between items-start">
@@ -464,7 +469,7 @@ const ManageOrder = () => {
                             </div>
                           </div>
                         </div>
-                        
+
                         {orderDetails.some(item => item.Status === 3) && (
                           <button
                             onClick={confirmAllDelivery}
@@ -509,7 +514,7 @@ const ManageOrder = () => {
                                   <div className="flex items-center">
                                     {item.Image && (
                                       <img
-                                        src={item.Image.startsWith('http') ? item.Image : `http://localhost:8080/uploads/ProductImage/${item.Image}`}
+                                        src={getImageUrl(item.Image)}
                                         alt={item.ProductName}
                                         className="w-12 h-12 object-cover rounded-lg mr-3"
                                         onError={(e) => {

@@ -13,15 +13,19 @@ export default function Sidebar() {
 
   const account = JSON.parse(sessionStorage.getItem("account"));
 
+  const getAvatarUrl = (avatar) => {
+  if (!avatar) return "/uploads/AccountAvatar/avtDf.png";
+  if (avatar.startsWith('http')) return avatar;
+  if (avatar.startsWith('/uploads')) return avatar;
+  return `/uploads/AccountAvatar/${avatar}`;
+};
+
   return (
     <aside className="w-64 bg-white border rounded-lg p-4">
       {/* ACCOUNT INFO */}
       <div className="flex items-center gap-3 mb-6">
         <img
-          src={
-            account?.Avatar ||
-            "http://localhost:8080/uploads/AccountAvatar/avtDf.png"
-          }
+          src={getAvatarUrl(account?.Avatar)}
           className="w-12 h-12 rounded-full object-cover border"
         />
         <div>
