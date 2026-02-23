@@ -91,10 +91,20 @@ app.use(
   express.static(path.join(__dirname, "uploads/File"))
 );
 
+
+// Serve React build
+app.use(express.static(path.join(__dirname, "dist")));
+
+app.get("*", (req, res) => {
+  if (!req.path.startsWith("/api") && !req.path.startsWith("/uploads")) {
+    res.sendFile(path.join(distPath, "index.html"));
+  }
+});
+
 // Socket.io
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:5173",
+    origin: true,
     methods: ["GET", "POST"],
     credentials: true
   },

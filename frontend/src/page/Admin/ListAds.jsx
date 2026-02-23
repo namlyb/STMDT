@@ -32,7 +32,7 @@ export default function ListAds() {
       const adsWithURL = res.data.map(ad => ({
         ...ad,
         AdsImage: ad.AdsImage
-          ? `${import.meta.env.VITE_API_URL || "http://localhost:8080"}/uploads/AdsImage/${ad.AdsImage}`
+          ? `/uploads/AdsImage/${ad.AdsImage}`
           : null,
       }));
       setAdsList(adsWithURL);

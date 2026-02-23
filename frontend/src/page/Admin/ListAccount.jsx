@@ -40,7 +40,7 @@ export default function ListAccount() {
 
   // Fetch accounts
   useEffect(() => {
-    fetch(`${API_URL}/api/accounts`, {
+    fetch(`/api/accounts`, {
   headers: {
     Authorization: `Bearer ${sessionStorage.getItem("token")}`,
   },
