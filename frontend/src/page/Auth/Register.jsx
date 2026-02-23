@@ -13,9 +13,9 @@ export default function Register() {
     phone: "",
     identityNumber: "",
     dateOfBirth: "",
-    IsActive: 1, // mặc định active
-    gender: "m", // mặc định male
-    roleId: 2,   // mặc định buyer
+    IsActive: 1,
+    gender: "m",
+    roleId: 2,
   });
 
   const [error, setError] = useState("");
@@ -50,23 +50,20 @@ export default function Register() {
       return;
     }
 
-    // date of birth: phải trong quá khứ
-  const today = new Date();
-  const dob = new Date(form.dateOfBirth);
+    const today = new Date();
+    const dob = new Date(form.dateOfBirth);
+    today.setHours(0, 0, 0, 0);
+    dob.setHours(0, 0, 0, 0);
 
-  // reset giờ để so sánh chính xác
-  today.setHours(0, 0, 0, 0);
-  dob.setHours(0, 0, 0, 0);
-
-  if (dob >= today) {
-    setError("Ngày sinh không thể lớn hơn hiện tại!");
-    return;
-  }
+    if (dob >= today) {
+      setError("Ngày sinh không thể lớn hơn hiện tại!");
+      return;
+    }
 
     try {
       await axios.post(`${API_URL}/api/accounts/register`, form);
       alert("Đăng ký thành công!");
-      navigate("/login"); 
+      navigate("/login");
     } catch (err) {
       console.error(err);
       setError(err.response?.data?.message || "Đăng ký thất bại");
@@ -74,105 +71,223 @@ export default function Register() {
   };
 
   return (
-    <div className="max-w-md mx-auto mt-20 p-6 bg-white rounded shadow">
-      <h2 className="text-2xl font-bold mb-4 text-center">Đăng ký tài khoản</h2>
-
-      {error && <p className="text-red-500 mb-4 text-center">{error}</p>}
-
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <input
-          type="text"
-          name="username"
-          placeholder="Username"
-          value={form.username}
-          onChange={handleChange}
-          className="w-full p-3 border rounded"
-          required
-        />
-        <input
-          type="password"
-          name="password"
-          placeholder="Password"
-          value={form.password}
-          onChange={handleChange}
-          className="w-full p-3 border rounded"
-          required
-        />
-        <input
-          type="password"
-          name="confirmPassword"
-          placeholder="Confirm Password"
-          value={form.confirmPassword}
-          onChange={handleChange}
-          className="w-full p-3 border rounded"
-          required
-        />
-        <input
-          type="text"
-          name="name"
-          placeholder="Name"
-          value={form.name}
-          onChange={handleChange}
-          className="w-full p-3 border rounded"
-          required
-        />
-        <input
-          type="text"
-          name="phone"
-          placeholder="Phone"
-          value={form.phone}
-          onChange={handleChange}
-          className="w-full p-3 border rounded"
-          required
-        />
-        <input
-          type="text"
-          name="identityNumber"
-          placeholder="Identity Number"
-          value={form.identityNumber}
-          onChange={handleChange}
-          className="w-full p-3 border rounded"
-          required
-        />
-        <input
-          type="date"
-          name="dateOfBirth"
-          value={form.dateOfBirth}
-          onChange={handleChange}
-          className="w-full p-3 border rounded"
-          required
-        />
-
-        <div className="flex gap-4 justify-center">
-          <label className="flex items-center gap-1">
-            <input className="cursor-pointer"
-              type="radio"
-              name="gender"
-              value="m"
-              checked={form.gender === "m"}
-              onChange={handleChange}
-            />{" "}
-            Male
-          </label>
-          <label className="flex items-center gap-1">
-            <input className="cursor-pointer"
-              type="radio"
-              name="gender"
-              value="f"
-              checked={form.gender === "f"}
-              onChange={handleChange}
-            />{" "}
-            Female
-          </label>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-xl shadow-lg">
+        <div>
+          <h2 className="text-3xl font-extrabold text-center text-gray-900">
+            Đăng ký tài khoản
+          </h2>
+          <p className="mt-2 text-center text-sm text-gray-600">
+            Hoặc{" "}
+            <a
+              href="/login"
+              className="font-medium text-orange-600 hover:text-orange-500 transition-colors"
+            >
+              đăng nhập
+            </a>
+            {" "}nếu đã có tài khoản
+          </p>
         </div>
 
-        <button
-          type="submit"
-          className="w-full bg-orange-500 text-white py-3 rounded hover:bg-orange-400 transition-colors cursor-pointer"
-        >
-          Đăng ký
-        </button>
-      </form>
+        {error && (
+          <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-md">
+            <p className="text-sm text-red-700">{error}</p>
+          </div>
+        )}
+
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          <div className="space-y-4">
+            {/* Username */}
+            <div>
+              <label
+                htmlFor="username"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
+                Tên đăng nhập
+              </label>
+              <input
+                id="username"
+                type="text"
+                name="username"
+                placeholder="Username"
+                value={form.username}
+                onChange={handleChange}
+                required
+                className="appearance-none relative block w-full px-4 py-3 border border-gray-300 rounded-lg placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 focus:z-10 sm:text-sm"
+              />
+            </div>
+
+            {/* Password */}
+            <div>
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
+                Mật khẩu
+              </label>
+              <input
+                id="password"
+                type="password"
+                name="password"
+                placeholder="Password"
+                value={form.password}
+                onChange={handleChange}
+                required
+                className="appearance-none relative block w-full px-4 py-3 border border-gray-300 rounded-lg placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 focus:z-10 sm:text-sm"
+              />
+            </div>
+
+            {/* Confirm Password */}
+            <div>
+              <label
+                htmlFor="confirmPassword"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
+                Xác nhận mật khẩu
+              </label>
+              <input
+                id="confirmPassword"
+                type="password"
+                name="confirmPassword"
+                placeholder="Confirm Password"
+                value={form.confirmPassword}
+                onChange={handleChange}
+                required
+                className="appearance-none relative block w-full px-4 py-3 border border-gray-300 rounded-lg placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 focus:z-10 sm:text-sm"
+              />
+            </div>
+
+            {/* Full Name */}
+            <div>
+              <label
+                htmlFor="name"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
+                Họ và tên
+              </label>
+              <input
+                id="name"
+                type="text"
+                name="name"
+                placeholder="Name"
+                value={form.name}
+                onChange={handleChange}
+                required
+                className="appearance-none relative block w-full px-4 py-3 border border-gray-300 rounded-lg placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 focus:z-10 sm:text-sm"
+              />
+            </div>
+
+            {/* Phone */}
+            <div>
+              <label
+                htmlFor="phone"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
+                Số điện thoại
+              </label>
+              <input
+                id="phone"
+                type="text"
+                name="phone"
+                placeholder="Phone"
+                value={form.phone}
+                onChange={handleChange}
+                required
+                className="appearance-none relative block w-full px-4 py-3 border border-gray-300 rounded-lg placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 focus:z-10 sm:text-sm"
+              />
+            </div>
+
+            {/* Identity Number */}
+            <div>
+              <label
+                htmlFor="identityNumber"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
+                CMND/CCCD
+              </label>
+              <input
+                id="identityNumber"
+                type="text"
+                name="identityNumber"
+                placeholder="Identity Number"
+                value={form.identityNumber}
+                onChange={handleChange}
+                required
+                className="appearance-none relative block w-full px-4 py-3 border border-gray-300 rounded-lg placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 focus:z-10 sm:text-sm"
+              />
+            </div>
+
+            {/* Date of Birth */}
+            <div>
+              <label
+                htmlFor="dateOfBirth"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
+                Ngày sinh
+              </label>
+              <input
+                id="dateOfBirth"
+                type="date"
+                name="dateOfBirth"
+                value={form.dateOfBirth}
+                onChange={handleChange}
+                required
+                className="appearance-none relative block w-full px-4 py-3 border border-gray-300 rounded-lg placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 focus:z-10 sm:text-sm"
+              />
+            </div>
+
+            {/* Gender */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Giới tính
+              </label>
+              <div className="flex gap-6">
+                <label className="flex items-center gap-2 cursor-pointer group">
+                  <input
+                    type="radio"
+                    name="gender"
+                    value="m"
+                    checked={form.gender === "m"}
+                    onChange={handleChange}
+                    className="w-4 h-4 text-orange-600 border-gray-300 focus:ring-orange-500 cursor-pointer"
+                  />
+                  <span className="text-sm text-gray-700 group-hover:text-gray-900">Nam</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer group">
+                  <input
+                    type="radio"
+                    name="gender"
+                    value="f"
+                    checked={form.gender === "f"}
+                    onChange={handleChange}
+                    className="w-4 h-4 text-orange-600 border-gray-300 focus:ring-orange-500 cursor-pointer"
+                  />
+                  <span className="text-sm text-gray-700 group-hover:text-gray-900">Nữ</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex gap-4">
+            <button
+              type="submit"
+              className="flex-1 py-3 px-4 border border-transparent rounded-lg text-sm font-semibold text-white bg-gradient-to-r 
+              from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 
+              focus:ring-orange-500 transition-all duration-200 shadow-md hover:shadow-lg cursor-pointer"
+            >
+              Đăng ký
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/')}
+              className="flex-1 py-3 px-4 border border-transparent rounded-lg text-sm font-semibold text-gray-800 bg-gray-200 hover:bg-gray-300 
+              focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-all duration-200 cursor-pointer"
+            >
+              Huỷ
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
