@@ -230,7 +230,7 @@ export default function BuyerChat({ sellerId, onClose }) {
         <span className="font-bold">Chat với {selectedChat?.SellerName || "Gian hàng"}</span>
         <button
           onClick={onClose}
-          className="px-3 py-1 bg-orange-700 rounded hover:bg-orange-600 transition-colors"
+          className="px-3 py-1 bg-orange-700 cursor-pointer rounded hover:bg-orange-600 transition-colors"
         >
           ✕
         </button>

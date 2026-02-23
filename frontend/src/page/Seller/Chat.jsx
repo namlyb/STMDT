@@ -309,7 +309,7 @@ const SellerChatContent = ({
         <div className="flex items-center gap-2">
           <button
             onClick={() => onInitiateCall && onInitiateCall("audio")}
-            className="h-10 w-10 flex items-center justify-center text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-full transition-colors flex-shrink-0"
+            className="h-10 w-10 flex items-center cursor-pointer justify-center text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-full transition-colors flex-shrink-0"
             title="Gọi thoại"
             disabled={!chat}
           >
@@ -317,7 +317,7 @@ const SellerChatContent = ({
           </button>
           <button
             onClick={() => onInitiateCall && onInitiateCall("video")}
-            className="h-10 w-10 flex items-center justify-center text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded-full transition-colors flex-shrink-0"
+            className="h-10 w-10 flex items-center justify-center cursor-pointer text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded-full transition-colors flex-shrink-0"
             title="Gọi video"
             disabled={!chat}
           >
@@ -325,7 +325,7 @@ const SellerChatContent = ({
           </button>
           <button
             onClick={() => setShowFileUpload(true)}
-            className="h-10 w-10 flex items-center justify-center text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors flex-shrink-0"
+            className="h-10 w-10 flex items-center justify-center cursor-pointer text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors flex-shrink-0"
             title="Gửi file"
             disabled={!chat}
           >
@@ -345,7 +345,7 @@ const SellerChatContent = ({
           <button
             onClick={sendMessage}
             disabled={!chat || !input.trim()}
-            className="h-10 w-10 bg-orange-500 text-white rounded-full flex items-center justify-center hover:bg-orange-600 transition-colors flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="h-10 w-10 bg-orange-500 text-white cursor-pointer rounded-full flex items-center justify-center hover:bg-orange-600 transition-colors flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <FaPaperPlane size={16} />
           </button>
@@ -357,6 +357,29 @@ const SellerChatContent = ({
     </div>
   );
 };
+
+// Hàm tạo URL ảnh đại diện
+const getAvatarUrl = (avatar) => {
+  const defaultAvatar = '/uploads/AccountAvatar/avtDf.png';
+  
+  if (!avatar) return defaultAvatar;
+  
+  // Nếu avatar là URL đầy đủ với http:// nhưng page đang dùng https -> chuyển thành https
+  if (avatar.startsWith('http://') && window.location.protocol === 'https:') {
+    avatar = avatar.replace('http://', 'https://');
+  }
+  
+  if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
+    return avatar;
+  }
+  
+  if (API_URL) {
+    return `${API_URL}/uploads/AccountAvatar/${avatar}`;
+  }
+  
+  return `/uploads/AccountAvatar/${avatar}`;
+};
+
 
 // ==================== SellerChat chính ====================
 export default function SellerChat() {
@@ -592,19 +615,19 @@ export default function SellerChat() {
             ) : (
               <>
                 <div className="p-3 border-b font-semibold flex items-center justify-between bg-gray-50 flex-shrink-0">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <img
-                      src={
-                        selectedChat.BuyerAvatar
-                          ? `${API_URL}/uploads/AccountAvatar/${selectedChat.BuyerAvatar}`
-                          : `${API_URL}/uploads/AccountAvatar/avtDf.png`
-                      }
-                      className="w-8 h-8 rounded-full object-cover flex-shrink-0"
-                      alt={selectedChat.BuyerName}
-                    />
-                    <span className="text-gray-800 truncate">Chat với {selectedChat.BuyerName}</span>
-                  </div>
-                </div>
+  <div className="flex items-center gap-2 min-w-0">
+    <img
+      src={getAvatarUrl(selectedChat.BuyerAvatar)}
+      className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+      alt={selectedChat.BuyerName}
+      onError={(e) => {
+        e.target.onerror = null;
+        e.target.src = '/uploads/AccountAvatar/avtDf.png';
+      }}
+    />
+    <span className="text-gray-800 truncate">Chat với {selectedChat.BuyerName}</span>
+  </div>
+</div>
                 <SellerChatContent
                   chat={selectedChat}
                   currentUserId={sellerId}

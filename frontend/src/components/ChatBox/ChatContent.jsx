@@ -380,7 +380,7 @@ const ChatContent = ({
           <button
             onClick={() => initiateCall("audio")}
             disabled={!chat || activeCall}
-            className="h-11 w-11 flex items-center justify-center text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="h-11 w-11 flex items-center cursor-pointer justify-center text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             title="Gọi thoại"
           >
             <FaPhone />
@@ -388,7 +388,7 @@ const ChatContent = ({
           <button
             onClick={() => initiateCall("video")}
             disabled={!chat || activeCall}
-            className="h-11 w-11 flex items-center justify-center text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="h-11 w-11 flex items-center justify-center cursor-pointer text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             title="Gọi video"
           >
             <FaVideo />
@@ -397,7 +397,7 @@ const ChatContent = ({
 
         <button
           onClick={() => setShowFileUpload(true)}
-          className="h-11 w-11 flex items-center justify-center text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+          className="h-11 w-11 flex items-center cursor-pointer justify-center text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
           title="Gửi file"
           disabled={!chat || activeCall}
         >
