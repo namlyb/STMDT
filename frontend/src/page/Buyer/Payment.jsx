@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from '../../components/lib/axios';
 import Header from '../../components/Guest/Header';
-import Footer from '../../components/Guest/footer';
+import Footer from '../../components/Guest/Footer';
 import { CreditCard, CheckCircle, AlertCircle, ArrowLeft, Loader } from 'lucide-react';
 
 export default function Payment() {

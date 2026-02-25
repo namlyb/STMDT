@@ -327,13 +327,13 @@ const OrderModel = {
   getOrdersByAccountId: async (accountId) => {
     const [orders] = await pool.query(`
       SELECT o.*, a.Content as AddressContent, a.Name as AddressName, 
-             a.Phone as AddressPhone, pm.MethodName,
-             (SELECT COUNT(*) FROM OrderDetails WHERE OrderId = o.OrderId) as ItemCount
-      FROM Orders o
-      JOIN Address a ON o.AddressId = a.AddressId
-      LEFT JOIN PaymentMethods pm ON o.MethodId = pm.MethodId
-      WHERE o.AccountId = ?
-      ORDER BY o.CreatedAt DESC
+           a.Phone as AddressPhone, pm.MethodName,
+           (SELECT SUM(Quantity) FROM OrderDetails WHERE OrderId = o.OrderId) as ItemCount
+    FROM Orders o
+    JOIN Address a ON o.AddressId = a.AddressId
+    LEFT JOIN PaymentMethods pm ON o.MethodId = pm.MethodId
+    WHERE o.AccountId = ?
+    ORDER BY o.CreatedAt DESC
     `, [accountId]);
     return orders;
   },
@@ -437,64 +437,64 @@ const OrderModel = {
   },
 
   reorderById: async (orderId, accountId) => {
-    const connection = await pool.getConnection();
-    try {
-      await connection.beginTransaction();
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
 
-      // Lấy chi tiết đơn hàng cũ
-      const [detailRows] = await connection.query(
-        `SELECT od.ProductId, od.UnitPrice, od.Quantity
-        FROM OrderDetails od
-        JOIN Orders o ON od.OrderId = o.OrderId
-        WHERE o.OrderId = ? AND o.AccountId = ?
-          AND od.Status = ?`,
-        [orderId, accountId, ORDER_DETAIL_STATUS.COMPLETED]
-      );
+    // Lấy chi tiết đơn hàng cũ
+    const [detailRows] = await connection.query(
+      `SELECT od.ProductId, od.UnitPrice, od.Quantity
+      FROM OrderDetails od
+      JOIN Orders o ON od.OrderId = o.OrderId
+      WHERE o.OrderId = ? AND o.AccountId = ?
+        AND od.Status = ?`,
+      [orderId, accountId, ORDER_DETAIL_STATUS.COMPLETED]
+    );
 
-      if (!detailRows.length) {
-        throw new Error("Không tìm thấy đơn hàng hoặc đơn hàng chưa hoàn thành");
-      }
+    if (!detailRows.length) {
+      throw new Error("Không tìm thấy đơn hàng hoặc đơn hàng chưa hoàn thành");
+    }
 
-      // Thêm vào giỏ hàng
-      for (const detail of detailRows) {
-        // Kiểm tra sản phẩm có tồn tại và đang hoạt động không
-        const [productRows] = await connection.query(`
-          SELECT ProductId FROM Products 
-          WHERE ProductId = ? AND IsActive = 1 AND Status = 1
-        `, [detail.ProductId]);
+    // Thêm vào giỏ hàng
+    for (const detail of detailRows) {
+      // Kiểm tra sản phẩm có tồn tại và đang hoạt động không
+      const [productRows] = await connection.query(`
+        SELECT ProductId FROM Products 
+        WHERE ProductId = ? AND IsActive = 1 AND Status = 1
+      `, [detail.ProductId]);
 
-        if (productRows.length) {
-          // Kiểm tra sản phẩm đã có trong giỏ chưa
-          const [cartRows] = await connection.query(`
-            SELECT CartId, Quantity FROM Carts 
-            WHERE ProductId = ? AND AccountId = ? AND Status = 1
-          `, [detail.ProductId, accountId]);
+      if (productRows.length) {
+        // Kiểm tra sản phẩm đã có trong giỏ chưa (bất kể Status)
+        const [cartRows] = await connection.query(`
+          SELECT CartId, Quantity, Status FROM Carts 
+          WHERE ProductId = ? AND AccountId = ?
+        `, [detail.ProductId, accountId]);
 
-          if (cartRows.length) {
-            // Cập nhật số lượng
-            await connection.query(`
-              UPDATE Carts 
-              SET Quantity = Quantity + ?, UpdatedAt = NOW()
-              WHERE CartId = ?
-            `, [detail.Quantity, cartRows[0].CartId]);
-          } else {
-            // Thêm mới vào giỏ
-            await connection.query(`
-              INSERT INTO Carts (ProductId, AccountId, Quantity, Status, UnitPrice)
-              VALUES (?, ?, ?, 1, ?)
-            `, [detail.ProductId, accountId, detail.Quantity, detail.UnitPrice]);
-          }
+        if (cartRows.length) {
+          // Đã tồn tại → cập nhật số lượng và đặt Status = 1 (nếu đang là 0)
+          await connection.query(`
+            UPDATE Carts 
+            SET Quantity = Quantity + ?, Status = 1, UpdatedAt = NOW()
+            WHERE CartId = ?
+          `, [detail.Quantity, cartRows[0].CartId]);
+        } else {
+          // Thêm mới vào giỏ
+          await connection.query(`
+            INSERT INTO Carts (ProductId, AccountId, Quantity, Status, UnitPrice)
+            VALUES (?, ?, ?, 1, ?)
+          `, [detail.ProductId, accountId, detail.Quantity, detail.UnitPrice]);
         }
       }
-
-      await connection.commit();
-    } catch (error) {
-      await connection.rollback();
-      throw error;
-    } finally {
-      connection.release();
     }
-  },
+
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+},
 
   // ==================== SELLER FUNCTIONS ====================
 

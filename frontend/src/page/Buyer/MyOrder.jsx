@@ -128,7 +128,7 @@ export default function MyOrder() {
         CreatedAt: new Date(order.CreatedAt).toLocaleDateString("vi-VN"),
         UpdatedAt: new Date(order.UpdatedAt).toLocaleDateString("vi-VN"),
         OrderDate: new Date(order.OrderDate).toLocaleDateString("vi-VN"),
-        itemCount: order.itemCount || 1
+        itemCount: order.ItemCount
       }));
       
       setAllOrders(formattedOrders);
@@ -259,9 +259,9 @@ export default function MyOrder() {
   // Tính toán trạng thái thanh toán
   const getPaymentStatus = (order) => {
     if (order.MethodId === 1) { // Thanh toán trực tiếp
-      return order.Status === 4 ? "Đã thanh toán" : "Chờ thanh toán";
+      return order.Status === 4 ? "Đã thanh toán" : "Chưa thanh toán";
     } else { // Thanh toán online
-      return order.Status === 2 ? "Đã thanh toán" : "Chưa thanh toán";
+      return order.Status === 1 ? "Chưa thanh toán" : "Đã thanh toán";
     }
   };
 
@@ -269,26 +269,9 @@ export default function MyOrder() {
     return order.MethodId !== 1 && order.Status !== 2;
   };
 
-  const handlePayment = async (orderId) => {
-    try {
-      const token = sessionStorage.getItem("token");
-      // Giả sử có API thanh toán
-      const response = await axios.post(`/orders/${orderId}/payment`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      alert("Chuyển hướng đến trang thanh toán...");
-      // Trong thực tế, bạn sẽ redirect đến trang thanh toán
-      // window.location.href = response.data.paymentUrl;
-      
-      // Sau khi thanh toán thành công, refresh data
-      fetchOrders();
-      setShowDetail(false);
-    } catch (error) {
-      console.error("Payment error:", error);
-      alert("Lỗi khi thực hiện thanh toán: " + (error.response?.data?.message || error.message));
-    }
-  };
+  const handlePayment = (orderId) => {
+  navigate(`/payment/${orderId}`);
+};
 
   // Calculate tab counts
   const tabCounts = useMemo(() => {
@@ -330,10 +313,12 @@ export default function MyOrder() {
     
     switch (order.Status) {
       case 1: // Chờ thanh toán
-        actions.push(
-          { label: "Thanh toán", action: () => handlePayment(order.OrderId), icon: CreditCard, color: "bg-green-600 cursor-pointer hover:bg-green-700" },
-          { label: "Hủy đơn", action: () => handleCancel(order.OrderId), icon: XCircle, color: "bg-red-600 cursor-pointer hover:bg-red-700" }
-        );
+        if (order.MethodId !== 1) { // Không phải COD
+        actions.push({
+          label: "Thanh toán", action: () => handlePayment(order.OrderId), icon: CreditCard, color: "bg-green-600 cursor-pointer hover:bg-green-700" });
+      }
+      actions.push({
+        label: "Hủy đơn", action: () => handleCancel(order.OrderId), icon: XCircle, color: "bg-red-600 cursor-pointer hover:bg-red-700" });
         break;
       case 2: // Chờ chuẩn bị
         actions.push(
