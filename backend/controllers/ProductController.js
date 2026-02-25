@@ -294,39 +294,75 @@ const formattedFeedbacks = feedbacks.map(feedback => ({
   /* ================= CREATE PRODUCT ================= */
   createProduct: async (req, res) => {
     try {
-      const { StallId, ProductName, Price, Description, CategoryIds } = req.body;
-      const Image = req.file ? req.file.filename : null;
+      const accountId = req.user.AccountId; // từ token
+      const { ProductName, Price, Description, CategoryIds } = req.body;
 
-      // Validation
-      if (!StallId || !ProductName || !Price || !Description) {
+      // Kiểm tra file ảnh
+      if (!req.file) {
+        return res.status(400).json({
+          success: false,
+          message: "Vui lòng chọn ảnh sản phẩm"
+        });
+      }
+      const Image = req.file.filename;
+
+      // Kiểm tra các trường bắt buộc
+      if (!ProductName || !Price || !Description) {
         return res.status(400).json({
           success: false,
           message: "Vui lòng điền đầy đủ thông tin sản phẩm"
         });
       }
 
-      if (!Image) {
+      // Lấy stall của seller
+      const stall = await Stall.getByAccountId(accountId);
+      if (!stall) {
         return res.status(400).json({
           success: false,
-          message: "Vui lòng chọn ảnh sản phẩm"
+          message: "Bạn chưa có gian hàng"
+        });
+      }
+
+      // Parse CategoryIds (gửi dưới dạng JSON string, ví dụ: "[1,2,3]")
+      let categoryIds = [];
+      if (CategoryIds) {
+        try {
+          categoryIds = JSON.parse(CategoryIds);
+          if (!Array.isArray(categoryIds) || categoryIds.length === 0) {
+            return res.status(400).json({
+              success: false,
+              message: "Danh mục không hợp lệ"
+            });
+          }
+        } catch (e) {
+          return res.status(400).json({
+            success: false,
+            message: "Danh mục không đúng định dạng"
+          });
+        }
+      } else {
+        return res.status(400).json({
+          success: false,
+          message: "Vui lòng chọn ít nhất một danh mục"
         });
       }
 
       const productData = {
-        StallId,
+        StallId: stall.StallId,
         ProductName,
         Price: parseInt(Price),
         Description,
         Image
       };
 
-      const productId = await Product.create(productData, CategoryIds);
+      const productId = await Product.create(productData, categoryIds);
 
       res.status(201).json({
         success: true,
-        message: "Tạo sản phẩm thành công",
+        message: "Thêm sản phẩm thành công",
         productId
       });
+
     } catch (error) {
       console.error("Create product error:", error);
       res.status(500).json({

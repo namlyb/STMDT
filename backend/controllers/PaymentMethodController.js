@@ -1,4 +1,5 @@
 const PaymentMethod = require("../models/PaymentMethod");
+const sepayConfig = require('../config/sepay');
 
 const PaymentMethodController = {
   // Lấy tất cả payment methods (active)

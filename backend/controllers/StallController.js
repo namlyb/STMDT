@@ -20,37 +20,51 @@ const StallController = {
   },
 
   getStallDetail: async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const stall = await Stall.getByStallId(id);
-    if (!stall) {
-      return res.status(404).json({ message: "Không tìm thấy gian hàng" });
-    }
-
-    const products = await Product.getByStallId(id);
-
-    res.json({
-      stall,
-      products
-    });
-
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Lỗi server" });
-  }
-},
-
-getStallFeedbacks: async (req, res) => {
     try {
       const { id } = req.params;
-      
+
+      const stall = await Stall.getByStallId(id);
+      if (!stall) {
+        return res.status(404).json({ message: "Không tìm thấy gian hàng" });
+      }
+
+      const products = await Product.getByStallId(id);
+
+      res.json({
+        stall,
+        products
+      });
+
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Lỗi server" });
+    }
+  },
+
+  getStallFeedbacks: async (req, res) => {
+    try {
+      const { id } = req.params;
+
       // Lấy feedbacks của stall thông qua các sản phẩm
       const feedbacks = await Feedback.getByStallId(id);
-      
+
       res.json(feedbacks);
     } catch (err) {
       console.error(err);
+      res.status(500).json({ message: "Lỗi server" });
+    }
+  },
+
+  getMyStall: async (req, res) => {
+    try {
+      const accountId = req.user.AccountId; // từ token
+      const stall = await Stall.getByAccountId(accountId);
+      if (!stall) {
+        return res.status(404).json({ message: "Không tìm thấy gian hàng" });
+      }
+      res.json(stall);
+    } catch (error) {
+      console.error("Get my stall error:", error);
       res.status(500).json({ message: "Lỗi server" });
     }
   },

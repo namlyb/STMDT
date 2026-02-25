@@ -194,6 +194,44 @@ getByStallId: async (stallId) => {
   return rows;
 },
 
+  create: async (productData, categoryIds) => {
+    const connection = await pool.getConnection();
+    try {
+      await connection.beginTransaction();
+
+      // 1. Insert vào Products
+      const [result] = await connection.query(
+        `INSERT INTO Products 
+         (StallId, ProductName, Price, Description, Image, Status, IsActive, CreatedAt, UpdatedAt)
+         VALUES (?, ?, ?, ?, ?, 1, 1, NOW(), NOW())`,
+        [
+          productData.StallId,
+          productData.ProductName,
+          productData.Price,
+          productData.Description,
+          productData.Image
+        ]
+      );
+      const productId = result.insertId;
+
+      // 2. Insert vào ProductCategory
+      if (categoryIds && categoryIds.length > 0) {
+        const values = categoryIds.map(catId => [productId, catId]);
+        await connection.query(
+          `INSERT INTO ProductCategory (ProductId, CategoryId) VALUES ?`,
+          [values]
+        );
+      }
+
+      await connection.commit();
+      return productId;
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  },
 
 };
 

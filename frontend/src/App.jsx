@@ -39,6 +39,8 @@ import ViewStall from "./page/Buyer/ViewStall";
 import ManageOrder from "./page/Staff/ManageOrder";
 import CreateFeedback from "./page/Buyer/CreateFeedback";
 import MyFeedback from "./page/Buyer/MyFeedback";
+import Payment from './page/Buyer/Payment';
+import AddProduct from "./page/Seller/AddProduct";
 
 function App() {
   return (
@@ -73,6 +75,7 @@ function App() {
           <Route path="/seller/voucher/create" element={<SellerCreateVoucher />} />
           <Route path="/seller/voucher/update/:id" element={<UpdateVoucher />} />
           <Route path="/seller/orders" element={<ViewOrder />} />
+          <Route path="/seller/products/add" element={<AddProduct />} />
         </Route>
 
         <Route element={<StaffGuard />}>
@@ -91,6 +94,7 @@ function App() {
           <Route path="/checkout" element={<Order />} />
           <Route path="/feedback/order/:orderId" element={<CreateFeedback />} />
           <Route path="/my-feedbacks" element={<MyFeedback />} />
+          <Route path="/payment/:orderId" element={<Payment />} />
         </Route>
         
         <Route path="/cart" element={<Cart />} />

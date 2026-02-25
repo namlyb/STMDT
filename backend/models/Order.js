@@ -1250,6 +1250,14 @@ confirmAllDelivery: async (orderId) => {
   }
 },
 
+  // Trong backend/models/Order.js
+updateOrderStatus: async (orderId, newStatus) => {
+  await pool.query(
+    `UPDATE Orders SET Status = ?, UpdatedAt = NOW() WHERE OrderId = ?`,
+    [newStatus, orderId]
+  );
+},
+
 };
 
 module.exports = OrderModel;

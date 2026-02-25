@@ -114,8 +114,15 @@ export default function ListProduct() {
         <SellerSidebar />
 
         <div className="flex-1">
-          <h1 className="text-2xl font-bold mb-4">Danh sách sản phẩm của bạn</h1>
-
+          <div className="flex justify-between items-center mb-4">
+            <h1 className="text-2xl font-bold">Danh sách sản phẩm của bạn</h1>
+            <button
+              onClick={() => navigate("/seller/products/add")}
+              className="bg-orange-500 cursor-pointer text-white px-4 py-2 rounded hover:bg-orange-600"
+            >
+              + Thêm sản phẩm
+            </button>
+          </div>
           {/* SEARCH */}
           <input
             className="border px-3 py-2 rounded w-1/3 mb-4"

@@ -568,7 +568,19 @@ export default function Order() {
       localStorage.removeItem("buyNowData");
       sessionStorage.removeItem("checkoutCartIds");
 
-      navigate(`/orders`);
+      // Kiểm tra phương thức thanh toán
+if (selectedPaymentMethod.MethodId === 2) { // VNPay
+  // Xoá dữ liệu tạm
+  localStorage.removeItem("buyNowData");
+  sessionStorage.removeItem("checkoutCartIds");
+  // Chuyển sang trang thanh toán
+  navigate(`/payment/${response.data.orderId}`);
+} else {
+  // Thanh toán COD
+  localStorage.removeItem("buyNowData");
+  sessionStorage.removeItem("checkoutCartIds");
+  navigate(`/orders`);
+}
 
     } catch (error) {
       console.error("Order error:", error);

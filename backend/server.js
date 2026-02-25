@@ -27,9 +27,15 @@ const paymentMethodRouter = require('./routes/PaymentMethodRouter');
 const feedbackRouter = require("./routes/FeedbackRouter");
 const fileRouter = require("./routes/FileRouter");
 const callRouter = require("./routes/CallRouter");
+const paymentRouter = require('./routes/PaymentRouter');
+
+const PaymentController = require("./controllers/PaymentController");
 
 const app = express();
 const server = http.createServer(app);
+
+//app.use('/api/payments/webhook/sepay', express.raw({ type: 'application/json' }));
+app.post('/api/payments/webhook/sepay', express.raw({ type: 'application/json' }), PaymentController.handleWebhook);
 
 // Middlewares
 app.use(cors({
@@ -64,6 +70,7 @@ app.use('/api/payment-methods', paymentMethodRouter);
 app.use("/api/feedback", feedbackRouter);
 app.use("/api/files", fileRouter);
 app.use("/api/calls", callRouter);
+app.use('/api/payments', paymentRouter);
 
 // Static files
 app.use(
