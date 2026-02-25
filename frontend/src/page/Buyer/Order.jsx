@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "../../components/lib/axios";
 import Header from "../../components/Guest/Header";
-import Footer from "../../components/Guest/footer";
+import Footer from "../../components/Guest/Footer";
 import { CreditCard, Package, Truck, MapPin, Ticket, CheckCircle, AlertCircle, ArrowLeft } from "lucide-react";
 
 export default function Order() {

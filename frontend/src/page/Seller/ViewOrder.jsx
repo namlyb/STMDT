@@ -43,7 +43,7 @@ export default function ViewOrder() {
     dateTo: "",
     orderId: ""
   });
-  
+
   const [page, setPage] = useState(1);
   const pageSize = 10;
   const [checkAll, setCheckAll] = useState(false);
@@ -70,6 +70,44 @@ export default function ViewOrder() {
   };
 
   const STATUS_MAP = {
+    1: {
+      label: "Chờ thanh toán",
+      color: "bg-gray-100 text-gray-800",
+      icon: Clock,
+      bgColor: "bg-gray-50"
+    },
+    2: {
+      label: "Chờ chuẩn bị",
+      color: "bg-gray-100 text-gray-800",
+      icon: Clock,
+      bgColor: "bg-gray-50"
+    },
+    3: {
+      label: "Đang giao",
+      color: "bg-purple-100 text-purple-800",
+      icon: Truck,
+      bgColor: "bg-purple-50"
+    },
+    4: {
+      label: "Hoàn thành",
+      color: "bg-blue-100 text-blue-800",
+      icon: CheckCircle,
+      bgColor: "bg-blue-50"
+    },
+    5: {
+      label: "Đã hủy",
+      color: "bg-red-100 text-red-800",
+      icon: XCircle,
+      bgColor: "bg-red-50"
+    },
+    7: {
+      label: "Chờ gian hàng khác",
+      color: "bg-orange-100 text-orange-800",
+      icon: Clock,
+      bgColor: "bg-orange-50"
+    }
+  };
+  const DETAIL_STATUS_MAP = {
     1: {
       label: "Chờ chuẩn bị",
       color: "bg-gray-100 text-gray-800",
@@ -107,7 +145,6 @@ export default function ViewOrder() {
       bgColor: "bg-orange-50"
     }
   };
-
   const fetchOrders = useCallback(async () => {
     try {
       const account = JSON.parse(sessionStorage.getItem("account"));
@@ -119,7 +156,7 @@ export default function ViewOrder() {
       }
 
       setLoading(true);
-      
+
       const params = {
         status: filters.status === "all" ? "" : filters.status,
         search: filters.search,
@@ -134,30 +171,32 @@ export default function ViewOrder() {
       });
 
       if (response.data && Array.isArray(response.data)) {
-        const formattedOrders = response.data.map(order => {
-          const preparedCount = order.preparedCount || 0;
-          const totalItems = order.itemCount || 0;
-
-          return {
-            ...order,
-            CreatedAt: formatDate(order.CreatedAt),
-            UpdatedAt: formatDate(order.UpdatedAt),
-            OrderDate: formatDate(order.OrderDate),
-            details: order.details?.map(detail => ({
-              ...detail,
-              Image: getImageUrl(detail.Image)
-            })) || [],
-            preparedCount: preparedCount,
-            totalItems: totalItems,
-            preparedPercentage: totalItems > 0 ? Math.round((preparedCount / totalItems) * 100) : 0,
-            allPrepared: totalItems > 0 && preparedCount === totalItems,
-            canShip: (order.OrderStatus === 2 || order.OrderStatus === 7) && preparedCount === totalItems && totalItems > 0
-          };
-        });
+        const formattedOrders = response.data.map(order => ({
+          ...order,
+          CreatedAt: formatDate(order.CreatedAt),
+          UpdatedAt: formatDate(order.UpdatedAt),
+          OrderDate: formatDate(order.OrderDate),
+          details: order.details?.map(detail => ({
+            ...detail,
+            Image: getImageUrl(detail.Image)
+          })) || [],
+          // Các giá trị mới từ backend
+          processedCount: order.processedCount || 0,
+          readyToShipCount: order.readyToShipCount || 0,
+          pendingCount: order.pendingCount || 0,
+          cancelledCount: order.cancelledCount || 0,
+          itemCount: order.itemCount || 0,
+          // Tính toán hiển thị
+          processedPercentage: order.itemCount > 0
+            ? Math.round((order.processedCount / order.itemCount) * 100)
+            : 0,
+          allProcessed: order.itemCount > 0 && order.processedCount === order.itemCount,
+          canShip: (order.OrderStatus === 2 || order.OrderStatus === 7)
+            && order.readyToShipCount > 0
+            && order.pendingCount === 0
+        }));
 
         setAllOrders(formattedOrders);
-      } else {
-        setAllOrders([]);
       }
 
     } catch (error) {
@@ -184,27 +223,27 @@ export default function ViewOrder() {
       if (filters.status !== "all" && String(order.OrderStatus) !== filters.status) {
         return false;
       }
-      
+
       if (filters.orderId && !String(order.OrderId).includes(filters.orderId)) {
         return false;
       }
-      
+
       if (filters.dateFrom || filters.dateTo) {
         const orderDate = new Date(order.CreatedAt);
-        
+
         if (filters.dateFrom) {
           const fromDate = new Date(filters.dateFrom);
           fromDate.setHours(0, 0, 0, 0);
           if (orderDate < fromDate) return false;
         }
-        
+
         if (filters.dateTo) {
           const toDate = new Date(filters.dateTo);
           toDate.setHours(23, 59, 59, 999);
           if (orderDate > toDate) return false;
         }
       }
-      
+
       return true;
     });
   }, [allOrders, filters]);
@@ -238,7 +277,7 @@ export default function ViewOrder() {
       });
 
       const newStatus = response.data.newOrderStatus;
-      
+
       if (newStatus === 3) {
         alert("Đơn hàng đã được chuyển sang trạng thái đang giao");
       } else if (newStatus === 7) {
@@ -248,11 +287,11 @@ export default function ViewOrder() {
       setAllOrders(prevOrders =>
         prevOrders.map(order =>
           order.OrderId === orderId
-            ? { 
-                ...order, 
-                OrderStatus: newStatus,
-                canShip: false
-              }
+            ? {
+              ...order,
+              OrderStatus: newStatus,
+              canShip: false
+            }
             : order
         )
       );
@@ -260,10 +299,10 @@ export default function ViewOrder() {
       if (selectedOrder && selectedOrder.order.OrderId === orderId) {
         setSelectedOrder(prev => ({
           ...prev,
-          order: { 
-            ...prev.order, 
-            OrderStatus: newStatus, 
-            canShip: false 
+          order: {
+            ...prev.order,
+            OrderStatus: newStatus,
+            canShip: false
           },
           details: prev.details.map(detail => ({
             ...detail,
@@ -272,10 +311,10 @@ export default function ViewOrder() {
         }));
         setCheckAll(false);
       }
-      
+
       setTimeout(() => fetchOrders(), 1000);
       setShowDetail(false);
-      
+
     } catch (error) {
       console.error("Shipping error:", error);
       alert(error.response?.data?.message || "Không thể chuyển trạng thái đơn hàng");
@@ -346,14 +385,14 @@ export default function ViewOrder() {
   const handlePrepareItem = async (orderDetailId, currentStatus) => {
     try {
       const token = sessionStorage.getItem("token");
-      
+
       // Kiểm tra trạng thái hiện tại
       const orderDetailResponse = await axios.get(`/orders/seller/order-details/${orderDetailId}/check`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
       const orderDetail = orderDetailResponse.data;
-      
+
       // Chỉ cho phép thay đổi khi status = 1 hoặc 2
       if (orderDetail.currentStatus >= 3) {
         alert("Không thể thay đổi trạng thái khi đã bắt đầu vận chuyển");
@@ -362,7 +401,7 @@ export default function ViewOrder() {
 
       // Xác định trạng thái mới
       const isPrepared = currentStatus === 1; // Nếu đang là 1 thì chuyển sang 2, nếu đang là 2 thì chuyển về 1
-      
+
       await axios.put(`/orders/seller/order-details/${orderDetailId}/prepare`, {
         isPrepared: isPrepared
       }, {
@@ -384,11 +423,11 @@ export default function ViewOrder() {
       if (selectedOrder) {
         const updatedDetails = selectedOrder.details.map(detail =>
           detail.OrderDetailId === orderDetailId
-            ? { 
-                ...detail, 
-                Status: isPrepared ? 2 : 1, 
-                isPrepared: isPrepared 
-              }
+            ? {
+              ...detail,
+              Status: isPrepared ? 2 : 1,
+              isPrepared: isPrepared
+            }
             : detail
         );
 
@@ -418,77 +457,77 @@ export default function ViewOrder() {
   };
 
   const handlePrepareAll = async () => {
-  if (!selectedOrder) return;
+    if (!selectedOrder) return;
 
-  const token = sessionStorage.getItem("token");
-  const shouldPrepare = !checkAll;
+    const token = sessionStorage.getItem("token");
+    const shouldPrepare = !checkAll;
 
-  try {
-    // Lọc những sản phẩm có thể chuẩn bị
-    const detailsToUpdate = selectedOrder.details.filter(detail => {
-      // Chỉ xử lý sản phẩm có status 1 hoặc 2
-      if (detail.Status === 1 || detail.Status === 2) {
-        if (shouldPrepare) {
-          // Chỉ chuẩn bị những sản phẩm đang chờ chuẩn bị (status = 1)
-          return detail.Status === 1;
-        } else {
-          // Chỉ bỏ chuẩn bị những sản phẩm đã chuẩn bị (status = 2)
-          return detail.Status === 2;
+    try {
+      // Lọc những sản phẩm có thể chuẩn bị
+      const detailsToUpdate = selectedOrder.details.filter(detail => {
+        // Chỉ xử lý sản phẩm có status 1 hoặc 2
+        if (detail.Status === 1 || detail.Status === 2) {
+          if (shouldPrepare) {
+            // Chỉ chuẩn bị những sản phẩm đang chờ chuẩn bị (status = 1)
+            return detail.Status === 1;
+          } else {
+            // Chỉ bỏ chuẩn bị những sản phẩm đã chuẩn bị (status = 2)
+            return detail.Status === 2;
+          }
         }
+        return false;
+      });
+
+      if (detailsToUpdate.length === 0) {
+        alert(shouldPrepare ? "Không có sản phẩm nào đang chờ chuẩn bị" : "Không có sản phẩm nào đã chuẩn bị");
+        return;
       }
-      return false;
-    });
 
-    if (detailsToUpdate.length === 0) {
-      alert(shouldPrepare ? "Không có sản phẩm nào đang chờ chuẩn bị" : "Không có sản phẩm nào đã chuẩn bị");
-      return;
-    }
-
-    const promises = detailsToUpdate.map(detail =>
-      axios.put(`/orders/seller/order-details/${detail.OrderDetailId}/prepare`, {
-        isPrepared: shouldPrepare
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-    );
-
-    await Promise.all(promises);
-
-    const updatedDetails = selectedOrder.details.map(detail => {
-      if (detailsToUpdate.some(d => d.OrderDetailId === detail.OrderDetailId)) {
-        return {
-          ...detail,
-          Status: shouldPrepare ? 2 : 1,
+      const promises = detailsToUpdate.map(detail =>
+        axios.put(`/orders/seller/order-details/${detail.OrderDetailId}/prepare`, {
           isPrepared: shouldPrepare
-        };
-      }
-      return detail;
-    });
+        }, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+      );
 
-    const preparedCount = updatedDetails.filter(d => d.Status === 2).length;
-    const totalItems = updatedDetails.filter(d => d.Status === 1 || d.Status === 2).length;
-    const allPrepared = preparedCount === totalItems && totalItems > 0;
+      await Promise.all(promises);
 
-    setSelectedOrder(prev => ({
-      ...prev,
-      details: updatedDetails,
-      allPrepared: allPrepared,
-      order: {
-        ...prev.order,
-        canShip: (prev.order.OrderStatus === 2 || prev.order.OrderStatus === 7) && allPrepared
-      }
-    }));
+      const updatedDetails = selectedOrder.details.map(detail => {
+        if (detailsToUpdate.some(d => d.OrderDetailId === detail.OrderDetailId)) {
+          return {
+            ...detail,
+            Status: shouldPrepare ? 2 : 1,
+            isPrepared: shouldPrepare
+          };
+        }
+        return detail;
+      });
 
-    setCheckAll(allPrepared);
+      const preparedCount = updatedDetails.filter(d => d.Status === 2).length;
+      const totalItems = updatedDetails.filter(d => d.Status === 1 || d.Status === 2).length;
+      const allPrepared = preparedCount === totalItems && totalItems > 0;
 
-    alert(shouldPrepare ? "Đã đánh dấu tất cả sản phẩm đã chuẩn bị" : "Đã bỏ đánh dấu tất cả sản phẩm");
-    setTimeout(() => fetchOrders(), 500);
+      setSelectedOrder(prev => ({
+        ...prev,
+        details: updatedDetails,
+        allPrepared: allPrepared,
+        order: {
+          ...prev.order,
+          canShip: (prev.order.OrderStatus === 2 || prev.order.OrderStatus === 7) && allPrepared
+        }
+      }));
 
-  } catch (error) {
-    console.error("Prepare all error:", error);
-    alert(error.response?.data?.message || "Không thể cập nhật trạng thái");
-  }
-};
+      setCheckAll(allPrepared);
+
+      alert(shouldPrepare ? "Đã đánh dấu tất cả sản phẩm đã chuẩn bị" : "Đã bỏ đánh dấu tất cả sản phẩm");
+      setTimeout(() => fetchOrders(), 500);
+
+    } catch (error) {
+      console.error("Prepare all error:", error);
+      alert(error.response?.data?.message || "Không thể cập nhật trạng thái");
+    }
+  };
 
   const handleComplete = async (orderDetailId) => {
     if (!window.confirm("Xác nhận đã giao hàng thành công?")) {
@@ -523,7 +562,8 @@ export default function ViewOrder() {
     });
   };
 
-  const renderStatusBadge = (status, size = "normal") => {
+  // Dùng cho trạng thái đơn hàng (order)
+  const renderOrderStatusBadge = (status, size = "normal") => {
     const statusInfo = STATUS_MAP[status] || {
       label: "Không xác định",
       color: "bg-gray-100 text-gray-800",
@@ -531,7 +571,23 @@ export default function ViewOrder() {
     };
     const Icon = statusInfo.icon;
     const sizeClass = size === "small" ? "px-2 py-0.5 text-xs" : "px-3 py-1 text-sm";
+    return (
+      <span className={`inline-flex items-center gap-1.5 ${sizeClass} rounded-full font-medium ${statusInfo.color}`}>
+        <Icon className="w-3 h-3" />
+        {statusInfo.label}
+      </span>
+    );
+  };
 
+  // Dùng cho trạng thái chi tiết sản phẩm (order detail)
+  const renderDetailStatusBadge = (status, size = "normal") => {
+    const statusInfo = DETAIL_STATUS_MAP[status] || {
+      label: "Không xác định",
+      color: "bg-gray-100 text-gray-800",
+      icon: AlertCircle
+    };
+    const Icon = statusInfo.icon;
+    const sizeClass = size === "small" ? "px-2 py-0.5 text-xs" : "px-3 py-1 text-sm";
     return (
       <span className={`inline-flex items-center gap-1.5 ${sizeClass} rounded-full font-medium ${statusInfo.color}`}>
         <Icon className="w-3 h-3" />
@@ -557,21 +613,33 @@ export default function ViewOrder() {
       "Địa chỉ"
     ];
 
-    const data = displayedOrders.map(order => [
-      order.OrderId,
-      order.OrderDate,
-      order.CustomerName,
-      order.CustomerPhone,
-      STATUS_MAP[order.OrderStatus]?.label || "Không xác định",
-      `${fmt(order.FinalPrice)}đ`,
-      order.itemCount || 0,
-      `${order.preparedPercentage}%`,
-      order.AddressContent ? order.AddressContent.substring(0, 50) + "..." : ""
-    ]);
+    const data = displayedOrders.map(order => {
+      let preparedDisplay = "";
+      if (order.OrderStatus === 5) {
+        preparedDisplay = "Đã huỷ";
+      } else {
+        const total = order.itemCount || 0;
+        const processed = order.processedCount || 0;
+        const percentage = total > 0 ? ((processed / total) * 100) : "0";
+        preparedDisplay = `${percentage}% (${processed}/${total})`;
+      }
+
+      return [
+        order.OrderId,
+        order.CreatedAt,
+        order.CustomerName,
+        order.CustomerPhone,
+        STATUS_MAP[order.OrderStatus]?.label || "Không xác định",
+        `${fmt(order.FinalPrice)}đ`,
+        order.itemCount || 0,
+        preparedDisplay,
+        order.AddressContent
+      ];
+    });
 
     const csvContent = [
-      headers.join(","),
-      ...data.map(row => row.join(","))
+      headers.join(", "),
+      ...data.map(row => row.map(cell => `${cell}`).join(", "))
     ].join("\n");
 
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
@@ -579,7 +647,7 @@ export default function ViewOrder() {
     const url = URL.createObjectURL(blob);
 
     link.setAttribute("href", url);
-    link.setAttribute("download", `don-hang-${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute("download", `${new Date().toISOString().split('T')[0]}.csv`);
     link.style.visibility = "hidden";
     document.body.appendChild(link);
     link.click();
@@ -693,7 +761,7 @@ export default function ViewOrder() {
                   <Calendar className="w-4 h-4 text-gray-500" />
                   <span className="text-gray-600">{order.OrderDate}</span>
                 </div>
-                {renderStatusBadge(order.OrderStatus)}
+                {renderOrderStatusBadge(order.OrderStatus)}
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -741,7 +809,7 @@ export default function ViewOrder() {
                 </div>
               </div>
             </div>
-            
+
             <div className="border rounded-xl overflow-hidden">
               <div className="bg-gray-50 p-4 border-b flex justify-between items-center">
                 <div className="flex items-center gap-3">
@@ -780,21 +848,21 @@ export default function ViewOrder() {
                     <div className="flex gap-4 items-start">
                       <div className="flex-shrink-0 pt-2">
                         {/* Hiển thị checkbox chỉ cho sản phẩm chưa vận chuyển */}
-                        {(order.OrderStatus === 2 || order.OrderStatus === 7) && 
-                         (detail.Status === 1 || detail.Status === 2) && (
-                          <button
-                            onClick={() => handlePrepareItem(detail.OrderDetailId, detail.Status)}
-                            className={`w-6 h-6 rounded border-2 cursor-pointer flex items-center justify-center transition ${detail.Status === 2
+                        {(order.OrderStatus === 2 || order.OrderStatus === 7) &&
+                          (detail.Status === 1 || detail.Status === 2) && (
+                            <button
+                              onClick={() => handlePrepareItem(detail.OrderDetailId, detail.Status)}
+                              className={`w-6 h-6 rounded border-2 cursor-pointer flex items-center justify-center transition ${detail.Status === 2
                                 ? 'bg-green-100 border-green-500'
                                 : 'border-gray-300 hover:border-green-500 hover:bg-green-50'
-                              }`}
-                            title={detail.Status === 2 ? "Đã chuẩn bị - Nhấn để bỏ" : "Chưa chuẩn bị - Nhấn để đánh dấu"}
-                          >
-                            {detail.Status === 2 && (
-                              <Check className="w-4 h-4 text-green-600" />
-                            )}
-                          </button>
-                        )}
+                                }`}
+                              title={detail.Status === 2 ? "Đã chuẩn bị - Nhấn để bỏ" : "Chưa chuẩn bị - Nhấn để đánh dấu"}
+                            >
+                              {detail.Status === 2 && (
+                                <Check className="w-4 h-4 text-green-600" />
+                              )}
+                            </button>
+                          )}
                         {/* Hiển thị icon cho các trạng thái khác */}
                         {detail.Status === 3 && (
                           <div className="w-6 h-6 rounded bg-purple-100 border-2 border-purple-500 flex items-center justify-center">
@@ -853,24 +921,9 @@ export default function ViewOrder() {
                             <div className="text-lg font-bold text-red-500">
                               {fmt(detail.finalPrice)}đ
                             </div>
-                            <div className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs mt-2 ${STATUS_MAP[detail.Status]?.color || 'bg-gray-100 text-gray-800'}`}>
-                              {STATUS_MAP[detail.Status]?.label || 'Không xác định'}
+                            <div className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs mt-2 ${DETAIL_STATUS_MAP[detail.Status]?.color || 'bg-gray-100 text-gray-800'}`}>
+                              {DETAIL_STATUS_MAP[detail.Status]?.label || 'Không xác định'}
                             </div>
-                            {detail.Status === 2 && (
-                              <div className="text-xs text-green-600 mt-1">
-                                ✓ Đã chuẩn bị
-                              </div>
-                            )}
-                            {detail.Status === 3 && (
-                              <div className="text-xs text-purple-600 mt-1">
-                                ✓ Đang giao hàng
-                              </div>
-                            )}
-                            {detail.Status === 4 && (
-                              <div className="text-xs text-blue-600 mt-1">
-                                ✓ Đã giao hàng
-                              </div>
-                            )}
                           </div>
                         </div>
                       </div>
@@ -1080,7 +1133,7 @@ export default function ViewOrder() {
                                 <Calendar className="w-4 h-4 text-gray-400" />
                                 <span className="text-gray-600">{order.CreatedAt}</span>
                               </div>
-                              {renderStatusBadge(order.OrderStatus)}
+                              {renderOrderStatusBadge(order.OrderStatus)}
                             </div>
                             <div className="flex items-center gap-3">
                               <span className="text-lg font-bold text-red-500">{fmt(order.FinalPrice)}đ</span>
@@ -1102,12 +1155,12 @@ export default function ViewOrder() {
                                   <div className="space-y-2">
                                     <div className="flex items-center gap-2">
                                       <User className="w-4 h-4 text-gray-400" />
-                                      <span className="font-medium">{order.CustomerName}</span>
+                                      <span className="font-medium">{order.AddressName}</span>
                                     </div>
                                     <div className="flex items-center gap-2">
                                       <Phone className="w-4 h-4 text-gray-400" />
-                                      <a href={`tel:${order.CustomerPhone}`} className="text-blue-600 hover:underline">
-                                        {order.CustomerPhone}
+                                      <a href={`tel:${order.AddressPhone}`} className="text-blue-600 hover:underline">
+                                        {order.AddressPhone}
                                       </a>
                                     </div>
                                   </div>
@@ -1116,8 +1169,6 @@ export default function ViewOrder() {
                                 <div>
                                   <h4 className="text-sm font-medium text-gray-500 mb-2">Địa chỉ giao hàng</h4>
                                   <div className="space-y-1">
-                                    <p className="font-medium">{order.AddressName}</p>
-                                    <p className="text-gray-600 text-sm">{order.AddressPhone}</p>
                                     <p className="text-gray-600 text-sm">{order.AddressContent}</p>
                                   </div>
                                 </div>
@@ -1138,14 +1189,14 @@ export default function ViewOrder() {
                                             e.target.src = "https://via.placeholder.com/40";
                                           }}
                                         />
-                                        {(order.OrderStatus === 2 || order.OrderStatus === 7) && 
-                                         (detail.Status === 1 || detail.Status === 2) && (
-                                          <div className={`absolute -top-1 -right-1 w-4 h-4 rounded-full border border-white ${detail.Status === 2 ? 'bg-green-500' : 'bg-gray-300'}`}>
-                                            {detail.Status === 2 && (
-                                              <Check className="w-3 h-3 text-white" />
-                                            )}
-                                          </div>
-                                        )}
+                                        {(order.OrderStatus === 2 || order.OrderStatus === 7) &&
+                                          (detail.Status === 1 || detail.Status === 2) && (
+                                            <div className={`absolute -top-1 -right-1 w-4 h-4 rounded-full border border-white ${detail.Status === 2 ? 'bg-green-500' : 'bg-gray-300'}`}>
+                                              {detail.Status === 2 && (
+                                                <Check className="w-3 h-3 text-white" />
+                                              )}
+                                            </div>
+                                          )}
                                       </div>
                                       <div className="flex-1">
                                         <p className="font-medium text-sm truncate">{detail.ProductName}</p>
@@ -1158,7 +1209,7 @@ export default function ViewOrder() {
                                           {fmt(detail.UnitPrice * detail.Quantity)}đ
                                         </div>
                                         <div className="text-xs text-gray-500 mt-1">
-                                          {renderStatusBadge(detail.Status, "small")}
+                                          {renderDetailStatusBadge(detail.Status, "small")}
                                         </div>
                                       </div>
                                     </div>
@@ -1173,13 +1224,13 @@ export default function ViewOrder() {
                                   {(order.OrderStatus === 2 || order.OrderStatus === 7) && (
                                     <div className="mt-4">
                                       <div className="flex justify-between text-sm text-gray-600 mb-1">
-                                        <span>Tiến độ chuẩn bị</span>
-                                        <span>{order.preparedCount || 0}/{order.totalItems || 0}</span>
+                                        <span>Tiến độ xử lý</span>
+                                        <span>{order.processedCount || 0}/{order.itemCount || 0}</span>
                                       </div>
                                       <div className="w-full bg-gray-200 rounded-full h-2">
                                         <div
                                           className="bg-green-500 h-2 rounded-full transition-all duration-300"
-                                          style={{ width: `${order.preparedPercentage || 0}%` }}
+                                          style={{ width: `${order.processedPercentage || 0}%` }}
                                         ></div>
                                       </div>
                                     </div>
@@ -1208,8 +1259,8 @@ export default function ViewOrder() {
 
                                 {(order.OrderStatus === 2 || order.OrderStatus === 7) && !order.canShip && (
                                   <div className="text-sm text-gray-500 text-center p-2">
-                                    {order.preparedCount === 0 ? "Chưa có sản phẩm nào được chuẩn bị" : 
-                                     `Cần chuẩn bị thêm ${order.totalItems - order.preparedCount} sản phẩm`}
+                                    {order.pendingCount === 0 ? "Chưa có sản phẩm nào được chuẩn bị" :
+                                      `Cần chuẩn bị thêm ${order.pendingCount} sản phẩm`}
                                   </div>
                                 )}
 

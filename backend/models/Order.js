@@ -515,70 +515,79 @@ const OrderModel = {
     const stallId = stallRows[0].StallId;
 
     let query = `
-      SELECT DISTINCT
-        o.OrderId,
-        o.OrderDate,
-        o.FinalPrice,
-        o.Status as OrderStatus,
-        o.CreatedAt,
-        o.UpdatedAt,
-        a.Content as AddressContent,
-        a.Name as AddressName,
-        a.Phone as AddressPhone,
-        acc.Name as CustomerName,
-        acc.Phone as CustomerPhone,
-        pm.MethodName,
-        (
-          SELECT COUNT(*) 
-          FROM OrderDetails od2 
-          WHERE od2.OrderId = o.OrderId 
-            AND od2.ProductId IN (
-              SELECT ProductId FROM Products WHERE StallId = ?
-            )
-            AND od2.Status IN (1,2,3,4,5,6)
-        ) as itemCount,
-        (
-          SELECT COUNT(*) 
-          FROM OrderDetails od2 
-          WHERE od2.OrderId = o.OrderId 
-            AND od2.ProductId IN (
-              SELECT ProductId FROM Products WHERE StallId = ?
-            )
-            AND od2.Status = 2
-        ) as preparedCount,
-        (
-          SELECT SUM(od2.UnitPrice * od2.Quantity)
-          FROM OrderDetails od2 
-          WHERE od2.OrderId = o.OrderId 
-            AND od2.ProductId IN (
-              SELECT ProductId FROM Products WHERE StallId = ?
-            )
-            AND od2.Status IN (1,2,3,4,5,6)
-        ) as SubTotal,
-        (
-          SELECT SUM(od2.ShipFee)
-          FROM OrderDetails od2 
-          WHERE od2.OrderId = o.OrderId 
-            AND od2.ProductId IN (
-              SELECT ProductId FROM Products WHERE StallId = ?
-            )
-            AND od2.Status IN (1,2,3,4,5,6)
-        ) as ShipFee
-      FROM Orders o
-      JOIN Address a ON o.AddressId = a.AddressId
-      JOIN Accounts acc ON o.AccountId = acc.AccountId
-      LEFT JOIN PaymentMethods pm ON o.MethodId = pm.MethodId
-      WHERE EXISTS (
-        SELECT 1 FROM OrderDetails od
-        JOIN Products p ON od.ProductId = p.ProductId
-        WHERE od.OrderId = o.OrderId
-          AND p.StallId = ?
-          AND od.Status IN (1,2,3,4,5,6)
-      )
-      AND o.Status IN (2,3,4,5,6,7)
-    `;
+  SELECT DISTINCT
+    o.OrderId,
+    o.OrderDate,
+    o.FinalPrice,
+    o.Status as OrderStatus,
+    o.CreatedAt,
+    o.UpdatedAt,
+    a.Content as AddressContent,
+    a.Name as AddressName,
+    a.Phone as AddressPhone,
+    acc.Name as CustomerName,
+    acc.Phone as CustomerPhone,
+    pm.MethodName,
+    (
+      SELECT COUNT(*) 
+      FROM OrderDetails od2 
+      WHERE od2.OrderId = o.OrderId 
+        AND od2.ProductId IN (
+          SELECT ProductId FROM Products WHERE StallId = ?
+        )
+        AND od2.Status IN (1,2,3,4,5,6)
+    ) as itemCount,
+    (
+      SELECT COUNT(*) 
+      FROM OrderDetails od2 
+      WHERE od2.OrderId = o.OrderId 
+        AND od2.ProductId IN (
+          SELECT ProductId FROM Products WHERE StallId = ?
+        )
+        AND od2.Status IN (2,3,4,6)   -- processedCount
+    ) as processedCount,
+    (
+      SELECT COUNT(*) 
+      FROM OrderDetails od2 
+      WHERE od2.OrderId = o.OrderId 
+        AND od2.ProductId IN (
+          SELECT ProductId FROM Products WHERE StallId = ?
+        )
+        AND od2.Status = 2             -- readyToShipCount
+    ) as readyToShipCount,
+    (
+      SELECT COUNT(*) 
+      FROM OrderDetails od2 
+      WHERE od2.OrderId = o.OrderId 
+        AND od2.ProductId IN (
+          SELECT ProductId FROM Products WHERE StallId = ?
+        )
+        AND od2.Status = 1             -- pendingCount
+    ) as pendingCount,
+    (
+      SELECT COUNT(*) 
+      FROM OrderDetails od2 
+      WHERE od2.OrderId = o.OrderId 
+        AND od2.ProductId IN (
+          SELECT ProductId FROM Products WHERE StallId = ?
+        )
+        AND od2.Status = 5             -- cancelledCount
+    ) as cancelledCount
+  FROM Orders o
+  JOIN Address a ON o.AddressId = a.AddressId
+  JOIN Accounts acc ON o.AccountId = acc.AccountId
+  LEFT JOIN PaymentMethods pm ON o.MethodId = pm.MethodId
+  WHERE EXISTS (
+    SELECT 1 FROM OrderDetails od
+    JOIN Products p ON od.ProductId = p.ProductId
+    WHERE od.OrderId = o.OrderId
+      AND p.StallId = ?
+      AND od.Status IN (1,2,3,4,5,6)
+  )
+  AND o.Status IN (2,3,4,5,6,7)
+`;
 
-    const params = [stallId, stallId, stallId, stallId, stallId];
+    const params = [stallId, stallId, stallId, stallId, stallId, stallId];
 
     // Thêm điều kiện lọc
     const whereConditions = [];
