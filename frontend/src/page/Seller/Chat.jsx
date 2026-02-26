@@ -497,6 +497,20 @@ export default function SellerChat() {
     };
   }, [socket]);
 
+
+  useEffect(() => {
+  if (!socket) return;
+  const handleIncomingCall = (callData) => {
+    if (callData.ReceiverId === sellerId) {
+      setActiveCall(callData);
+      setIsCallModalOpen(true);
+    }
+  };
+  socket.on("incomingCall", handleIncomingCall);
+  return () => socket.off("incomingCall", handleIncomingCall);
+}, [socket, sellerId]);
+
+
   const sendMessage = async (content) => {
     if (!content.trim() || !selectedChat) return;
     try {
@@ -543,18 +557,26 @@ export default function SellerChat() {
       <Header />
 
       {activeCall && (
-        <CallModal
-          call={activeCall}
-          currentUserId={sellerId}
-          isIncoming={false}
-          onEndCall={() => {
-            setActiveCall(null);
-            setIsCallModalOpen(false);
-          }}
-          isOpen={isCallModalOpen}
-          socket={socket}
-        />
-      )}
+  <CallModal
+    call={activeCall}
+    currentUserId={sellerId}
+    isIncoming={activeCall.CallerId !== sellerId}
+    onAcceptCall={async () => {
+      await axios.post('/calls/accept', { callId: activeCall.CallId });
+    }}
+    onRejectCall={async () => {
+      await axios.post('/calls/reject', { callId: activeCall.CallId });
+      setActiveCall(null);
+      setIsCallModalOpen(false);
+    }}
+    onEndCall={() => {
+      setActiveCall(null);
+      setIsCallModalOpen(false);
+    }}
+    isOpen={isCallModalOpen}
+    socket={socket}
+  />
+)}
 
       <div className="max-w-6xl mx-auto mt-4 flex gap-6">
         <SellerSidebar />

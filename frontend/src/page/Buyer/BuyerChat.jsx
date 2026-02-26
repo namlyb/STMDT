@@ -149,6 +149,20 @@ export default function BuyerChat({ sellerId, onClose }) {
     };
   }, [socket]);
 
+  // Lắng nghe cuộc gọi đến
+useEffect(() => {
+  if (!socket) return;
+  const handleIncomingCall = (callData) => {
+    // Chỉ hiển thị nếu cuộc gọi dành cho user hiện tại
+    if (callData.ReceiverId === buyerId) {
+      setActiveCall(callData);
+      setIsCallModalOpen(true);
+    }
+  };
+  socket.on("incomingCall", handleIncomingCall);
+  return () => socket.off("incomingCall", handleIncomingCall);
+}, [socket, buyerId]);
+
   const handleSendMessage = async (content) => {
     if (!selectedChat || !content.trim()) return;
     try {
@@ -238,18 +252,36 @@ export default function BuyerChat({ sellerId, onClose }) {
 
       {/* Call Modal */}
       {activeCall && (
-        <CallModal
-          call={activeCall}
-          currentUserId={buyerId}
-          isIncoming={false}
-          onEndCall={() => {
-            setActiveCall(null);
-            setIsCallModalOpen(false);
-          }}
-          isOpen={isCallModalOpen}
-          socket={socket}
-        />
-      )}
+  <CallModal
+    call={activeCall}
+    currentUserId={buyerId}
+    isIncoming={activeCall.CallerId !== buyerId} // tự động xác định
+    onAcceptCall={async () => {
+      try {
+        await axios.post('/calls/accept', { callId: activeCall.CallId });
+        // Sau khi chấp nhận, WebRTC sẽ được khởi tạo trong CallModal
+      } catch (error) {
+        console.error('Accept call failed:', error);
+        alert('Không thể chấp nhận cuộc gọi');
+      }
+    }}
+    onRejectCall={async () => {
+      try {
+        await axios.post('/calls/reject', { callId: activeCall.CallId });
+        setActiveCall(null);
+        setIsCallModalOpen(false);
+      } catch (error) {
+        console.error('Reject call failed:', error);
+      }
+    }}
+    onEndCall={() => {
+      setActiveCall(null);
+      setIsCallModalOpen(false);
+    }}
+    isOpen={isCallModalOpen}
+    socket={socket}
+  />
+)}
 
       {/* Chat Area */}
       <div className="flex flex-1 overflow-hidden">
