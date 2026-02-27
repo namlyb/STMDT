@@ -16,5 +16,5 @@ router.get("/:callId/signals", verifyToken, CallController.getCallSignals);
 // Cập nhật trạng thái cuộc gọi
 router.put("/status", verifyToken, CallController.updateCallStatus);
 router.post("/accept", verifyToken, CallController.acceptCall);
-
+router.post("/reject", verifyToken, CallController.rejectCall);
 module.exports = router;

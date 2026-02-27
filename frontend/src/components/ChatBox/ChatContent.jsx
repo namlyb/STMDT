@@ -69,17 +69,16 @@ const ChatContent = ({
   messages = [],
   onSendMessage,
   onNewMessage,
-  onInitiateCall, // ✅ thêm prop
+  onInitiateCall,
   socket,
 }) => {
   const [input, setInput] = useState("");
   const [showFileUpload, setShowFileUpload] = useState(false);
   const [imageViewer, setImageViewer] = useState(null);
-  const [activeCall, setActiveCall] = useState(null); // chỉ outgoing call
+  const [activeCall, setActiveCall] = useState(null);
   const [isCallModalOpen, setIsCallModalOpen] = useState(false);
   const scrollRef = useRef(null);
 
-  // Gửi tin nhắn text
   const send = async () => {
     if (!input.trim() || !chat) return;
     if (onSendMessage) {
@@ -92,12 +91,10 @@ const ChatContent = ({
     }
   };
 
-  // Khởi tạo cuộc gọi (outgoing) - dùng onInitiateCall nếu có
   const initiateCall = async (type) => {
     if (onInitiateCall) {
       onInitiateCall(type);
     } else {
-      // fallback logic cũ (nếu component được dùng standalone)
       if (!chat) return;
       try {
         let receiverId;
@@ -127,7 +124,6 @@ const ChatContent = ({
     }
   };
 
-  // Lắng nghe sự kiện callAccepted và callEnded
   useEffect(() => {
     if (!socket) return;
     const handleCallAccepted = (updatedCall) => {
@@ -149,14 +145,12 @@ const ChatContent = ({
     };
   }, [socket, activeCall]);
 
-  // Auto-scroll
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
 
-  // ========== Helper render file ==========
   const getFileIcon = (mimeType, fileName) => {
     const safeMimeType = mimeType || "";
     if (safeMimeType.startsWith("image/")) return <FaImage className="text-blue-500" />;
@@ -244,7 +238,6 @@ const ChatContent = ({
     );
   };
 
-  // Render tin nhắn (bao gồm call_invite, call_end)
   const renderMessage = (message) => {
     if (message.MessageType === "call_invite" || message.MessageType === "call_end") {
       return <div className="text-center text-sm text-gray-500 italic py-2">{message.Content}</div>;
@@ -261,7 +254,6 @@ const ChatContent = ({
 
   return (
     <div className="flex-1 flex flex-col relative">
-      {/* Call Modal - chỉ cho outgoing call */}
       {activeCall && (
         <CallModal
           call={activeCall}
@@ -276,7 +268,6 @@ const ChatContent = ({
         />
       )}
 
-      {/* Image Viewer Modal */}
       {imageViewer && (
         <div
           className="fixed inset-0 bg-black/30 backdrop-blur-sm z-[99999] flex items-center justify-center"
@@ -309,7 +300,6 @@ const ChatContent = ({
         </div>
       )}
 
-      {/* File Upload Modal */}
       {showFileUpload && (
         <FileUploadModal
           chatId={chat?.ChatId}
@@ -321,7 +311,6 @@ const ChatContent = ({
         />
       )}
 
-      {/* Messages Area */}
       <div ref={scrollRef} className="flex-1 p-3 overflow-y-auto bg-gray-50" style={{ maxHeight: "500px", overflowX: "hidden" }}>
         {uniqueMessages.map((m, index) => {
           const prev = uniqueMessages[index - 1];
@@ -334,6 +323,30 @@ const ChatContent = ({
           let radius = "rounded-lg";
           if (!samePrev && sameNext) radius = isMe ? "rounded-lg rounded-tr-2xl" : "rounded-lg rounded-tl-2xl";
           else if (samePrev && !sameNext) radius = isMe ? "rounded-lg rounded-br-2xl" : "rounded-lg rounded-bl-2xl";
+
+          // Xử lý call_missed
+          if (m.MessageType === 'call_missed') {
+            return (
+              <div key={m.MessageId || `${m.SendAt}_${index}`}>
+                {showTime && <div className="text-center text-xs text-gray-400 my-2">{formatTime(m.SendAt)}</div>}
+                <div className="flex justify-center">
+                  <div className="bg-gray-100 rounded-lg p-3 max-w-sm">
+                    <p className="text-sm text-gray-700 mb-2">{m.Content}</p>
+                    <button
+                      onClick={() => {
+                        // Xác định loại cuộc gọi từ nội dung (nếu có từ "video")
+                        const isVideo = m.Content.toLowerCase().includes('video');
+                        initiateCall(isVideo ? 'video' : 'audio');
+                      }}
+                      className="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600"
+                    >
+                      {m.Content.toLowerCase().includes('video') ? 'Gọi video lại' : 'Gọi lại'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          }
 
           if (m.MessageType === "call_invite" || m.MessageType === "call_end") {
             return (
@@ -374,7 +387,6 @@ const ChatContent = ({
         })}
       </div>
 
-      {/* Input Area */}
       <div className="px-3 py-3 border-t flex gap-2 bg-white">
         <div className="flex gap-1 mr-2">
           <button

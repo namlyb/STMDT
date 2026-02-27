@@ -81,20 +81,31 @@ const CallController = {
   // Kết thúc cuộc gọi
   endCall: async (req, res) => {
     try {
-      const { callId, duration } = req.body;
+      const { callId, duration, reason } = req.body;
 
       const call = await CallSession.getById(callId);
       if (!call) {
         return res.status(404).json({ message: "Cuộc gọi không tồn tại" });
       }
 
-      await CallSession.endCall(callId, duration);
+      let status = 'ended';
+      if (reason === 'missed' && call.Status === 'ringing') {
+        status = 'missed';
+      } else if (reason === 'rejected' && call.Status === 'ringing') {
+        status = 'rejected';
+      }
+
+      if (status !== 'ended') {
+        await CallSession.updateStatusWithEndTime(callId, status);
+      } else {
+        await CallSession.endCall(callId, duration || 0);
+      }
 
       const updatedCall = await CallSession.getById(callId);
 
       const io = req.app.get("io");
       io.to(`call_${callId}`).emit("callEnded", updatedCall);
-      io.to(`chat_${call.ChatId}`).emit("callEnded", updatedCall); // gửi thêm vào chat room
+      io.to(`chat_${call.ChatId}`).emit("callEnded", updatedCall);
 
       io.to(`call_${callId}`).socketsLeave(`call_${callId}`);
 
@@ -102,6 +113,29 @@ const CallController = {
     } catch (error) {
       console.error("End call error:", error);
       res.status(500).json({ message: "Lỗi kết thúc cuộc gọi" });
+    }
+  },
+
+  // Thêm hàm rejectCall (có thể gọi riêng khi từ chối)
+  rejectCall: async (req, res) => {
+    try {
+      const { callId } = req.body;
+      const call = await CallSession.getById(callId);
+      if (!call) {
+        return res.status(404).json({ message: "Cuộc gọi không tồn tại" });
+      }
+      if (call.Status !== 'ringing') {
+        return res.status(400).json({ message: "Không thể từ chối cuộc gọi ở trạng thái này" });
+      }
+      await CallSession.updateStatusWithEndTime(callId, 'rejected');
+      const updatedCall = await CallSession.getById(callId);
+      const io = req.app.get("io");
+      io.to(`call_${callId}`).emit("callRejected", updatedCall);
+      io.to(`chat_${call.ChatId}`).emit("callRejected", updatedCall);
+      res.json(updatedCall);
+    } catch (error) {
+      console.error("Reject call error:", error);
+      res.status(500).json({ message: "Lỗi từ chối cuộc gọi" });
     }
   },
 
@@ -142,7 +176,7 @@ const CallController = {
       });
 
       const io = req.app.get("io");
-      io.to(`call_${callId}`).emit("signal", {
+      io.to(`call_${callId}`).emit("webrtcSignal", {
         signalId,
         callId,
         senderId,

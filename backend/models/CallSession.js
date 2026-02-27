@@ -94,7 +94,14 @@ create: async (callData) => {
       [accountId, accountId, accountId, accountId, limit]
     );
     return rows;
-  }
+  },
+
+  updateStatusWithEndTime: async (callId, status) => {
+    await pool.query(
+      `UPDATE CallSessions SET Status = ?, EndTime = NOW(3), Duration = 0 WHERE CallId = ?`,
+      [status, callId]
+    );
+  },
 };
 
 module.exports = CallSession;
